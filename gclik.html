@@ -330,6 +330,71 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 #toast.error { border-color: rgba(242,92,110,0.4); }
 
 
+
+/* ── ESCRITÓRIOS (NETFLIX STYLE) ── */
+#escritorio-screen {
+  display: none; position: fixed; inset: 0; z-index: 500;
+  background: var(--bg);
+  background-image: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(79,142,247,0.18) 0%, transparent 70%);
+  align-items: center; justify-content: center; flex-direction: column;
+}
+.escritorio-header { text-align: center; margin-bottom: 48px; }
+.escritorio-logo { font-family: var(--font-display); font-size: 36px; font-weight: 800; color: var(--accent); margin-bottom: 8px; }
+.escritorio-sub { font-size: 15px; color: var(--text2); }
+.escritorio-grid { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; max-width: 800px; }
+.escritorio-card {
+  width: 160px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 28px 20px; border-radius: 16px;
+  background: var(--surface); border: 2px solid var(--border);
+  transition: all 0.2s; position: relative;
+}
+.escritorio-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 8px 32px rgba(79,142,247,0.2); }
+.escritorio-avatar {
+  width: 72px; height: 72px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 28px; font-weight: 800; color: #fff;
+}
+.escritorio-name { font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--text); text-align: center; }
+.escritorio-count { font-size: 11px; color: var(--text3); }
+.escritorio-add {
+  width: 160px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 28px 20px; border-radius: 16px;
+  background: none; border: 2px dashed var(--border2);
+  transition: all 0.2s;
+}
+.escritorio-add:hover { border-color: var(--accent); }
+.escritorio-add-icon { width: 72px; height: 72px; border-radius: 14px; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 28px; color: var(--text3); }
+.escritorio-add-label { font-size: 13px; color: var(--text3); }
+.escritorio-badge {
+  position: absolute; top: -6px; right: -6px;
+  background: var(--accent); color: #fff; border-radius: 999px;
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+}
+
+/* ── ESCRITÓRIO ATIVO NO TOPBAR ── */
+.escritorio-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 999px;
+  padding: 5px 14px 5px 8px; font-size: 13px; color: var(--text2);
+  cursor: pointer; transition: all 0.2s;
+}
+.escritorio-pill:hover { border-color: var(--accent); color: var(--text); }
+.escritorio-pill-avatar {
+  width: 24px; height: 24px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 11px; color: #fff;
+}
+.escritorio-geral { background: linear-gradient(135deg, #4f8ef7, #a78bfa); }
+
+
+.cor-btn {
+  width: 32px; height: 32px; border-radius: 8px; cursor: pointer;
+  border: 3px solid transparent; transition: all 0.2s;
+}
+.cor-btn.selected { border-color: #fff; transform: scale(1.15); }
+
 /* ── DROPZONE ── */
 .dropzone-active { border-color: var(--accent) !important; background: var(--accent-soft) !important; }
 
@@ -371,11 +436,81 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   </div>
 </div>
 
+
+<!-- ════════════ SELEÇÃO DE ESCRITÓRIO ════════════ -->
+<div id="escritorio-screen" style="display:none;position:fixed;inset:0;z-index:500;background:var(--bg);background-image:radial-gradient(ellipse 70% 50% at 50% 0%, rgba(79,142,247,0.18) 0%, transparent 70%);align-items:center;justify-content:center;flex-direction:column;flex:1">
+  <div class="escritorio-header">
+    <div class="escritorio-logo">JCR</div>
+    <div class="escritorio-sub">Selecione o escritório para trabalhar</div>
+  </div>
+  <div class="escritorio-grid" id="escritorio-grid"></div>
+  <div style="margin-top:32px">
+    <button class="btn btn-ghost btn-sm" onclick="selecionarEscritorio(null)" style="opacity:0.6">
+      📊 Ver todos (visão geral)
+    </button>
+  </div>
+</div>
+
+<!-- MODAL ESCRITÓRIO -->
+<div class="modal-overlay" id="modal-escritorio">
+  <div class="modal" style="width:460px">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-esc-title">Novo Escritório</div>
+      <button class="btn-icon" onclick="closeModal('modal-escritorio')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="esc-id">
+      <div class="form-group">
+        <label>Nome do Escritório *</label>
+        <input type="text" id="esc-nome" placeholder="Ex: JCR Consultoria, Lewis Contábil…">
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>CNPJ</label>
+          <input type="text" id="esc-cnpj" placeholder="00.000.000/0001-00" oninput="maskCNPJ(this)" maxlength="18">
+        </div>
+        <div class="form-group">
+          <label>Responsável</label>
+          <input type="text" id="esc-responsavel" placeholder="Nome do responsável">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Cor do perfil</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px" id="esc-cores">
+          <div class="cor-btn" data-cor="#4f8ef7" style="background:#4f8ef7" onclick="selecionarCor('#4f8ef7')"></div>
+          <div class="cor-btn" data-cor="#2dd4a0" style="background:#2dd4a0" onclick="selecionarCor('#2dd4a0')"></div>
+          <div class="cor-btn" data-cor="#f25c6e" style="background:#f25c6e" onclick="selecionarCor('#f25c6e')"></div>
+          <div class="cor-btn" data-cor="#f2924a" style="background:#f2924a" onclick="selecionarCor('#f2924a')"></div>
+          <div class="cor-btn" data-cor="#a78bfa" style="background:#a78bfa" onclick="selecionarCor('#a78bfa')"></div>
+          <div class="cor-btn" data-cor="#f5c842" style="background:#f5c842" onclick="selecionarCor('#f5c842')"></div>
+          <div class="cor-btn" data-cor="#ec4899" style="background:#ec4899" onclick="selecionarCor('#ec4899')"></div>
+          <div class="cor-btn" data-cor="#14b8a6" style="background:#14b8a6" onclick="selecionarCor('#14b8a6')"></div>
+        </div>
+        <input type="hidden" id="esc-cor" value="#4f8ef7">
+      </div>
+      <div class="form-group">
+        <label>Observações</label>
+        <textarea id="esc-obs" placeholder="Informações adicionais…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-escritorio')">Cancelar</button>
+      <button class="btn btn-accent" onclick="salvarEscritorio()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- ════════════════════════ APP ════════════════════════ -->
 <div id="app">
   <!-- TOPBAR -->
   <div class="topbar">
     <div class="topbar-logo">JCR</div>
+    <div class="escritorio-pill" onclick="voltarEscritorios()" title="Trocar escritório">
+      <div class="escritorio-pill-avatar" id="esc-pill-avatar" style="background:#4f8ef7">J</div>
+      <span id="esc-pill-nome">Todos</span>
+      <span style="color:var(--text3);font-size:11px">▾</span>
+    </div>
     <nav class="topbar-nav">
       <button class="nav-btn active" onclick="showPage('dashboard')" id="nav-dashboard">
         <span>📊</span> Dashboard
@@ -394,6 +529,9 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       </button>
       <button class="nav-btn" onclick="showPage('templates')" id="nav-templates">
         <span>📋</span> Templates
+      </button>
+      <button class="nav-btn" onclick="showPage('escritorios')" id="nav-escritorios">
+        <span>🏛️</span> Escritórios
       </button>
     </nav>
     <div class="topbar-right">
@@ -503,6 +641,7 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
               <tr>
                 <th>Razão Social</th>
                 <th>CNPJ</th>
+                <th>Escritório</th>
                 <th>Regime</th>
                 <th>Responsável</th>
                 <th>Status</th>
@@ -541,6 +680,9 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
           <option>Média</option>
           <option>Baixa</option>
         </select>
+        <select class="filter-select" id="filter-escritorio-tarefa" onchange="filtrarTarefaEscritorio(this.value)">
+          <option value="">Todos os escritórios</option>
+        </select>
         <select class="filter-select" id="filter-cliente-tarefa" onchange="filtrarTarefaCliente(this.value)">
           <option value="">Todos os clientes</option>
         </select>
@@ -574,7 +716,12 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
           <div class="page-title">Agenda Fiscal</div>
           <div class="page-subtitle">Obrigações e vencimentos</div>
         </div>
-        <button class="btn btn-accent" onclick="openModalObrigacao()">+ Nova Obrigação</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select class="filter-select" id="filter-escritorio-agenda" onchange="filtrarAgendaEscritorio(this.value)">
+            <option value="">Todos os escritórios</option>
+          </select>
+          <button class="btn btn-accent" onclick="openModalObrigacao()">+ Nova Obrigação</button>
+        </div>
       </div>
       <div class="calendar-wrapper">
         <div class="calendar-grid">
@@ -689,6 +836,19 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       </div>
     </div>
 
+
+    <!-- ═══ ESCRITÓRIOS ═══ -->
+    <div class="page" id="page-escritorios">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Escritórios</div>
+          <div class="page-subtitle">Gerencie os escritórios cadastrados</div>
+        </div>
+        <button class="btn btn-accent" onclick="openModalEscritorio()">+ Novo Escritório</button>
+      </div>
+      <div class="stats-grid" id="esc-stats-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))"></div>
+    </div>
+
   </div><!-- /main-content -->
 </div><!-- /app -->
 
@@ -703,6 +863,12 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
     </div>
     <div class="modal-body">
       <input type="hidden" id="cliente-id">
+      <div class="form-group" id="cli-escritorio-group">
+        <label>Escritório *</label>
+        <select id="cli-escritorio-id">
+          <option value="">Selecione o escritório</option>
+        </select>
+      </div>
       <div class="form-row form-row-2">
         <div class="form-group">
           <label>Razão Social *</label>
@@ -1128,14 +1294,19 @@ async function checkSession() {
 async function initApp(user) {
   currentUser = user;
   document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'flex';
   const name = user.email.split('@')[0];
   document.getElementById('user-name').textContent = name;
   document.getElementById('user-avatar').textContent = name[0].toUpperCase();
   setGreeting();
-  await Promise.all([loadClientes(), loadTarefas(), loadObrigacoes(), loadTemplates()]);
+  await Promise.all([loadEscritorios(), loadClientes(), loadTarefas(), loadObrigacoes(), loadTemplates()]);
   renderDashboard();
   renderCalendar();
+  // Mostrar tela de seleção de escritório
+  if (allEscritorios.length > 0) {
+    mostrarTelaEscritorios();
+  } else {
+    document.getElementById('app').style.display = 'flex';
+  }
 }
 
 function setGreeting() {
@@ -1154,6 +1325,7 @@ function showPage(id) {
   if (id === 'agenda') renderCalendar();
   if (id === 'alertas') renderAlertas();
   if (id === 'templates') renderTemplates();
+  if (id === 'escritorios') renderEscritoriosPage();
   if (id === 'tarefas') renderTarefas();
   if (id === 'clientes') renderClientes();
 }
@@ -1182,7 +1354,8 @@ function renderClientes() {
     const matchQ = !q || c.razao_social.toLowerCase().includes(q) || (c.cnpj||'').includes(q);
     const matchR = !filterCliRegime || c.regime === filterCliRegime;
     const matchS = !filterCliStatus || c.status === filterCliStatus;
-    return matchQ && matchR && matchS;
+    const matchE = !escritorioAtivo || c.escritorio_id === escritorioAtivo;
+    return matchQ && matchR && matchS && matchE;
   });
   const tbody = document.getElementById('tbody-clientes');
   if (!list.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icon">🏢</div><p>Nenhum cliente encontrado</p></div></td></tr>`; return; }
@@ -1222,6 +1395,7 @@ function openModalCliente(id) {
       document.getElementById('cli-responsavel').value = c.responsavel||'';
       document.getElementById('cli-tipo-empresa').value = c.tipo_empresa||'';
       document.getElementById('cli-estado').value = c.estado||'';
+      document.getElementById('cli-escritorio-id').value = c.escritorio_id||'';
       document.getElementById('cli-email').value = c.email||'';
       document.getElementById('cli-telefone').value = c.telefone||'';
       document.getElementById('cli-cidade').value = c.cidade||'';
@@ -1249,6 +1423,7 @@ async function salvarCliente() {
     observacoes: document.getElementById('cli-obs').value.trim(),
     tipo_empresa: document.getElementById('cli-tipo-empresa').value,
     estado: document.getElementById('cli-estado').value,
+    escritorio_id: document.getElementById('cli-escritorio-id').value || escritorioAtivo || null,
     user_id: currentUser.id
   };
   let err;
@@ -1290,7 +1465,9 @@ function renderTarefas() {
     const matchS = !filterTarStatus || t.status === filterTarStatus;
     const matchP = !filterTarPrio || t.prioridade === filterTarPrio;
     const matchC = !filterTarCliente || t.cliente_id == filterTarCliente;
-    return matchQ && matchS && matchP && matchC;
+    const cli = allClientes.find(c => c.id === t.cliente_id);
+    const matchE = !filterTarEscritorio || (cli && cli.escritorio_id === filterTarEscritorio);
+    return matchQ && matchS && matchP && matchC && matchE;
   });
   const tbody = document.getElementById('tbody-tarefas');
   if (!list.length) { tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">✅</div><p>Nenhuma tarefa encontrada</p></div></td></tr>`; return; }
@@ -1677,6 +1854,239 @@ document.addEventListener('keydown', e => {
   if(e.key==='Enter' && document.getElementById('login-screen').style.display!=='none') doLogin();
 });
 
+
+
+
+// ══════════════════════════════════════════
+//  ESCRITÓRIOS
+// ══════════════════════════════════════════
+let allEscritorios = [];
+let escritorioAtivo = null; // null = visão geral
+let filterTarEscritorio = '';
+let filterAgendaEscritorio = '';
+
+async function loadEscritorios() {
+  const { data } = await sb.from('gclik_escritorios').select('*').order('nome');
+  allEscritorios = data || [];
+  populateEscritorioSelects();
+  renderEscritoriosPage();
+}
+
+function populateEscritorioSelects() {
+  const opts = allEscritorios.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
+  // Modal cliente
+  const selCli = document.getElementById('cli-escritorio-id');
+  if (selCli) { selCli.innerHTML = '<option value="">Selecione o escritório</option>' + opts; }
+  // Filtros tarefas e agenda
+  ['filter-escritorio-tarefa','filter-escritorio-agenda'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '<option value="">Todos os escritórios</option>' + opts;
+  });
+}
+
+function renderEscritoriosPage() {
+  // Grid na página escritórios
+  const grid = document.getElementById('esc-stats-grid');
+  if (!grid) return;
+  if (!allEscritorios.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">🏛️</div><p>Nenhum escritório cadastrado ainda.<br>Clique em "+ Novo Escritório" para começar.</p></div>`;
+    return;
+  }
+  grid.innerHTML = allEscritorios.map(e => {
+    const clientes = allClientes.filter(c => c.escritorio_id === e.id).length;
+    const tarefas = allTarefas.filter(t => {
+      const cli = allClientes.find(c => c.id === t.cliente_id);
+      return cli && cli.escritorio_id === e.id && (t.status==='Pendente'||t.status==='Em andamento');
+    }).length;
+    return `<div class="stat-card" style="--card-color:${e.cor||'#4f8ef7'};cursor:pointer" onclick="selecionarEscritorio('${e.id}')">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:44px;height:44px;border-radius:10px;background:${e.cor||'#4f8ef7'};display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:20px;font-weight:800;color:#fff">${e.nome[0].toUpperCase()}</div>
+        <div>
+          <div style="font-family:var(--font-display);font-weight:700;font-size:14px;color:var(--text)">${e.nome}</div>
+          ${e.cnpj?`<div style="font-size:11px;color:var(--text3);font-family:monospace">${e.cnpj}</div>`:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:16px">
+        <div><div class="stat-value" style="font-size:22px">${clientes}</div><div class="stat-sub">clientes</div></div>
+        <div><div class="stat-value" style="font-size:22px;color:${tarefas?'var(--yellow)':'var(--text)'}">${tarefas}</div><div class="stat-sub">tarefas</div></div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:14px">
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editEscritorio('${e.id}')">✏️ Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();delEscritorio('${e.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderEscritorioGrid() {
+  const grid = document.getElementById('escritorio-grid');
+  if (!grid) return;
+
+  let html = allEscritorios.map(e => {
+    const clientes = allClientes.filter(c => c.escritorio_id === e.id).length;
+    return `<div class="escritorio-card" onclick="selecionarEscritorio('${e.id}')">
+      <div class="escritorio-avatar" style="background:${e.cor||'#4f8ef7'}">${e.nome[0].toUpperCase()}</div>
+      <div class="escritorio-name">${e.nome}</div>
+      <div class="escritorio-count">${clientes} cliente${clientes!==1?'s':''}</div>
+    </div>`;
+  }).join('');
+
+  html += `<div class="escritorio-add" onclick="openModalEscritorio()">
+    <div class="escritorio-add-icon">+</div>
+    <div class="escritorio-add-label">Novo escritório</div>
+  </div>`;
+
+  grid.innerHTML = html;
+}
+
+function mostrarTelaEscritorios() {
+  renderEscritorioGrid();
+  document.getElementById('escritorio-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+function voltarEscritorios() {
+  mostrarTelaEscritorios();
+}
+
+function selecionarEscritorio(id) {
+  escritorioAtivo = id;
+  document.getElementById('escritorio-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  // Atualizar pill no topbar
+  if (id === null) {
+    document.getElementById('esc-pill-avatar').style.background = 'linear-gradient(135deg,#4f8ef7,#a78bfa)';
+    document.getElementById('esc-pill-avatar').textContent = '★';
+    document.getElementById('esc-pill-nome').textContent = 'Todos';
+  } else {
+    const e = allEscritorios.find(x => x.id === id);
+    if (e) {
+      document.getElementById('esc-pill-avatar').style.background = e.cor||'#4f8ef7';
+      document.getElementById('esc-pill-avatar').textContent = e.nome[0].toUpperCase();
+      document.getElementById('esc-pill-nome').textContent = e.nome;
+    }
+  }
+
+  // Filtrar dados pelo escritório ativo
+  filtrarPorEscritorioAtivo();
+  renderDashboard();
+  showPage('dashboard');
+}
+
+function filtrarPorEscritorioAtivo() {
+  // Clientes filtrados pelo escritório ativo
+  if (escritorioAtivo) {
+    // Pre-filtrar seletor de clientes nas tarefas/agenda
+    const opts = allClientes
+      .filter(c => c.escritorio_id === escritorioAtivo)
+      .map(c => `<option value="${c.id}">${c.razao_social}</option>`).join('');
+    ['tar-cliente','obr-cliente','filter-cliente-tarefa'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const first = el.options[0].outerHTML;
+      el.innerHTML = first + opts;
+    });
+    // Pre-selecionar no filtro de escritório
+    const fe = document.getElementById('filter-escritorio-tarefa');
+    if (fe) fe.value = escritorioAtivo;
+    filterTarEscritorio = escritorioAtivo;
+    const fa = document.getElementById('filter-escritorio-agenda');
+    if (fa) fa.value = escritorioAtivo;
+    filterAgendaEscritorio = escritorioAtivo;
+  } else {
+    populateClienteSelects();
+    filterTarEscritorio = '';
+    filterAgendaEscritorio = '';
+  }
+  renderClientes();
+  renderTarefas();
+  renderCalendar();
+  renderAgendaProximas();
+}
+
+function filtrarTarefaEscritorio(v) {
+  filterTarEscritorio = v;
+  // Atualizar clientes no filtro
+  const opts = allClientes
+    .filter(c => !v || c.escritorio_id === v)
+    .map(c => `<option value="${c.id}">${c.razao_social}</option>`).join('');
+  const el = document.getElementById('filter-cliente-tarefa');
+  if (el) { el.innerHTML = '<option value="">Todos os clientes</option>' + opts; el.value = ''; }
+  filterTarCliente = '';
+  renderTarefas();
+}
+
+function filtrarAgendaEscritorio(v) {
+  filterAgendaEscritorio = v;
+  renderCalendar();
+  renderAgendaProximas();
+}
+
+function openModalEscritorio(id) {
+  document.getElementById('modal-esc-title').textContent = id ? 'Editar Escritório' : 'Novo Escritório';
+  ['esc-id','esc-nome','esc-cnpj','esc-responsavel','esc-obs'].forEach(x => { const el=document.getElementById(x); if(el) el.value=''; });
+  document.getElementById('esc-cor').value = '#4f8ef7';
+  document.querySelectorAll('.cor-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelector('.cor-btn[data-cor="#4f8ef7"]')?.classList.add('selected');
+  if (id) {
+    const e = allEscritorios.find(x => x.id === id);
+    if (e) {
+      document.getElementById('esc-id').value = e.id;
+      document.getElementById('esc-nome').value = e.nome||'';
+      document.getElementById('esc-cnpj').value = e.cnpj||'';
+      document.getElementById('esc-responsavel').value = e.responsavel||'';
+      document.getElementById('esc-obs').value = e.observacoes||'';
+      document.getElementById('esc-cor').value = e.cor||'#4f8ef7';
+      document.querySelectorAll('.cor-btn').forEach(b => { b.classList.toggle('selected', b.dataset.cor===e.cor); });
+    }
+  }
+  openModal('modal-escritorio');
+}
+
+function editEscritorio(id) { openModalEscritorio(id); }
+
+function selecionarCor(cor) {
+  document.getElementById('esc-cor').value = cor;
+  document.querySelectorAll('.cor-btn').forEach(b => b.classList.toggle('selected', b.dataset.cor===cor));
+}
+
+async function salvarEscritorio() {
+  const nome = document.getElementById('esc-nome').value.trim();
+  if (!nome) { toast('Informe o nome do escritório', 'error'); return; }
+  const id = document.getElementById('esc-id').value;
+  const payload = {
+    nome,
+    cnpj: document.getElementById('esc-cnpj').value.trim(),
+    responsavel: document.getElementById('esc-responsavel').value.trim(),
+    cor: document.getElementById('esc-cor').value,
+    observacoes: document.getElementById('esc-obs').value.trim(),
+    user_id: currentUser.id
+  };
+  let err;
+  if (id) { ({ error: err } = await sb.from('gclik_escritorios').update(payload).eq('id', id)); }
+  else { ({ error: err } = await sb.from('gclik_escritorios').insert(payload)); }
+  if (err) { toast('Erro: ' + err.message, 'error'); return; }
+  toast(id ? 'Escritório atualizado!' : 'Escritório criado!', 'success');
+  closeModal('modal-escritorio');
+  await loadEscritorios();
+  renderEscritorioGrid();
+  renderEscritoriosPage();
+}
+
+async function delEscritorio(id) {
+  const clientes = allClientes.filter(c => c.escritorio_id === id).length;
+  if (clientes > 0) {
+    if (!confirm(`Este escritório tem ${clientes} cliente(s). Ao excluir, os clientes ficarão sem escritório. Confirmar?`)) return;
+  } else {
+    if (!confirm('Excluir este escritório?')) return;
+  }
+  await sb.from('gclik_escritorios').delete().eq('id', id);
+  toast('Escritório removido', 'success');
+  await loadEscritorios();
+  renderEscritorioGrid();
+}
 
 
 // ══════════════════════════════════════════

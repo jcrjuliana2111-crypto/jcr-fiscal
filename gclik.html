@@ -1874,37 +1874,7 @@ async function salvarCliente() {
   if (isNew) {
     const { data: novo } = await sb.from('gclik_clientes').select('*').order('created_at', {ascending:false}).limit(1);
     if (novo && novo[0]) {
-      // Gerar honorários mensais automaticamente do mês atual até dezembro
-      const cli = novo[0];
-      const honor = parseFloat(document.getElementById('cli-honor-mensal')?.value) || 160;
-      const diaVenc = parseInt(document.getElementById('cli-dia-venc')?.value) || null;
-      const agora = new Date();
-      const mesAtual = agora.getMonth() + 1;
-      const anoAtual = agora.getFullYear();
-      const payloads = [];
-      for (let m = mesAtual; m <= 12; m++) {
-        const comp = `${anoAtual}-${String(m).padStart(2,'0')}`;
-        let vencimento = null;
-        if (diaVenc) {
-          const diaReal = Math.min(diaVenc, new Date(anoAtual, m, 0).getDate());
-          vencimento = `${anoAtual}-${String(m).padStart(2,'0')}-${String(diaReal).padStart(2,'0')}`;
-        }
-        payloads.push({
-          tipo: 'mensal', servico: 'Mensalidade',
-          competencia: comp, valor: honor,
-          vencimento, status: 'Pendente', forma: 'PIX',
-          cliente_id: cli.id,
-          escritorio_id: cli.escritorio_id || escritorioAtivo || null,
-          nome_cliente: cli.razao_social,
-          user_id: currentUser.id
-        });
-      }
-      if (payloads.length) {
-        await sb.from('gclik_honorarios').insert(payloads);
-        await loadHonorarios();
-        toast(`✅ ${payloads.length} honorários gerados até Dez/${anoAtual}!`, 'success');
-      }
-      setTimeout(() => abrirModalTemplates(cli.id), 600);
+      setTimeout(() => abrirModalTemplates(novo[0].id), 400);
     }
   }
 }
@@ -2615,12 +2585,13 @@ function baixarModeloClientes() {
   const wb = XLSX.utils.book_new();
   const headers = [
     'razao_social','nome_fantasia','cnpj','ie','regime','tipo_empresa',
-    'estado','cidade','responsavel','email','telefone','status','observacoes'
+    'estado','cidade','responsavel','email','telefone','status','observacoes','escritorio'
   ];
+  const escNomes = allEscritorios.map(e => e.nome).join(' / ') || 'Nome do Escritório';
   const exemplo = [
     'Empresa Exemplo Ltda','Exemplo','12.345.678/0001-99','123.456.789',
     'Simples Nacional','Comércio','SC','Florianópolis','João Silva',
-    'joao@empresa.com','(48) 99999-9999','Ativo','Cliente modelo'
+    'joao@empresa.com','(48) 99999-9999','Ativo','Cliente modelo', allEscritorios[0]?.nome||''
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers, exemplo]);
   // Estilo cabeçalho (largura das colunas)
@@ -2644,22 +2615,29 @@ async function importarClientesExcel(input) {
   const invalidos = rows.filter(r => !r.razao_social);
   if (invalidos.length) { toast(`${invalidos.length} linha(s) sem Razão Social — corrija e reimporte`, 'error'); return; }
 
-  const payload = rows.map(r => ({
-    razao_social: String(r.razao_social||'').trim(),
-    nome_fantasia: String(r.nome_fantasia||'').trim(),
-    cnpj: String(r.cnpj||'').trim(),
-    ie: String(r.ie||'').trim(),
-    regime: String(r.regime||'Simples Nacional').trim(),
-    tipo_empresa: String(r.tipo_empresa||'').trim(),
-    estado: String(r.estado||'').trim(),
-    cidade: String(r.cidade||'').trim(),
-    responsavel: String(r.responsavel||'').trim(),
-    email: String(r.email||'').trim(),
-    telefone: String(r.telefone||'').trim(),
-    status: String(r.status||'Ativo').trim(),
-    observacoes: String(r.observacoes||'').trim(),
-    user_id: currentUser.id
-  }));
+  const payload = rows.map(r => {
+    // Mapear nome do escritório para ID
+    const nomeEsc = String(r.escritorio||'').trim();
+    const esc = allEscritorios.find(e => e.nome.toLowerCase() === nomeEsc.toLowerCase());
+    const escId = esc?.id || escritorioAtivo || null;
+    return {
+      razao_social: String(r.razao_social||'').trim(),
+      nome_fantasia: String(r.nome_fantasia||'').trim(),
+      cnpj: String(r.cnpj||'').trim(),
+      ie: String(r.ie||'').trim(),
+      regime: String(r.regime||'Simples Nacional').trim(),
+      tipo_empresa: String(r.tipo_empresa||'').trim(),
+      estado: String(r.estado||'').trim(),
+      cidade: String(r.cidade||'').trim(),
+      responsavel: String(r.responsavel||'').trim(),
+      email: String(r.email||'').trim(),
+      telefone: String(r.telefone||'').trim(),
+      status: String(r.status||'Ativo').trim(),
+      observacoes: String(r.observacoes||'').trim(),
+      escritorio_id: escId,
+      user_id: currentUser.id
+    };
+  });
 
   const { error } = await sb.from('gclik_clientes').insert(payload);
   if (error) { toast('Erro ao importar: ' + error.message, 'error'); input.value=''; return; }

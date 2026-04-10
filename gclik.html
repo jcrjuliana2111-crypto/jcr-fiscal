@@ -2176,7 +2176,15 @@ function renderCalendar() {
     const dateStr = `${yr}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = dateStr === t;
     const obrs = allObrigacoes.filter(o=>o.vencimento===dateStr);
-    const evDots = obrs.slice(0,3).map(o=>`<div class="cal-event-dot" style="background:${tipoColor(o.tipo)}22;color:${tipoColor(o.tipo)}">${o.titulo.slice(0,14)}</div>`).join('');
+    // Agrupar por título único
+    const obrsUnicas = obrs.reduce((acc, o) => {
+      if (!acc.find(x => x.titulo === o.titulo)) acc.push(o);
+      return acc;
+    }, []);
+    const evDots = obrsUnicas.slice(0,3).map(o=>{
+      const count = obrs.filter(x=>x.titulo===o.titulo).length;
+      return `<div class="cal-event-dot" style="background:${tipoColor(o.tipo)}22;color:${tipoColor(o.tipo)}">${o.titulo.slice(0,12)}${count>1?' ('+count+')':''}</div>`;
+    }).join('');
     html += `<div class="cal-day ${other?'other-month':''} ${isToday?'today':''}" onclick="openModalObrigacao()">
       <div class="day-num">${d}</div>
       <div class="cal-events">${evDots}</div>
@@ -2194,23 +2202,33 @@ function changeMonth(dir) {
 
 function renderAgendaProximas() {
   const t = today();
-  const proximas = allObrigacoes
+  const todas = allObrigacoes
     .filter(o=>o.vencimento>=t&&o.status!=='Entregue'&&o.status!=='Pago')
-    .sort((a,b)=>a.vencimento.localeCompare(b.vencimento)).slice(0,8);
+    .sort((a,b)=>a.vencimento.localeCompare(b.vencimento));
+
+  // Agrupar por título + data de vencimento
+  const grupos = [];
+  todas.forEach(o => {
+    const key = o.titulo + '|' + o.vencimento;
+    const ex = grupos.find(g => g.key === key);
+    if (ex) { ex.count++; }
+    else { grupos.push({ key, titulo: o.titulo, vencimento: o.vencimento, tipo: o.tipo, count: 1 }); }
+  });
+
+  const proximas = grupos.slice(0, 10);
   const el = document.getElementById('agenda-proximas');
   if (!proximas.length) { el.innerHTML = `<div class="empty-state"><div class="icon">📅</div><p>Nenhuma obrigação próxima</p></div>`; return; }
-  el.innerHTML = proximas.map(o=>{
-    const cli = allClientes.find(c=>c.id==o.cliente_id);
-    const daysLeft = Math.ceil((new Date(o.vencimento+'T00:00:00')-new Date(today()+'T00:00:00'))/(1000*60*60*24));
+  el.innerHTML = proximas.map(g=>{
+    const daysLeft = Math.ceil((new Date(g.vencimento+'T00:00:00')-new Date(today()+'T00:00:00'))/(1000*60*60*24));
     const urgColor = daysLeft<=1?'var(--red)':daysLeft<=7?'var(--yellow)':'var(--accent)';
     return `<div class="agenda-item">
-      <div class="agenda-dot" style="background:${tipoColor(o.tipo)}"></div>
+      <div class="agenda-dot" style="background:${tipoColor(g.tipo)}"></div>
       <div style="flex:1;min-width:0">
-        <div class="agenda-item-title">${o.titulo}</div>
-        <div class="agenda-item-sub">${cli?cli.razao_social.split(' ')[0]:'Todos os clientes'}</div>
+        <div class="agenda-item-title">${g.titulo}</div>
+        <div class="agenda-item-sub" style="color:var(--text3)">${g.count} cliente${g.count>1?'s':''}</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:11px;font-weight:700;color:${urgColor}">${fmtDate(o.vencimento)}</div>
+        <div style="font-size:11px;font-weight:700;color:${urgColor}">${fmtDate(g.vencimento)}</div>
         <div style="font-size:10px;color:var(--text3)">${daysLeft===0?'Hoje':daysLeft===1?'Amanhã':daysLeft+'d'}</div>
       </div>
     </div>`;

@@ -1058,6 +1058,16 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
           <input type="text" id="cli-cidade" placeholder="Ex: Florianópolis">
         </div>
       </div>
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>Honorário Mensal R$</label>
+          <input type="number" id="cli-honor-mensal" placeholder="160,00" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Dia de Vencimento</label>
+          <input type="number" id="cli-dia-venc" placeholder="Ex: 10" min="1" max="31">
+        </div>
+      </div>
       <div class="form-group">
         <label>Observações</label>
         <textarea id="cli-obs" placeholder="Informações adicionais…"></textarea>
@@ -1777,7 +1787,7 @@ function filtrarClienteStatus(v) { filterCliStatus = v; renderClientes(); }
 
 function openModalCliente(id) {
   document.getElementById('modal-cliente-title').textContent = id ? 'Editar Cliente' : 'Novo Cliente';
-  clearForm(['cliente-id','cli-razao','cli-fantasia','cli-cnpj','cli-ie','cli-responsavel','cli-email','cli-telefone','cli-cidade','cli-obs']);
+  clearForm(['cliente-id','cli-razao','cli-fantasia','cli-cnpj','cli-ie','cli-responsavel','cli-email','cli-telefone','cli-cidade','cli-obs','cli-honor-mensal','cli-dia-venc']);
   if (id) {
     const c = allClientes.find(x => x.id === id);
     if (c) {
@@ -1796,6 +1806,8 @@ function openModalCliente(id) {
       document.getElementById('cli-telefone').value = c.telefone||'';
       document.getElementById('cli-cidade').value = c.cidade||'';
       document.getElementById('cli-obs').value = c.observacoes||'';
+      document.getElementById('cli-honor-mensal').value = c.honor_mensal||'160';
+      document.getElementById('cli-dia-venc').value = c.dia_vencimento||'';
     }
   }
   openModal('modal-cliente');
@@ -1817,6 +1829,8 @@ async function salvarCliente() {
     telefone: document.getElementById('cli-telefone').value.trim(),
     cidade: document.getElementById('cli-cidade').value.trim(),
     observacoes: document.getElementById('cli-obs').value.trim(),
+    honor_mensal: parseFloat(document.getElementById('cli-honor-mensal').value) || 160,
+    dia_vencimento: parseInt(document.getElementById('cli-dia-venc').value) || null,
     tipo_empresa: document.getElementById('cli-tipo-empresa').value,
     estado: document.getElementById('cli-estado').value,
     escritorio_id: document.getElementById('cli-escritorio-id').value || escritorioAtivo || null,
@@ -1827,14 +1841,45 @@ async function salvarCliente() {
   else { ({ error: err } = await sb.from('gclik_clientes').insert(payload)); }
   if (err) { toast('Erro: ' + err.message, 'error'); return; }
   const isNew = !id;
-  const savedId = id;
   toast(isNew ? 'Cliente cadastrado! Agora selecione as obrigações.' : 'Cliente atualizado!', 'success');
   closeModal('modal-cliente');
   await loadClientes();
   renderDashboard();
   if (isNew) {
-    const { data: novo } = await sb.from('gclik_clientes').select('id').order('created_at', {ascending:false}).limit(1);
-    if (novo && novo[0]) setTimeout(() => abrirModalTemplates(novo[0].id), 400);
+    const { data: novo } = await sb.from('gclik_clientes').select('*').order('created_at', {ascending:false}).limit(1);
+    if (novo && novo[0]) {
+      // Gerar honorários mensais automaticamente do mês atual até dezembro
+      const cli = novo[0];
+      const honor = parseFloat(document.getElementById('cli-honor-mensal')?.value) || 160;
+      const diaVenc = parseInt(document.getElementById('cli-dia-venc')?.value) || null;
+      const agora = new Date();
+      const mesAtual = agora.getMonth() + 1;
+      const anoAtual = agora.getFullYear();
+      const payloads = [];
+      for (let m = mesAtual; m <= 12; m++) {
+        const comp = `${anoAtual}-${String(m).padStart(2,'0')}`;
+        let vencimento = null;
+        if (diaVenc) {
+          const diaReal = Math.min(diaVenc, new Date(anoAtual, m, 0).getDate());
+          vencimento = `${anoAtual}-${String(m).padStart(2,'0')}-${String(diaReal).padStart(2,'0')}`;
+        }
+        payloads.push({
+          tipo: 'mensal', servico: 'Mensalidade',
+          competencia: comp, valor: honor,
+          vencimento, status: 'Pendente', forma: 'PIX',
+          cliente_id: cli.id,
+          escritorio_id: cli.escritorio_id || escritorioAtivo || null,
+          nome_cliente: cli.razao_social,
+          user_id: currentUser.id
+        });
+      }
+      if (payloads.length) {
+        await sb.from('gclik_honorarios').insert(payloads);
+        await loadHonorarios();
+        toast(`✅ ${payloads.length} honorários gerados até Dez/${anoAtual}!`, 'success');
+      }
+      setTimeout(() => abrirModalTemplates(cli.id), 600);
+    }
   }
 }
 

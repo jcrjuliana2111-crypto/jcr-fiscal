@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JCR — Gestão Fiscal</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -328,6 +329,10 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 #toast.success { border-color: rgba(45,212,160,0.4); }
 #toast.error { border-color: rgba(242,92,110,0.4); }
 
+
+/* ── DROPZONE ── */
+.dropzone-active { border-color: var(--accent) !important; background: var(--accent-soft) !important; }
+
 /* ── LOADING ── */
 .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -468,7 +473,13 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
           <div class="page-title">Clientes</div>
           <div class="page-subtitle">Gestão de empresas e CNPJs</div>
         </div>
-        <button class="btn btn-accent" onclick="openModalCliente()">+ Novo Cliente</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="baixarModeloClientes()" title="Baixar modelo Excel">⬇️ Modelo Excel</button>
+          <label class="btn btn-ghost" style="cursor:pointer" title="Importar Excel com clientes">
+            📥 Importar Excel <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importarClientesExcel(this)">
+          </label>
+          <button class="btn btn-accent" onclick="openModalCliente()">+ Novo Cliente</button>
+        </div>
       </div>
       <div class="filters">
         <input type="text" class="search-input" placeholder="🔍  Buscar por nome ou CNPJ…" oninput="filtrarClientes(this.value)">
@@ -617,7 +628,13 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
           <div class="page-title">Templates de Obrigações</div>
           <div class="page-subtitle">Modelos aplicados automaticamente ao cadastrar clientes</div>
         </div>
-        <button class="btn btn-accent" onclick="openModalTemplate()">+ Novo Template</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="baixarModeloTemplates()" title="Baixar modelo Excel">⬇️ Modelo Excel</button>
+          <label class="btn btn-ghost" style="cursor:pointer" title="Importar Excel com templates">
+            📥 Importar Excel <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importarTemplatesExcel(this)">
+          </label>
+          <button class="btn btn-accent" onclick="openModalTemplate()">+ Novo Template</button>
+        </div>
       </div>
       <div class="filters">
         <input type="text" class="search-input" placeholder="🔍  Buscar template…" oninput="filtrarTemplates(this.value)">
@@ -772,6 +789,21 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       <div class="form-group">
         <label>Observações</label>
         <textarea id="cli-obs" placeholder="Informações adicionais…"></textarea>
+      </div>
+      <div class="form-group" id="cnpj-upload-area">
+        <label>🪪 Cartão CNPJ (PDF) — Extração automática com IA</label>
+        <div id="cnpj-dropzone" onclick="document.getElementById('cnpj-pdf-input').click()"
+          style="border:2px dashed var(--border2);border-radius:var(--radius-sm);padding:20px;text-align:center;cursor:pointer;transition:border-color 0.2s;background:var(--surface2)">
+          <div style="font-size:24px;margin-bottom:6px">📄</div>
+          <div style="font-size:13px;color:var(--text2)">Clique ou arraste o PDF do cartão CNPJ aqui</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">A IA vai preencher os campos automaticamente</div>
+          <input type="file" id="cnpj-pdf-input" accept=".pdf" style="display:none" onchange="extrairDadosCNPJ(this)">
+        </div>
+        <div id="cnpj-loading" style="display:none;align-items:center;gap:10px;padding:12px;background:var(--surface2);border-radius:var(--radius-sm);margin-top:8px">
+          <div class="spinner"></div>
+          <span style="font-size:13px;color:var(--text2)">Extraindo dados com IA…</span>
+        </div>
+        <div id="cnpj-resultado" style="display:none;padding:10px 14px;background:var(--green-soft);border:1px solid rgba(45,212,160,0.3);border-radius:var(--radius-sm);margin-top:8px;font-size:12px;color:var(--green)"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1643,6 +1675,237 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 document.addEventListener('keydown', e => {
   if(e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open'));
   if(e.key==='Enter' && document.getElementById('login-screen').style.display!=='none') doLogin();
+});
+
+
+
+// ══════════════════════════════════════════
+//  IMPORTAR / EXPORTAR EXCEL — CLIENTES
+// ══════════════════════════════════════════
+
+function baixarModeloClientes() {
+  const wb = XLSX.utils.book_new();
+  const headers = [
+    'razao_social','nome_fantasia','cnpj','ie','regime','tipo_empresa',
+    'estado','cidade','responsavel','email','telefone','status','observacoes'
+  ];
+  const exemplo = [
+    'Empresa Exemplo Ltda','Exemplo','12.345.678/0001-99','123.456.789',
+    'Simples Nacional','Comércio','SC','Florianópolis','João Silva',
+    'joao@empresa.com','(48) 99999-9999','Ativo','Cliente modelo'
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([headers, exemplo]);
+  // Estilo cabeçalho (largura das colunas)
+  ws['!cols'] = headers.map(() => ({ wch: 22 }));
+  XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+  XLSX.writeFile(wb, 'modelo_clientes_JCR.xlsx');
+  toast('Modelo Excel baixado!', 'success');
+}
+
+async function importarClientesExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const data = await file.arrayBuffer();
+  const wb = XLSX.read(data);
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+  if (!rows.length) { toast('Planilha vazia!', 'error'); return; }
+
+  const campos_obrig = ['razao_social'];
+  const invalidos = rows.filter(r => !r.razao_social);
+  if (invalidos.length) { toast(`${invalidos.length} linha(s) sem Razão Social — corrija e reimporte`, 'error'); return; }
+
+  const payload = rows.map(r => ({
+    razao_social: String(r.razao_social||'').trim(),
+    nome_fantasia: String(r.nome_fantasia||'').trim(),
+    cnpj: String(r.cnpj||'').trim(),
+    ie: String(r.ie||'').trim(),
+    regime: String(r.regime||'Simples Nacional').trim(),
+    tipo_empresa: String(r.tipo_empresa||'').trim(),
+    estado: String(r.estado||'').trim(),
+    cidade: String(r.cidade||'').trim(),
+    responsavel: String(r.responsavel||'').trim(),
+    email: String(r.email||'').trim(),
+    telefone: String(r.telefone||'').trim(),
+    status: String(r.status||'Ativo').trim(),
+    observacoes: String(r.observacoes||'').trim(),
+    user_id: currentUser.id
+  }));
+
+  const { error } = await sb.from('gclik_clientes').insert(payload);
+  if (error) { toast('Erro ao importar: ' + error.message, 'error'); input.value=''; return; }
+  toast(`✅ ${payload.length} cliente(s) importado(s) com sucesso!`, 'success');
+  input.value = '';
+  await loadClientes();
+  renderDashboard();
+}
+
+// ══════════════════════════════════════════
+//  IMPORTAR / EXPORTAR EXCEL — TEMPLATES
+// ══════════════════════════════════════════
+
+function baixarModeloTemplates() {
+  const wb = XLSX.utils.book_new();
+  const headers = [
+    'nome','esfera','regime','tipo_empresa','estado','recorrencia','dia_vencimento','prioridade','observacoes'
+  ];
+  const exemplos = [
+    ['DAS', 'Federal', 'Simples Nacional', 'Todos', 'Todos', 'mensal', 20, 'Alta', 'Guia do Simples Nacional'],
+    ['DIME', 'Estadual', 'Todos', 'Comércio', 'SC', 'mensal', 10, 'Alta', 'Declaração ICMS SC'],
+    ['SPED Fiscal', 'Estadual', 'Lucro Real', 'Todos', 'Todos', 'mensal', 15, 'Alta', 'EFD ICMS/IPI'],
+    ['DCTF', 'Federal', 'Lucro Real', 'Todos', 'Todos', 'mensal', 15, 'Alta', 'Débitos e Créditos Federais'],
+    ['ISS Fixo', 'Municipal', 'Simples Nacional', 'Serviços', 'Todos', 'mensal', 10, 'Média', 'ISS fixo mensal'],
+    ['RAIS', 'Federal', 'Todos', 'Todos', 'Todos', 'anual', 31, 'Alta', 'Entrega anual março'],
+    ['DIRF', 'Federal', 'Todos', 'Todos', 'Todos', 'anual', 28, 'Alta', 'Entrega anual fevereiro'],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...exemplos]);
+  ws['!cols'] = headers.map(() => ({ wch: 20 }));
+  XLSX.utils.book_append_sheet(wb, ws, 'Templates');
+  XLSX.writeFile(wb, 'modelo_templates_JCR.xlsx');
+  toast('Modelo Excel de templates baixado!', 'success');
+}
+
+async function importarTemplatesExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const data = await file.arrayBuffer();
+  const wb = XLSX.read(data);
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+  if (!rows.length) { toast('Planilha vazia!', 'error'); return; }
+
+  const invalidos = rows.filter(r => !r.nome);
+  if (invalidos.length) { toast(`${invalidos.length} linha(s) sem Nome — corrija e reimporte`, 'error'); return; }
+
+  const payload = rows.map(r => ({
+    nome: String(r.nome||'').trim(),
+    esfera: String(r.esfera||'Federal').trim(),
+    regime: String(r.regime||'Todos').trim(),
+    tipo_empresa: String(r.tipo_empresa||'Todos').trim(),
+    estado: String(r.estado||'Todos').trim(),
+    recorrencia: String(r.recorrencia||'mensal').trim(),
+    dia_vencimento: parseInt(r.dia_vencimento) || null,
+    prioridade: String(r.prioridade||'Média').trim(),
+    observacoes: String(r.observacoes||'').trim(),
+    user_id: currentUser.id
+  }));
+
+  const { error } = await sb.from('gclik_templates').insert(payload);
+  if (error) { toast('Erro ao importar: ' + error.message, 'error'); input.value=''; return; }
+  toast(`✅ ${payload.length} template(s) importado(s) com sucesso!`, 'success');
+  input.value = '';
+  await loadTemplates();
+}
+
+// ══════════════════════════════════════════
+//  EXTRAÇÃO DE CARTÃO CNPJ VIA IA
+// ══════════════════════════════════════════
+
+async function extrairDadosCNPJ(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Mostrar loading
+  document.getElementById('cnpj-loading').style.display = 'flex';
+  document.getElementById('cnpj-resultado').style.display = 'none';
+  document.getElementById('cnpj-dropzone').style.display = 'none';
+
+  try {
+    // Converter PDF para base64
+    const base64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result.split(',')[1]);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+
+    // Chamar Claude via API
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: { type: 'base64', media_type: 'application/pdf', data: base64 }
+            },
+            {
+              type: 'text',
+              text: `Extraia os dados do cartão CNPJ e responda APENAS com JSON válido, sem markdown, sem explicações:
+{
+  "razao_social": "",
+  "nome_fantasia": "",
+  "cnpj": "",
+  "ie": "",
+  "email": "",
+  "telefone": "",
+  "cidade": "",
+  "estado": "",
+  "situacao": ""
+}
+Extraia exatamente o que estiver no documento. Para campos não encontrados, deixe string vazia.`
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const text = data.content[0].text.trim();
+    const json = JSON.parse(text.replace(/```json|```/g, '').trim());
+
+    // Preencher os campos do formulário
+    if (json.razao_social) document.getElementById('cli-razao').value = json.razao_social;
+    if (json.nome_fantasia) document.getElementById('cli-fantasia').value = json.nome_fantasia;
+    if (json.cnpj) { document.getElementById('cli-cnpj').value = json.cnpj; maskCNPJ(document.getElementById('cli-cnpj')); }
+    if (json.ie) document.getElementById('cli-ie').value = json.ie;
+    if (json.email) document.getElementById('cli-email').value = json.email;
+    if (json.telefone) document.getElementById('cli-telefone').value = json.telefone;
+    if (json.cidade) document.getElementById('cli-cidade').value = json.cidade;
+    if (json.estado) {
+      const sel = document.getElementById('cli-estado');
+      for (let o of sel.options) { if (o.value === json.estado || o.text === json.estado) { sel.value = o.value; break; } }
+    }
+
+    const campos = Object.entries(json).filter(([k,v]) => v).length;
+    document.getElementById('cnpj-resultado').style.display = 'block';
+    document.getElementById('cnpj-resultado').textContent = `✅ ${campos} campos preenchidos automaticamente! Revise e salve.`;
+
+  } catch (err) {
+    document.getElementById('cnpj-dropzone').style.display = 'block';
+    toast('Erro ao extrair dados: ' + err.message, 'error');
+  } finally {
+    document.getElementById('cnpj-loading').style.display = 'none';
+    input.value = '';
+  }
+}
+
+// Drag and drop no dropzone
+document.addEventListener('DOMContentLoaded', () => {
+  const dz = document.getElementById('cnpj-dropzone');
+  if (!dz) return;
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dropzone-active'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dropzone-active'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('dropzone-active');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type === 'application/pdf') {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const inp = document.getElementById('cnpj-pdf-input');
+      inp.files = dt.files;
+      extrairDadosCNPJ(inp);
+    } else toast('Envie um arquivo PDF', 'error');
+  });
 });
 
 

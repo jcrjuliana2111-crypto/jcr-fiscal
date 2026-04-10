@@ -1789,6 +1789,7 @@ function renderClientes() {
     <tr>
       <td>${c.razao_social}</td>
       <td style="font-family:monospace;font-size:12px">${c.cnpj||'—'}</td>
+      <td>${(()=>{ const e=allEscritorios.find(x=>x.id===c.escritorio_id); return e?`<span class="badge" style="background:${e.cor||'#4f8ef7'}22;color:${e.cor||'#4f8ef7'}">${e.nome}</span>`:'<span class="badge badge-gray">—</span>'; })()}</td>
       <td><span class="badge badge-blue">${c.regime||'—'}</span></td>
       <td>${c.responsavel||'—'}</td>
       <td><span class="badge ${c.status==='Ativo'?'badge-green':'badge-gray'}">${c.status||'Ativo'}</span></td>

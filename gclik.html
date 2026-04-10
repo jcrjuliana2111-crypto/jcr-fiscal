@@ -373,6 +373,10 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   font-size: 10px; font-weight: 700; padding: 2px 7px;
 }
 
+
+/* ── ESCRITÓRIO DROPDOWN ── */
+#esc-dropdown { animation: modalIn 0.15s ease; }
+
 /* ── ESCRITÓRIO ATIVO NO TOPBAR ── */
 .escritorio-pill {
   display: flex; align-items: center; gap: 8px;
@@ -506,10 +510,26 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   <!-- TOPBAR -->
   <div class="topbar">
     <div class="topbar-logo">JCR</div>
-    <div class="escritorio-pill" onclick="voltarEscritorios()" title="Trocar escritório">
+    <div class="escritorio-pill" onclick="toggleEscritorioDropdown()" title="Trocar escritório" style="position:relative">
       <div class="escritorio-pill-avatar" id="esc-pill-avatar" style="background:#4f8ef7">J</div>
       <span id="esc-pill-nome">Todos</span>
       <span style="color:var(--text3);font-size:11px">▾</span>
+    </div>
+    <!-- Dropdown escritório -->
+    <div id="esc-dropdown" style="display:none;position:absolute;top:56px;left:80px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:200;min-width:220px;overflow:hidden">
+      <div style="padding:8px 0">
+        <div onclick="selecionarEscritorio(null);fecharEscritorioDropdown()" style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+          <div style="width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#4f8ef7,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff">★</div>
+          <span style="font-size:13px;font-weight:500;color:var(--text)">Todos os escritórios</span>
+        </div>
+        <div style="height:1px;background:var(--border);margin:4px 0"></div>
+        <div id="esc-dropdown-lista"></div>
+        <div style="height:1px;background:var(--border);margin:4px 0"></div>
+        <div onclick="voltarEscritorios()" style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+          <div style="width:28px;height:28px;border-radius:7px;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:13px">🏛️</div>
+          <span style="font-size:13px;color:var(--text2)">Gerenciar escritórios</span>
+        </div>
+      </div>
     </div>
     <nav class="topbar-nav">
       <button class="nav-btn active" onclick="showPage('dashboard')" id="nav-dashboard">
@@ -2296,6 +2316,39 @@ document.addEventListener('keydown', e => {
 });
 
 
+
+
+
+// ── DROPDOWN ESCRITÓRIO ──
+function toggleEscritorioDropdown() {
+  const dd = document.getElementById('esc-dropdown');
+  const isOpen = dd.style.display !== 'none';
+  if (isOpen) { fecharEscritorioDropdown(); return; }
+  // Popular lista
+  const lista = document.getElementById('esc-dropdown-lista');
+  lista.innerHTML = allEscritorios.map(e => `
+    <div onclick="selecionarEscritorio('${e.id}');fecharEscritorioDropdown()" 
+      style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background 0.15s"
+      onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+      <div style="width:28px;height:28px;border-radius:7px;background:${e.cor||'#4f8ef7'};display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:13px;font-weight:700;color:#fff">${e.nome[0].toUpperCase()}</div>
+      <span style="font-size:13px;font-weight:500;color:var(--text)">${e.nome}</span>
+    </div>`).join('');
+  dd.style.display = 'block';
+  // Fechar ao clicar fora
+  setTimeout(() => document.addEventListener('click', fecharDropdownFora, {once:true}), 10);
+}
+
+function fecharEscritorioDropdown() {
+  document.getElementById('esc-dropdown').style.display = 'none';
+}
+
+function fecharDropdownFora(e) {
+  const dd = document.getElementById('esc-dropdown');
+  const pill = dd?.previousElementSibling;
+  if (dd && !dd.contains(e.target) && !pill?.contains(e.target)) {
+    fecharEscritorioDropdown();
+  }
+}
 
 
 // ══════════════════════════════════════════

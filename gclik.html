@@ -1311,7 +1311,7 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
         </div>
         <div class="form-group">
           <label>Recorrência</label>
-          <select id="tpl-recorrencia">
+          <select id="tpl-recorrencia" onchange="document.getElementById('tpl-mes-group').style.display=this.value==='anual'?'block':'none'">
             <option value="mensal">Mensal</option>
             <option value="bimestral">Bimestral</option>
             <option value="trimestral">Trimestral</option>
@@ -1321,10 +1321,22 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
           </select>
         </div>
       </div>
-      <div class="form-row form-row-2">
+      <div class="form-row form-row-3">
         <div class="form-group">
           <label>Dia de Vencimento</label>
           <input type="number" id="tpl-dia" min="1" max="31" placeholder="Ex: 20">
+        </div>
+        <div class="form-group" id="tpl-mes-group" style="display:none">
+          <label>Mês de Vencimento</label>
+          <select id="tpl-mes">
+            <option value="">Selecione</option>
+            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+            <option value="3">Março</option><option value="4">Abril</option>
+            <option value="5">Maio</option><option value="6">Junho</option>
+            <option value="7">Julho</option><option value="8">Agosto</option>
+            <option value="9">Setembro</option><option value="10">Outubro</option>
+            <option value="11">Novembro</option><option value="12">Dezembro</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Prioridade</label>
@@ -1521,7 +1533,7 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       <div class="form-row form-row-2">
         <div class="form-group">
           <label>Valor padrão (se cliente não tiver)</label>
-          <input type="number" id="gerar-valor-padrao" value="160" placeholder="160">
+          <input type="number" id="gerar-valor-padrao" value="0" placeholder="0">
         </div>
         <div class="form-group">
           <label>Forma de Pagamento</label>
@@ -2867,6 +2879,8 @@ function openModalTemplate(id) {
       document.getElementById('tpl-estado').value = t.estado||'Todos';
       document.getElementById('tpl-recorrencia').value = t.recorrencia||'mensal';
       document.getElementById('tpl-dia').value = t.dia_vencimento||'';
+      document.getElementById('tpl-mes').value = t.mes_vencimento||'';
+      document.getElementById('tpl-mes-group').style.display = t.recorrencia==='anual'?'block':'none';
       document.getElementById('tpl-prioridade').value = t.prioridade||'Média';
       document.getElementById('tpl-obs').value = t.observacoes||'';
     }
@@ -2887,6 +2901,7 @@ async function salvarTemplate() {
     estado: document.getElementById('tpl-estado').value,
     recorrencia: document.getElementById('tpl-recorrencia').value,
     dia_vencimento: parseInt(document.getElementById('tpl-dia').value) || null,
+    mes_vencimento: parseInt(document.getElementById('tpl-mes').value) || null,
     prioridade: document.getElementById('tpl-prioridade').value,
     observacoes: document.getElementById('tpl-obs').value.trim(),
     user_id: currentUser.id
@@ -3009,7 +3024,7 @@ async function aplicarTemplatesCliente() {
     const tpl = allTemplates.find(t => t.id === cb.value);
     if (!tpl) return;
 
-    const datas = calcularDatas(ano, mes, tpl.recorrencia, tpl.dia_vencimento || 20);
+    const datas = calcularDatas(ano, mes, tpl.recorrencia, tpl.dia_vencimento || 20, tpl.mes_vencimento);
     datas.forEach(data => {
       obrigacoes.push({
         titulo: tpl.nome,
@@ -3033,12 +3048,20 @@ async function aplicarTemplatesCliente() {
   renderDashboard();
 }
 
-function calcularDatas(ano, mes, recorrencia, dia) {
+function calcularDatas(ano, mes, recorrencia, dia, mesVenc) {
   const datas = [];
   const mesesFrete = { mensal:12, bimestral:6, trimestral:4, semestral:2, anual:1, unica:1 };
   const intervalo = { mensal:1, bimestral:2, trimestral:3, semestral:6, anual:12, unica:0 };
   const qtd = mesesFrete[recorrencia] || 1;
   const step = intervalo[recorrencia] || 0;
+
+  // Para anual com mês específico
+  if (recorrencia === 'anual' && mesVenc) {
+    const m = mesVenc;
+    const diaReal = Math.min(dia, new Date(ano, m, 0).getDate());
+    datas.push(`${ano}-${String(m).padStart(2,'0')}-${String(diaReal).padStart(2,'0')}`);
+    return datas;
+  }
 
   for (let i = 0; i < qtd; i++) {
     let m = mes + (i * step);
@@ -3583,7 +3606,7 @@ function gerarMensaisPreview() {
       meses.push(comp);
     }
     if (meses.length > 0) {
-      const valor = Number(c.honor_mensal || valorPadrao);
+      const valor = Number(c.honor_mensal) || Number(valorPadrao) || 0;
       totalLancamentos += meses.length;
       totalValor += valor * meses.length;
       previewItems.push({ cliente: c.razao_social, meses: meses.length, valor, total: valor * meses.length });
@@ -3630,7 +3653,7 @@ async function confirmarGerarMensais() {
         tipo: 'mensal',
         servico: 'Mensalidade',
         competencia: comp,
-        valor: Number(c.honor_mensal || valorPadrao),
+        valor: Number(c.honor_mensal) || Number(valorPadrao) || 0,
         status: 'Pendente',
         forma,
         cliente_id: c.id,

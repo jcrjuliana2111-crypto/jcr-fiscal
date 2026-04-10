@@ -3436,6 +3436,122 @@ function editHonorario(id) {
   openModal('modal-honorario');
 }
 
+
+// ── GERAR MENSAIS ──
+function openModalGerarMensais() {
+  // Popular escritórios
+  const sel = document.getElementById('gerar-escritorio');
+  if (sel) sel.innerHTML = '<option value="">Selecione o escritório</option>' +
+    allEscritorios.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
+  // Pré-selecionar escritório ativo
+  if (escritorioAtivo) sel.value = escritorioAtivo;
+  // Competência atual
+  const agora = new Date();
+  document.getElementById('gerar-competencia').value = `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('gerar-preview').style.display = 'none';
+  document.getElementById('btn-confirmar-gerar').disabled = true;
+  openModal('modal-gerar-mensais');
+  gerarMensaisPreview();
+}
+
+function gerarMensaisPreview() {
+  const escId = document.getElementById('gerar-escritorio').value;
+  const competencia = document.getElementById('gerar-competencia').value;
+  const valorPadrao = parseFloat(document.getElementById('gerar-valor-padrao').value) || 160;
+
+  if (!escId || !competencia) {
+    document.getElementById('gerar-preview').style.display = 'none';
+    document.getElementById('btn-confirmar-gerar').disabled = true;
+    return;
+  }
+
+  const [ano, mes] = competencia.split('-').map(Number);
+  const clientes = allClientes.filter(c => c.escritorio_id === escId && (!c.status || c.status === 'Ativo'));
+
+  // Para cada cliente, gerar lista de meses de competencia até dezembro
+  let totalLancamentos = 0;
+  let totalValor = 0;
+  let temDuplicado = false;
+  let previewItems = [];
+
+  clientes.forEach(c => {
+    const meses = [];
+    for (let m = mes; m <= 12; m++) {
+      const comp = `${ano}-${String(m).padStart(2,'0')}`;
+      const jaExiste = allHonorarios.find(h => h.cliente_id === c.id && h.competencia === comp && h.tipo === 'mensal');
+      if (jaExiste) { temDuplicado = true; continue; }
+      meses.push(comp);
+    }
+    if (meses.length > 0) {
+      const valor = Number(c.honor_mensal || valorPadrao);
+      totalLancamentos += meses.length;
+      totalValor += valor * meses.length;
+      previewItems.push({ cliente: c.razao_social, meses: meses.length, valor, total: valor * meses.length });
+    }
+  });
+
+  const lista = document.getElementById('gerar-preview-lista');
+  const preview = document.getElementById('gerar-preview');
+  const aviso = document.getElementById('gerar-aviso-duplicado');
+
+  document.getElementById('gerar-preview-count').textContent = `${clientes.length} clientes · ${totalLancamentos} lançamentos`;
+  document.getElementById('gerar-preview-total').textContent = `R$${totalValor.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+  aviso.style.display = temDuplicado ? 'block' : 'none';
+
+  lista.innerHTML = previewItems.map(p => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:var(--radius-sm);font-size:12px">
+      <span style="color:var(--text)">${p.cliente}</span>
+      <span style="color:var(--text2)">${p.meses} mês${p.meses>1?'es':''} × R$${p.valor.toLocaleString('pt-BR')}</span>
+      <span style="font-weight:700;color:var(--green)">R$${p.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+    </div>`).join('') || '<div style="text-align:center;color:var(--text3);padding:16px">Nenhum cliente novo para lançar</div>';
+
+  preview.style.display = 'block';
+  document.getElementById('btn-confirmar-gerar').disabled = totalLancamentos === 0;
+}
+
+async function confirmarGerarMensais() {
+  const escId = document.getElementById('gerar-escritorio').value;
+  const competencia = document.getElementById('gerar-competencia').value;
+  const valorPadrao = parseFloat(document.getElementById('gerar-valor-padrao').value) || 160;
+  const forma = document.getElementById('gerar-forma').value;
+
+  if (!escId || !competencia) { toast('Selecione escritório e competência', 'error'); return; }
+
+  const [ano, mes] = competencia.split('-').map(Number);
+  const clientes = allClientes.filter(c => c.escritorio_id === escId && (!c.status || c.status === 'Ativo'));
+
+  const payloads = [];
+  clientes.forEach(c => {
+    for (let m = mes; m <= 12; m++) {
+      const comp = `${ano}-${String(m).padStart(2,'0')}`;
+      const jaExiste = allHonorarios.find(h => h.cliente_id === c.id && h.competencia === comp && h.tipo === 'mensal');
+      if (jaExiste) continue;
+      payloads.push({
+        tipo: 'mensal',
+        servico: 'Mensalidade',
+        competencia: comp,
+        valor: Number(c.honor_mensal || valorPadrao),
+        status: 'Pendente',
+        forma,
+        cliente_id: c.id,
+        escritorio_id: escId,
+        nome_cliente: c.razao_social,
+        user_id: currentUser.id
+      });
+    }
+  });
+
+  if (!payloads.length) { toast('Nenhum lançamento novo para gerar', 'error'); return; }
+
+  const { error } = await sb.from('gclik_honorarios').insert(payloads);
+  if (error) { toast('Erro: ' + error.message, 'error'); return; }
+
+  toast(`✅ ${payloads.length} lançamentos gerados com sucesso!`, 'success');
+  closeModal('modal-gerar-mensais');
+  await loadHonorarios();
+}
+
+
 async function salvarHonorario() {
   const valor = parseFloat(document.getElementById('honor-valor').value);
   const competencia = document.getElementById('honor-competencia').value;

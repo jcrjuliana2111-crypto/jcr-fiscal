@@ -533,6 +533,9 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       <button class="nav-btn" onclick="showPage('escritorios')" id="nav-escritorios">
         <span>🏛️</span> Escritórios
       </button>
+      <button class="nav-btn" onclick="showPage('irpf')" id="nav-irpf">
+        <span>🧾</span> IRPF
+      </button>
     </nav>
     <div class="topbar-right">
       <div class="user-pill">
@@ -847,6 +850,52 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
         <button class="btn btn-accent" onclick="openModalEscritorio()">+ Novo Escritório</button>
       </div>
       <div class="stats-grid" id="esc-stats-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))"></div>
+    </div>
+
+
+    <!-- ═══ IRPF ═══ -->
+    <div class="page" id="page-irpf">
+      <div class="page-header">
+        <div>
+          <div class="page-title">IRPF 2026</div>
+          <div class="page-subtitle">Gestão de declarações de Imposto de Renda</div>
+        </div>
+      </div>
+
+      <!-- ── PF ── -->
+      <div id="irpf-secao-pf">
+        <div id="irpf-stats-pf" style="display:grid;gap:16px;margin-bottom:20px"></div>
+        <div class="filters" style="margin-bottom:16px">
+          <input type="text" class="search-input" placeholder="🔍  Buscar por nome ou CPF…" oninput="irpfRender()" id="irpf-busca">
+          <select class="filter-select" onchange="irpfRender()" id="irpf-fst">
+            <option value="">Todos os status</option>
+            <option>Pendente</option><option>Aguardando docs</option><option>Em andamento</option>
+            <option>Preencher</option><option>Entregue</option><option>Não entregar</option><option>Aguardando retorno cliente</option>
+          </select>
+          <select class="filter-select" onchange="irpfRender()" id="irpf-fpg">
+            <option value="">Todos pagamentos</option>
+            <option>Pago</option><option>Parcial</option><option>Pendente</option>
+          </select>
+          <select class="filter-select" onchange="irpfRender()" id="irpf-fcorretor">
+            <option value="">Todas as indicações</option>
+          </select>
+          <button class="btn btn-accent" onclick="irpfNovo()">+ Novo Cliente PF</button>
+          <button class="btn btn-ghost" onclick="irpfExportar()">⬇️ Excel</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Nome</th><th>CPF</th><th>Telefone</th><th>Senha Gov.br</th>
+                <th>Status</th><th>Indicação</th><th>Honorários</th><th>Pagamento</th><th></th>
+              </tr></thead>
+              <tbody id="irpf-tb-pf"></tbody>
+            </table>
+          </div>
+          <div class="filters" id="irpf-pg-pf" style="padding:12px 16px;border-top:1px solid var(--border)"></div>
+        </div>
+      </div>
+
     </div>
 
   </div><!-- /main-content -->
@@ -1242,6 +1291,121 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   </div>
 </div>
 
+
+<!-- MODAL IRPF PF -->
+<div class="modal-overlay" id="modal-irpf-pf">
+  <div class="modal" style="width:620px">
+    <div class="modal-header">
+      <div class="modal-title" id="irpf-pf-title">Novo Cliente PF</div>
+      <button class="btn-icon" onclick="closeModal('modal-irpf-pf')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="irpf-pf-id">
+      <!-- Tabs -->
+      <div style="display:flex;gap:2px;margin-bottom:18px;border-bottom:1px solid var(--border)">
+        <button class="nav-btn active" id="irpf-pf-tab0" onclick="irpfPfTab(0)" style="border-radius:0;border-bottom:2px solid var(--accent)">Dados</button>
+        <button class="nav-btn" id="irpf-pf-tab1" onclick="irpfPfTab(1)" style="border-radius:0">Documentos</button>
+        <button class="nav-btn" id="irpf-pf-tab2" onclick="irpfPfTab(2)" style="border-radius:0">Pagamento</button>
+      </div>
+      <!-- Tab 0: Dados -->
+      <div id="irpf-pf-tc0">
+        <div class="form-row form-row-2">
+          <div class="form-group"><label>Nome *</label><input type="text" id="irpf-pf-nome"></div>
+          <div class="form-group"><label>CPF</label><input type="text" id="irpf-pf-cpf" placeholder="000.000.000-00" oninput="irpfMaskCPF(this)"></div>
+        </div>
+        <div class="form-row form-row-2">
+          <div class="form-group"><label>E-mail</label><input type="email" id="irpf-pf-email"></div>
+          <div class="form-group"><label>Telefone</label><input type="text" id="irpf-pf-tel"></div>
+        </div>
+        <div class="form-row form-row-2">
+          <div class="form-group"><label>Status Declaração</label>
+            <select id="irpf-pf-st">
+              <option>Pendente</option><option>Aguardando docs</option><option>Em andamento</option>
+              <option>Preencher</option><option>Entregue</option><option>Não entregar</option><option>Aguardando retorno cliente</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Recibo</label><input type="text" id="irpf-pf-rec"></div>
+        </div>
+        <div class="form-group"><label>Indicação</label><input type="text" id="irpf-pf-corretor" placeholder="Nome do indicador..."></div>
+        <div class="form-row form-row-2">
+          <div class="form-group"><label>Imposto R$</label><input type="number" id="irpf-pf-vimposto"></div>
+          <div class="form-group"><label>Tipo</label>
+            <select id="irpf-pf-timposto">
+              <option value="">Nenhum</option><option value="restituir">A restituir</option><option value="pagar">A pagar</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>Parcelas DARF enviadas</label><input type="text" id="irpf-pf-darf" placeholder="ex: 1/8, 2/8..."></div>
+        <div class="form-group"><label>Link pasta Google Drive</label>
+          <div style="display:flex;gap:8px">
+            <input type="url" id="irpf-pf-drive" placeholder="https://drive.google.com/..." style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-body);font-size:14px;padding:10px 13px;outline:none">
+            <button class="btn btn-ghost" onclick="window.open(document.getElementById('irpf-pf-drive').value,'_blank')">📂</button>
+          </div>
+        </div>
+        <div style="background:var(--accent-soft);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Senha Gov.br</div>
+          <div style="font-size:20px;font-weight:700;color:var(--accent);filter:blur(5px);cursor:pointer;letter-spacing:4px" id="irpf-pf-sv" onclick="this.style.filter=this.style.filter?'':'blur(5px)'">••••••••</div>
+        </div>
+        <div class="form-row form-row-2">
+          <div class="form-group"><label>Senha Gov.br</label><input type="password" id="irpf-pf-senha" oninput="irpfPrvSenha()"></div>
+          <div class="form-group"><label>Nível conta</label>
+            <select id="irpf-pf-nv"><option>Bronze</option><option>Prata</option><option>Ouro</option></select>
+          </div>
+        </div>
+        <div class="form-group"><label>Certificado digital</label>
+          <select id="irpf-pf-cert"><option>Não possui</option><option>e-CPF A1</option><option>e-CPF A3</option></select>
+        </div>
+        <div class="form-group"><label>Observações</label><textarea id="irpf-pf-obs"></textarea></div>
+      </div>
+      <!-- Tab 1: Documentos -->
+      <div id="irpf-pf-tc1" style="display:none">
+        <p style="font-size:12px;color:var(--text2);margin-bottom:14px">Arraste ou clique para enviar arquivos por categoria</p>
+        <div style="margin-bottom:14px">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">📄 Declaração e Recibo</div>
+          <div style="border:2px dashed var(--border2);border-radius:var(--radius-sm);padding:16px;text-align:center;font-size:12px;color:var(--text2);cursor:pointer" onclick="document.getElementById('irpf-fi-decl').click()">
+            Arraste ou clique para selecionar
+            <input type="file" id="irpf-fi-decl" style="display:none" accept=".pdf,.jpg,.png" onchange="irpfUpload(this,'declaracao')">
+          </div>
+          <div id="irpf-lista-declaracao" style="margin-top:6px"></div>
+        </div>
+        <div style="margin-bottom:14px">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">📁 Documentos recebidos</div>
+          <div style="border:2px dashed var(--border2);border-radius:var(--radius-sm);padding:16px;text-align:center;font-size:12px;color:var(--text2);cursor:pointer" onclick="document.getElementById('irpf-fi-docs').click()">
+            Arraste ou clique para selecionar
+            <input type="file" id="irpf-fi-docs" style="display:none" accept=".pdf,.jpg,.png" multiple onchange="irpfUpload(this,'documentos')">
+          </div>
+          <div id="irpf-lista-documentos" style="margin-top:6px"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">💰 Informe de rendimentos</div>
+          <div style="border:2px dashed var(--border2);border-radius:var(--radius-sm);padding:16px;text-align:center;font-size:12px;color:var(--text2);cursor:pointer" onclick="document.getElementById('irpf-fi-inf').click()">
+            Arraste ou clique para selecionar
+            <input type="file" id="irpf-fi-inf" style="display:none" accept=".pdf,.jpg,.png" onchange="irpfUpload(this,'informe')">
+          </div>
+          <div id="irpf-lista-informe" style="margin-top:6px"></div>
+        </div>
+      </div>
+      <!-- Tab 2: Pagamento -->
+      <div id="irpf-pf-tc2" style="display:none">
+        <div class="form-row form-row-2">
+          <div class="form-group"><label>Honorários R$</label><input type="number" id="irpf-pf-honor"></div>
+          <div class="form-group"><label>Status pagamento</label>
+            <select id="irpf-pf-pg"><option>Pendente</option><option>Parcial</option><option>Pago</option></select>
+          </div>
+        </div>
+        <div class="form-group"><label>Forma de pagamento</label>
+          <select id="irpf-pf-fp"><option>PIX</option><option>Transferência</option><option>Dinheiro</option><option>Boleto</option></select>
+        </div>
+        <div class="form-group"><label>Observações de pagamento</label><textarea id="irpf-pf-po"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-irpf-pf')">Cancelar</button>
+      <button class="btn btn-accent" onclick="irpfSalvarPf()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast"></div>
 
@@ -1298,7 +1462,7 @@ async function initApp(user) {
   document.getElementById('user-name').textContent = name;
   document.getElementById('user-avatar').textContent = name[0].toUpperCase();
   setGreeting();
-  await Promise.all([loadEscritorios(), loadClientes(), loadTarefas(), loadObrigacoes(), loadTemplates()]);
+  await Promise.all([loadEscritorios(), loadClientes(), loadTarefas(), loadObrigacoes(), loadTemplates(), loadIRPF()]);
   renderDashboard();
   renderCalendar();
   // Mostrar tela de seleção de escritório
@@ -1326,6 +1490,7 @@ function showPage(id) {
   if (id === 'alertas') renderAlertas();
   if (id === 'templates') renderTemplates();
   if (id === 'escritorios') renderEscritoriosPage();
+  if (id === 'irpf') { irpfRender(); irpfStats(); }
   if (id === 'tarefas') renderTarefas();
   if (id === 'clientes') renderClientes();
 }
@@ -2550,6 +2715,251 @@ function calcularDatas(ano, mes, recorrencia, dia) {
   }
   return datas;
 }
+
+
+// ══════════════════════════════════════════
+//  MÓDULO IRPF
+// ══════════════════════════════════════════
+const IRPF_OBRIG_MENSAL = ["DAS (Simples/MEI)","DARF IRPJ/CSLL","PIS/COFINS","DCTF","GPS/INSS"];
+const IRPF_OBRIG_ANUAL  = ["DEFIS (Simples Nacional)","DASN (MEI anual)","IRPF sócio","DIRF","RAIS"];
+let irpfCl=[], irpfEid=null;
+let irpfPag=1;
+const IRPF_PP=15;
+let irpfObrigMensal=[], irpfObrigAnual=[];
+
+async function loadIRPF() {
+  try {
+    const { data } = await sb.from('irpf_clientes').select('*').order('nome');
+    irpfCl = (data||[]).map(r=>({...r, docs: r.docs?JSON.parse(r.docs):[], h:Number(r.h||0)}));
+    irpfRender();
+    irpfStats();
+  } catch(e) { console.error('Erro IRPF:', e); }
+}
+
+// ── TABS ──
+
+function irpfPfTab(n) {
+  [0,1,2].forEach(i => {
+    document.getElementById(`irpf-pf-tc${i}`).style.display = i===n?'block':'none';
+    const btn = document.getElementById(`irpf-pf-tab${i}`);
+    btn.classList.toggle('active', i===n);
+    btn.style.borderBottom = i===n?'2px solid var(--accent)':'none';
+  });
+  if (n===1 && irpfEid) irpfCarregarArquivos(irpfEid);
+}
+
+function irpfPjTab(n) {
+  [0,1,2,3].forEach(i => {
+    document.getElementById(`irpf-pj-tc${i}`).style.display = i===n?'block':'none';
+    const btn = document.getElementById(`irpf-pj-tab${i}`);
+    btn.classList.toggle('active', i===n);
+    btn.style.borderBottom = i===n?'2px solid var(--accent)':'none';
+  });
+  if (n===1) irpfRenderObrigMensal(irpfObrigMensal);
+  if (n===2) irpfRenderObrigAnual(irpfObrigAnual);
+}
+
+// ── BADGES ──
+function irpfBadgeSt(s) {
+  const m = {
+    'Entregue':'badge-green','Em andamento':'badge-blue',
+    'Aguardando docs':'badge-yellow','Preencher':'badge-purple',
+    'Não entregar':'badge-gray','Aguardando retorno cliente':'badge-blue'
+  };
+  return `<span class="badge ${m[s]||'badge-red'}">${s||'Pendente'}</span>`;
+}
+function irpfBadgePg(p) {
+  return p==='Pago'?'<span class="badge badge-green">Pago</span>':p==='Parcial'?'<span class="badge badge-yellow">Parcial</span>':'<span class="badge badge-red">Pendente</span>';
+}
+
+// ── STATS PF ──
+function irpfStats() {
+  const t=irpfCl.length;
+  const entregue=irpfCl.filter(c=>c.st==='Entregue').length;
+  const pendente=irpfCl.filter(c=>!c.st||c.st==='Pendente').length;
+  const recPago=irpfCl.filter(c=>c.pg==='Pago').reduce((a,c)=>a+Number(c.h||0),0);
+  const aReceber=irpfCl.filter(c=>c.pg!=='Pago').reduce((a,c)=>a+Number(c.h||0),0);
+  const restituir=irpfCl.filter(c=>c.tipoImposto==='restituir').reduce((a,c)=>a+Number(c.valorImposto||0),0);
+  const pagar=irpfCl.filter(c=>c.tipoImposto==='pagar').reduce((a,c)=>a+Number(c.valorImposto||0),0);
+  const el=document.getElementById('irpf-stats-pf');
+  el.style.gridTemplateColumns='repeat(5,1fr)';
+  el.innerHTML=`
+    <div class="stat-card" style="--card-color:var(--accent)"><div class="stat-label">Total PF</div><div class="stat-value">${t}</div><div class="stat-sub">✓ Entregue: ${entregue} · Pendente: ${pendente}</div></div>
+    <div class="stat-card" style="--card-color:var(--green)"><div class="stat-label">Honorários recebidos</div><div class="stat-value" style="font-size:22px">R$${recPago.toLocaleString('pt-BR')}</div></div>
+    <div class="stat-card" style="--card-color:var(--red)"><div class="stat-label">A receber</div><div class="stat-value" style="font-size:22px">R$${aReceber.toLocaleString('pt-BR')}</div></div>
+    <div class="stat-card" style="--card-color:var(--green)"><div class="stat-label">Total a restituir</div><div class="stat-value" style="font-size:22px">R$${restituir.toLocaleString('pt-BR')}</div></div>
+    <div class="stat-card" style="--card-color:var(--orange)"><div class="stat-label">Total a pagar</div><div class="stat-value" style="font-size:22px">R$${pagar.toLocaleString('pt-BR')}</div></div>
+  `;
+}
+
+function irpfStatsPj() {
+  const t=irpfClPj.length;
+  const mei=irpfClPj.filter(c=>c.tipo==='MEI').length;
+  const simples=irpfClPj.filter(c=>c.tipo==='Simples Nacional').length;
+  const recPago=irpfClPj.filter(c=>c.pg==='Pago').reduce((a,c)=>a+Number(c.honor||0),0);
+  const aReceber=irpfClPj.filter(c=>c.pg!=='Pago').reduce((a,c)=>a+Number(c.honor||0),0);
+  const el=document.getElementById('irpf-stats-pj');
+  el.style.gridTemplateColumns='repeat(4,1fr)';
+  el.innerHTML=`
+    <div class="stat-card" style="--card-color:var(--accent)"><div class="stat-label">Total PJ</div><div class="stat-value">${t}</div><div class="stat-sub">MEI: ${mei} · Simples: ${simples}</div></div>
+    <div class="stat-card" style="--card-color:var(--purple)"><div class="stat-label">Lucro Presumido</div><div class="stat-value">${irpfClPj.filter(c=>c.tipo==='Lucro Presumido').length}</div></div>
+    <div class="stat-card" style="--card-color:var(--green)"><div class="stat-label">Honorários recebidos</div><div class="stat-value" style="font-size:22px">R$${recPago.toLocaleString('pt-BR')}</div></div>
+    <div class="stat-card" style="--card-color:var(--red)"><div class="stat-label">A receber</div><div class="stat-value" style="font-size:22px">R$${aReceber.toLocaleString('pt-BR')}</div></div>
+  `;
+}
+
+// ── RENDER PF ──
+function irpfFilt() {
+  const b=(document.getElementById('irpf-busca')?.value||'').toLowerCase();
+  const st=document.getElementById('irpf-fst')?.value||'';
+  const pg=document.getElementById('irpf-fpg')?.value||'';
+  const cor=document.getElementById('irpf-fcorretor')?.value||'';
+  return irpfCl.filter(c=>{
+    if(b&&!c.nome.toLowerCase().includes(b)&&!(c.cpf||'').includes(b))return false;
+    if(st&&(c.st||'Pendente')!==st)return false;
+    if(pg&&c.pg!==pg)return false;
+    if(cor&&c.corretor!==cor)return false;
+    return true;
+  });
+}
+
+function irpfRender() {
+  const lista=irpfFilt();
+  const tp=Math.ceil(lista.length/IRPF_PP)||1;
+  if(irpfPag>tp)irpfPag=tp;
+  const f=lista.slice((irpfPag-1)*IRPF_PP, irpfPag*IRPF_PP);
+  const tb=document.getElementById('irpf-tb-pf');
+  if(!tb)return;
+  if(!f.length){tb.innerHTML=`<tr><td colspan="9"><div class="empty-state"><div class="icon">👤</div><p>Nenhum cliente encontrado</p></div></td></tr>`;return;}
+  tb.innerHTML=f.map(c=>`<tr style="cursor:pointer" onclick="irpfAbrirPf(${c.id})">
+    <td><div style="font-weight:500">${c.nome}</div>${c.email?`<div style="font-size:11px;color:var(--text2)">${c.email}</div>`:''}</td>
+    <td style="font-family:monospace;font-size:12px">${c.cpf||'—'}</td>
+    <td style="font-size:12px">${c.tel||'—'}</td>
+    <td><span style="filter:blur(4px);cursor:pointer;font-family:monospace;color:var(--accent)" onclick="event.stopPropagation();this.style.filter=this.style.filter?'':'blur(4px)'">${c.senha||'—'}</span></td>
+    <td>${irpfBadgeSt(c.st)}</td>
+    <td style="font-size:12px;color:var(--text2)">${c.corretor||'—'}</td>
+    <td style="font-size:12px">${c.h?`R$${Number(c.h).toLocaleString('pt-BR')}`:'—'}</td>
+    <td>${irpfBadgePg(c.pg)}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();irpfDelPf(${c.id})">🗑</button></td>
+  </tr>`).join('');
+  const pg2=document.getElementById('irpf-pg-pf');
+  if(pg2)pg2.innerHTML=lista.length>IRPF_PP?`<button class="btn btn-ghost btn-sm" onclick="irpfPag--;irpfRender()" ${irpfPag===1?'disabled':''}>← Ant</button><span style="color:var(--text2)">Pág ${irpfPag}/${tp} · ${lista.length}</span><button class="btn btn-ghost btn-sm" onclick="irpfPag++;irpfRender()" ${irpfPag===tp?'disabled':''}>Próx →</button>`:`<span style="color:var(--text2)">${lista.length} cliente${lista.length!==1?'s':''}</span>`;
+  // Atualizar filtro corretor
+  const sel=document.getElementById('irpf-fcorretor');
+  if(sel){const atual=sel.value;const cors=[...new Set(irpfCl.map(c=>c.corretor).filter(c=>c&&c.trim()))].sort();sel.innerHTML=`<option value="">Todas as indicações</option>`+cors.map(c=>`<option value="${c}">${c}</option>`).join('');sel.value=atual;}
+}
+
+// ── RENDER PJ ──
+function irpfFiltPj() {
+  const b=(document.getElementById('irpf-busca-pj')?.value||'').toLowerCase();
+  const pg=document.getElementById('irpf-fpj-pg')?.value||'';
+  return irpfClPj.filter(c=>{
+    if(b&&!c.nome.toLowerCase().includes(b)&&!(c.cnpj||'').includes(b))return false;
+    if(pg&&c.pg!==pg)return false;
+    return true;
+  });
+}
+
+function irpfRenderPj() {
+  const lista=irpfFiltPj();
+  const tp=Math.ceil(lista.length/IRPF_PP)||1;
+  if(irpfPagPj>tp)irpfPagPj=tp;
+  const f=lista.slice((irpfPagPj-1)*IRPF_PP, irpfPagPj*IRPF_PP);
+  const tb=document.getElementById('irpf-tb-pj');
+  if(!tb)return;
+  if(!f.length){tb.innerHTML=`<tr><td colspan="8"><div class="empty-state"><div class="icon">🏢</div><p>Nenhuma empresa encontrada</p></div></td></tr>`;return;}
+  tb.innerHTML=f.map(c=>{
+    const pend=c.obrigMensal?IRPF_OBRIG_MENSAL.filter((_,i)=>!c.obrigMensal.includes(i)).length:IRPF_OBRIG_MENSAL.length;
+    const stComp=pend===0?'<span class="badge badge-green">Em dia</span>':`<span class="badge badge-red">${pend} pendente${pend>1?'s':''}</span>`;
+    return `<tr style="cursor:pointer" onclick="irpfAbrirPj(${c.id})">
+      <td><div style="font-weight:500">${c.nome}</div>${c.resp?`<div style="font-size:11px;color:var(--text2)">${c.resp}</div>`:''}</td>
+      <td style="font-family:monospace;font-size:12px">${c.cnpj||'—'}</td>
+      <td><span class="badge badge-blue">${c.tipo||'—'}</span></td>
+      <td>${stComp} <span style="font-size:11px;color:var(--text2)">${c.comp||''}</span></td>
+      <td>${c.prazo?`<span style="font-size:12px">${fmtDate(c.prazo)}</span>`:'—'}</td>
+      <td style="font-size:12px">${c.honor?`R$${Number(c.honor).toLocaleString('pt-BR')}/mês`:'—'}</td>
+      <td>${irpfBadgePg(c.pg)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();irpfDelPj(${c.id})">🗑</button></td>
+    </tr>`;
+  }).join('');
+  const pg2=document.getElementById('irpf-pg-pj');
+  if(pg2)pg2.innerHTML=lista.length>IRPF_PP?`<button class="btn btn-ghost btn-sm" onclick="irpfPagPj--;irpfRenderPj()" ${irpfPagPj===1?'disabled':''}>← Ant</button><span style="color:var(--text2)">Pág ${irpfPagPj}/${tp} · ${lista.length}</span><button class="btn btn-ghost btn-sm" onclick="irpfPagPj++;irpfRenderPj()" ${irpfPagPj===tp?'disabled':''}>Próx →</button>`:`<span style="color:var(--text2)">${lista.length} empresa${lista.length!==1?'s':''}</span>`;
+}
+
+// ── CRUD PF ──
+function irpfNovo(){irpfEid=null;document.getElementById('irpf-pf-title').textContent='Novo Cliente PF';irpfLimparPf();irpfPfTab(0);openModal('modal-irpf-pf');}
+function irpfAbrirPf(id){
+  const c=irpfCl.find(x=>x.id===id);if(!c)return;irpfEid=id;
+  document.getElementById('irpf-pf-title').textContent=c.nome;
+  ['nome','cpf','email','tel','rec','corretor','drive','obs','senha','po','darf'].forEach(f=>{const el=document.getElementById(`irpf-pf-${f}`);if(el)el.value=c[f]||'';});
+  document.getElementById('irpf-pf-st').value=c.st||'Pendente';
+  document.getElementById('irpf-pf-nv').value=c.nv||'Prata';
+  document.getElementById('irpf-pf-cert').value=c.cert||'Não possui';
+  document.getElementById('irpf-pf-pg').value=c.pg||'Pendente';
+  document.getElementById('irpf-pf-fp').value=c.fp||'PIX';
+  document.getElementById('irpf-pf-honor').value=c.h||'';
+  document.getElementById('irpf-pf-vimposto').value=c.valorImposto||'';
+  document.getElementById('irpf-pf-timposto').value=c.tipoImposto||'';
+  irpfPrvSenha();irpfPfTab(0);openModal('modal-irpf-pf');
+}
+function irpfLimparPf(){['nome','cpf','email','tel','rec','corretor','drive','obs','senha','po','darf','honor','vimposto'].forEach(f=>{const el=document.getElementById(`irpf-pf-${f}`);if(el)el.value='';});document.getElementById('irpf-pf-st').value='Pendente';document.getElementById('irpf-pf-nv').value='Prata';document.getElementById('irpf-pf-cert').value='Não possui';document.getElementById('irpf-pf-pg').value='Pendente';document.getElementById('irpf-pf-fp').value='PIX';document.getElementById('irpf-pf-timposto').value='';irpfPrvSenha();}
+function irpfMaskCPF(el){let v=el.value.replace(/\D/g,'').slice(0,11);if(v.length>9)v=v.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/,'$1.$2.$3-$4');else if(v.length>6)v=v.replace(/(\d{3})(\d{3})(\d{0,3})/,'$1.$2.$3');else if(v.length>3)v=v.replace(/(\d{3})(\d{0,3})/,'$1.$2');el.value=v;}
+function irpfPrvSenha(){const s=document.getElementById('irpf-pf-senha')?.value;const el=document.getElementById('irpf-pf-sv');if(el){el.dataset.v=s||'';el.textContent=s?'••••••••':'(sem senha)';el.style.filter='blur(5px)';}}
+
+async function irpfSalvarPf(){
+  const nome=document.getElementById('irpf-pf-nome').value.trim();if(!nome){toast('Informe o nome','error');return;}
+  const d={nome,cpf:document.getElementById('irpf-pf-cpf').value,email:document.getElementById('irpf-pf-email').value,tel:document.getElementById('irpf-pf-tel').value,rec:document.getElementById('irpf-pf-rec').value,st:document.getElementById('irpf-pf-st').value,obs:document.getElementById('irpf-pf-obs').value,senha:document.getElementById('irpf-pf-senha').value,nv:document.getElementById('irpf-pf-nv').value,cert:document.getElementById('irpf-pf-cert').value,docs:JSON.stringify([]),dob:'',h:Number(document.getElementById('irpf-pf-honor').value)||0,pg:document.getElementById('irpf-pf-pg').value,fp:document.getElementById('irpf-pf-fp').value,po:document.getElementById('irpf-pf-po').value,drive:document.getElementById('irpf-pf-drive').value,tipoImposto:document.getElementById('irpf-pf-timposto').value,valorImposto:Number(document.getElementById('irpf-pf-vimposto').value)||0,darfEnviadas:document.getElementById('irpf-pf-darf').value,corretor:document.getElementById('irpf-pf-corretor').value,user_id:currentUser.id};
+  let err;
+  if(irpfEid){({error:err}=await sb.from('irpf_clientes').update(d).eq('id',irpfEid));if(!err){const i=irpfCl.findIndex(c=>c.id===irpfEid);irpfCl[i]={...irpfCl[i],...d,id:irpfEid,h:d.h};}}
+  else{const{data,error}=await sb.from('irpf_clientes').insert(d).select();err=error;if(!err&&data)irpfCl.push({...d,id:data[0].id,docs:[]});}
+  if(err){toast('Erro: '+err.message,'error');return;}
+  toast(irpfEid?'Cliente atualizado!':'Cliente cadastrado!','success');
+  closeModal('modal-irpf-pf');irpfRender();irpfStats();
+}
+async function irpfDelPf(id){if(!confirm('Excluir este cliente?'))return;await sb.from('irpf_clientes').delete().eq('id',id);irpfCl=irpfCl.filter(c=>c.id!==id);irpfRender();irpfStats();toast('Cliente removido','success');}
+
+
+// ── UPLOAD ARQUIVOS IRPF ──
+async function irpfUpload(input, cat){
+  if(!irpfEid){toast('Salve o cliente primeiro','error');return;}
+  for(const file of input.files){
+    const path=`${irpfEid}/${cat}/${file.name}`;
+    const r=await fetch(`${SUPABASE_URL}/storage/v1/object/Documentos/${path}`,{method:'POST',headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':file.type||'application/octet-stream','x-upsert':'true'},body:file});
+    if(r.ok){irpfAddArquivo(cat,file.name,path);}else{toast('Erro ao enviar '+file.name,'error');}
+  }
+  input.value='';
+}
+function irpfAddArquivo(cat,nome,path){
+  const lista=document.getElementById(`irpf-lista-${cat}`);if(!lista)return;
+  const item=document.createElement('div');item.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--surface2);border-radius:6px;border:0.5px solid var(--border);font-size:12px;margin-top:4px';
+  item.innerHTML=`<a href="#" onclick="event.preventDefault();irpfAbrirArq('${path}')" style="color:var(--accent);text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📎 ${nome}</a><button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px">✕</button>`;
+  lista.appendChild(item);
+}
+async function irpfAbrirArq(path){
+  const r=await fetch(`${SUPABASE_URL}/storage/v1/object/sign/Documentos/${path}`,{method:'POST',headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({expiresIn:3600})});
+  if(r.ok){const d=await r.json();if(d.signedURL)window.open(`${SUPABASE_URL}/storage/v1${d.signedURL}`,'_blank');}
+}
+async function irpfCarregarArquivos(id){
+  ['declaracao','documentos','informe'].forEach(cat=>{const el=document.getElementById(`irpf-lista-${cat}`);if(el)el.innerHTML='';});
+  for(const cat of['declaracao','documentos','informe']){
+    try{const r=await fetch(`${SUPABASE_URL}/storage/v1/object/list/Documentos`,{method:'POST',headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({prefix:`${id}/${cat}/`,limit:100})});if(!r.ok)continue;const data=await r.json();if(Array.isArray(data))data.filter(f=>f.name&&f.name!=='.emptyFolderPlaceholder').forEach(f=>irpfAddArquivo(cat,f.name,`${id}/${cat}/${f.name}`));}catch(e){}
+  }
+}
+
+// ── EXPORTAR ──
+function irpfExportar(){
+  const cab=['Nome','CPF','E-mail','Telefone','Status','Honorários','Pagamento','Indicação'];
+  const rows=irpfFilt().map(c=>[c.nome,c.cpf,c.email,c.tel,c.st,c.h,c.pg,c.corretor]);
+  const csv=[cab,...rows].map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(';')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);a.download=`JCR_IRPF_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;a.click();
+}
+function irpfExportarPj(){
+  const cab=['Empresa','CNPJ','Regime','Responsável','Honorários','Pagamento'];
+  const rows=irpfFiltPj().map(c=>[c.nome,c.cnpj,c.tipo,c.resp,c.honor,c.pg]);
+  const csv=[cab,...rows].map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(';')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);a.download=`JCR_PJ_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;a.click();
+}
+
 
 // ══════════════ START ══════════════
 checkSession();

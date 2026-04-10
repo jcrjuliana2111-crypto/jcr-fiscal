@@ -831,8 +831,8 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 // ══════════════════════════════════════════
 //  CONFIG — substitua pelas suas credenciais
 // ══════════════════════════════════════════
-const SUPABASE_URL = 'https://onecnoicxqjhgolqncjj.supabase';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uZWNub2ljeHFqaGdvbHFuY2pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1NzkyODUsImV4cCI6MjA5MDE1NTI4NX0._D4QeCWkrbQTc09wqGjTeu-ld71llRRdksEKlPbaEMw';
+const SUPABASE_URL = 'https://onecnoicxqjhgolqncjj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_paOFHdYEcMr7MZdOFx16Lw_sXt0n0-9';
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -851,7 +851,7 @@ let filterTarSearch = '', filterTarStatus = '', filterTarPrio = '', filterTarCli
 
 // ══════════════ AUTH ══════════════
 async function doLogin() {
-  const email = document.getElementById('login-email').value.trim();'
+  const email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-err');
   errEl.style.display = 'none';

@@ -1808,6 +1808,11 @@ function filtrarClienteStatus(v) { filterCliStatus = v; renderClientes(); }
 function openModalCliente(id) {
   document.getElementById('modal-cliente-title').textContent = id ? 'Editar Cliente' : 'Novo Cliente';
   clearForm(['cliente-id','cli-razao','cli-fantasia','cli-cnpj','cli-ie','cli-responsavel','cli-email','cli-telefone','cli-cidade','cli-obs','cli-honor-mensal','cli-dia-venc']);
+  // Resetar dropzone CNPJ
+  document.getElementById('cnpj-dropzone').style.display = 'block';
+  document.getElementById('cnpj-loading').style.display = 'none';
+  document.getElementById('cnpj-resultado').style.display = 'none';
+  document.getElementById('cnpj-resultado').textContent = '';
   if (id) {
     const c = allClientes.find(x => x.id === id);
     if (c) {

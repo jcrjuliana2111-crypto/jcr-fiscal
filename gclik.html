@@ -2133,22 +2133,30 @@ function renderDashboard() {
 
   // Próximas obrigações
   const proximas = obrFiltradas.filter(o=>o.vencimento>=today()&&o.status!=='Entregue'&&o.status!=='Pago')
-    .sort((a,b)=>a.vencimento.localeCompare(b.vencimento)).slice(0,5);
+    .sort((a,b)=>a.vencimento.localeCompare(b.vencimento)).slice(0,8);
   const dashObr = document.getElementById('dash-obrigacoes');
   if (!proximas.length) { dashObr.innerHTML = `<div class="empty-state"><div class="icon">📅</div><p>Sem obrigações próximas</p></div>`; }
   else dashObr.innerHTML = proximas.map(o => {
     const cli = allClientes.find(c=>c.id==o.cliente_id);
     const cor = tipoColor(o.tipo);
-    return `<div class="task-item">
-      <div class="prio" style="width:10px;height:10px;border-radius:3px;background:${cor};flex-shrink:0"></div>
-      <div class="task-info">
-        <div class="task-name">${o.titulo}</div>
-        <div class="task-meta">
-          <span class="badge badge-blue" style="font-size:10px">${o.tipo}</span>
-          ${cli?`<span>🏢 ${cli.razao_social.split(' ')[0]}</span>`:'<span>Todos</span>'}
-          <span>📅 ${fmtDate(o.vencimento)}</span>
+    const daysLeft = Math.ceil((new Date(o.vencimento+'T00:00:00')-new Date(today()+'T00:00:00'))/(1000*60*60*24));
+    const urgColor = daysLeft<=1?'var(--red)':daysLeft<=7?'var(--yellow)':'var(--text2)';
+    return `<div class="task-item" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+        <div class="prio" style="width:10px;height:10px;border-radius:3px;background:${cor};flex-shrink:0"></div>
+        <div class="task-info">
+          <div class="task-name">${o.titulo}</div>
+          <div class="task-meta">
+            <span class="badge badge-blue" style="font-size:10px">${o.tipo}</span>
+            ${cli?`<span>🏢 ${cli.razao_social.split(' ')[0]}</span>`:'<span>Todos</span>'}
+            <span style="color:${urgColor};font-weight:600">📅 ${fmtDate(o.vencimento)} ${daysLeft===0?'(hoje)':daysLeft===1?'(amanhã)':'('+daysLeft+'d)'}</span>
+          </div>
         </div>
       </div>
+      <button onclick="concluirObrigacaoDash('${o.id}')" title="Marcar como entregue"
+        style="background:var(--green-soft);border:1px solid rgba(45,212,160,0.3);color:var(--green);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;flex-shrink:0">
+        ✓ Concluir
+      </button>
     </div>`;
   }).join('');
 }
@@ -3042,10 +3050,26 @@ async function aplicarTemplatesCliente() {
   const { error } = await sb.from('gclik_obrigacoes').insert(obrigacoes);
   if (error) { toast('Erro ao gerar obrigações: ' + error.message, 'error'); return; }
 
-  toast(`${obrigacoes.length} obrigação(ões) gerada(s) com sucesso! 🎉`, 'success');
+  // Criar tarefas vinculadas para cada obrigação
+  const cli = allClientes.find(c => c.id === templateClienteId);
+  const tarefas = obrigacoes.map(o => ({
+    titulo: o.titulo + (cli ? ' — ' + cli.razao_social.split(' ')[0] : ''),
+    descricao: `Obrigação ${o.tipo} • Vencimento: ${fmtDate(o.vencimento)}`,
+    cliente_id: templateClienteId,
+    prazo: o.vencimento,
+    prioridade: 'Média',
+    status: 'Pendente',
+    responsavel: '',
+    user_id: currentUser.id
+  }));
+
+  await sb.from('gclik_tarefas').insert(tarefas);
+
+  toast(`✅ ${obrigacoes.length} obrigação(ões) e tarefa(s) gerada(s)! 🎉`, 'success');
   closeModal('modal-aplicar-templates');
-  await loadObrigacoes();
+  await Promise.all([loadObrigacoes(), loadTarefas()]);
   renderDashboard();
+  updateBadges();
 }
 
 function calcularDatas(ano, mes, recorrencia, dia, mesVenc) {
@@ -3749,6 +3773,21 @@ async function delHonorario(id) {
   honorStats();
 }
 
+
+async function concluirObrigacaoDash(id) {
+  const { error } = await sb.from('gclik_obrigacoes').update({ status: 'Entregue' }).eq('id', id);
+  if (error) { toast('Erro: ' + error.message, 'error'); return; }
+  // Concluir tarefa vinculada se existir
+  const obr = allObrigacoes.find(o => o.id === id);
+  if (obr) {
+    const tar = allTarefas.find(t => t.cliente_id === obr.cliente_id && t.prazo === obr.vencimento && t.status !== 'Concluída');
+    if (tar) await sb.from('gclik_tarefas').update({ status: 'Concluída' }).eq('id', tar.id);
+  }
+  toast('Obrigação concluída! ✅', 'success');
+  await Promise.all([loadObrigacoes(), loadTarefas()]);
+  renderDashboard();
+  updateBadges();
+}
 
 // ══════════════ START ══════════════
 checkSession();

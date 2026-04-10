@@ -921,7 +921,8 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
             <option>Pago</option>
             <option>Parcial</option>
           </select>
-          <button class="btn btn-accent" onclick="openModalHonorario()">+ Lançar Honorário</button>
+          <button class="btn btn-ghost" onclick="openModalGerarMensais()">⚡ Gerar Mensais</button>
+          <button class="btn btn-accent" onclick="openModalHonorario()">+ Lançar Avulso</button>
         </div>
       </div>
 
@@ -1461,6 +1462,65 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   </div>
 </div>
 
+
+
+<!-- MODAL GERAR MENSAIS -->
+<div class="modal-overlay" id="modal-gerar-mensais">
+  <div class="modal" style="width:580px">
+    <div class="modal-header">
+      <div class="modal-title">⚡ Gerar Honorários Mensais</div>
+      <button class="btn-icon" onclick="closeModal('modal-gerar-mensais')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:18px">
+        Gera automaticamente um lançamento de honorário para cada cliente do escritório selecionado, usando o valor cadastrado em cada cliente.
+      </p>
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>Escritório *</label>
+          <select id="gerar-escritorio" onchange="gerarMensaisPreview()">
+            <option value="">Selecione o escritório</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Competência *</label>
+          <input type="month" id="gerar-competencia" onchange="gerarMensaisPreview()">
+        </div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>Valor padrão (se cliente não tiver)</label>
+          <input type="number" id="gerar-valor-padrao" value="160" placeholder="160">
+        </div>
+        <div class="form-group">
+          <label>Forma de Pagamento</label>
+          <select id="gerar-forma">
+            <option>PIX</option><option>Transferência</option><option>Dinheiro</option><option>Boleto</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div id="gerar-preview" style="display:none;margin-top:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">
+          Preview — <span id="gerar-preview-count">0</span> clientes
+        </div>
+        <div style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px" id="gerar-preview-lista"></div>
+        <div style="margin-top:12px;padding:12px;background:var(--accent-soft);border-radius:var(--radius-sm);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;color:var(--text2)">Total a lançar:</span>
+          <span style="font-size:18px;font-weight:700;color:var(--accent)" id="gerar-preview-total">R$0,00</span>
+        </div>
+        <div id="gerar-aviso-duplicado" style="display:none;margin-top:8px;padding:10px;background:var(--yellow-soft);border:1px solid rgba(245,200,66,0.3);border-radius:var(--radius-sm);font-size:12px;color:var(--yellow)">
+          ⚠️ Alguns clientes já têm honorário lançado nesta competência. Serão ignorados.
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-gerar-mensais')">Cancelar</button>
+      <button class="btn btn-accent" id="btn-confirmar-gerar" onclick="confirmarGerarMensais()" disabled>⚡ Gerar Lançamentos</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL HONORÁRIO -->
 <div class="modal-overlay" id="modal-honorario">
@@ -3376,24 +3436,57 @@ async function salvarHonorario() {
   const cli = allClientes.find(c => c.id === cliId);
   const escId = document.getElementById('honor-escritorio').value || cli?.escritorio_id || null;
   const id = document.getElementById('honor-id').value;
-  const payload = {
-    tipo: document.getElementById('honor-tipo').value,
+  const tipo = document.getElementById('honor-tipo').value;
+  const nomeCliente = cli?.razao_social || document.getElementById('honor-cliente').options[document.getElementById('honor-cliente').selectedIndex]?.text || '';
+
+  const basePayload = {
+    tipo,
     servico: document.getElementById('honor-servico').value.trim(),
-    competencia,
     valor,
     status: document.getElementById('honor-status').value,
     forma: document.getElementById('honor-forma').value,
     obs: document.getElementById('honor-obs').value.trim(),
     cliente_id: cliId || null,
     escritorio_id: escId,
-    nome_cliente: cli?.razao_social || document.getElementById('honor-cliente').options[document.getElementById('honor-cliente').selectedIndex]?.text || '',
+    nome_cliente: nomeCliente,
     user_id: currentUser.id
   };
-  let err;
-  if (id) { ({ error: err } = await sb.from('gclik_honorarios').update(payload).eq('id', id)); }
-  else { ({ error: err } = await sb.from('gclik_honorarios').insert(payload)); }
-  if (err) { toast('Erro: ' + err.message, 'error'); return; }
-  toast(id ? 'Honorário atualizado!' : 'Honorário lançado!', 'success');
+
+  // Se for edição, atualiza só esse lançamento
+  if (id) {
+    const { error: err } = await sb.from('gclik_honorarios').update({ ...basePayload, competencia }).eq('id', id);
+    if (err) { toast('Erro: ' + err.message, 'error'); return; }
+    toast('Honorário atualizado!', 'success');
+    closeModal('modal-honorario');
+    await loadHonorarios();
+    return;
+  }
+
+  // Se for mensal, gera de competência selecionada até dezembro do ano
+  if (tipo === 'mensal') {
+    const [ano, mes] = competencia.split('-').map(Number);
+    const anoAtual = new Date().getFullYear();
+    const payloads = [];
+    for (let m = mes; m <= 12; m++) {
+      const comp = `${ano}-${String(m).padStart(2,'0')}`;
+      // Verificar se já existe lançamento para esse cliente/competência
+      const jaExiste = allHonorarios.find(h => h.cliente_id === cliId && h.competencia === comp && h.tipo === 'mensal');
+      if (!jaExiste) payloads.push({ ...basePayload, competencia: comp });
+    }
+    if (!payloads.length) {
+      toast('Todos os meses já têm lançamento para este cliente!', 'error');
+      return;
+    }
+    const { error: err } = await sb.from('gclik_honorarios').insert(payloads);
+    if (err) { toast('Erro: ' + err.message, 'error'); return; }
+    toast(`✅ ${payloads.length} lançamento${payloads.length>1?'s':''} gerado${payloads.length>1?'s':''} até Dez/${ano}!`, 'success');
+  } else {
+    // Avulso — lança só o mês selecionado
+    const { error: err } = await sb.from('gclik_honorarios').insert({ ...basePayload, competencia });
+    if (err) { toast('Erro: ' + err.message, 'error'); return; }
+    toast('Honorário lançado!', 'success');
+  }
+
   closeModal('modal-honorario');
   await loadHonorarios();
 }

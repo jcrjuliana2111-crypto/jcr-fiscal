@@ -3680,7 +3680,7 @@ function gerarMensaisPreview() {
       meses.push(comp);
     }
     if (meses.length > 0) {
-      const valor = Number(c.honor_mensal) || Number(valorPadrao) || 0;
+      const valor = (c.honor_mensal !== null && c.honor_mensal !== undefined) ? Number(c.honor_mensal) : (Number(valorPadrao) || 0);
       totalLancamentos += meses.length;
       totalValor += valor * meses.length;
       previewItems.push({ cliente: c.razao_social, meses: meses.length, valor, total: valor * meses.length });
@@ -3727,7 +3727,7 @@ async function confirmarGerarMensais() {
         tipo: 'mensal',
         servico: 'Mensalidade',
         competencia: comp,
-        valor: Number(c.honor_mensal) || Number(valorPadrao) || 0,
+        valor: (c.honor_mensal !== null && c.honor_mensal !== undefined) ? Number(c.honor_mensal) : (Number(valorPadrao) || 0),
         status: 'Pendente',
         forma,
         cliente_id: c.id,

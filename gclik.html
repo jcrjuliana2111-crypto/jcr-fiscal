@@ -2805,19 +2805,53 @@ function irpfBadgePg(p) {
 function irpfStats() {
   const t=irpfCl.length;
   const entregue=irpfCl.filter(c=>c.st==='Entregue').length;
+  const andamento=irpfCl.filter(c=>c.st==='Em andamento').length;
+  const aguardando=irpfCl.filter(c=>c.st==='Aguardando docs').length;
+  const preencher=irpfCl.filter(c=>c.st==='Preencher').length;
   const pendente=irpfCl.filter(c=>!c.st||c.st==='Pendente').length;
+  const naoEntregar=irpfCl.filter(c=>c.st==='Não entregar').length;
+  const agRetorno=irpfCl.filter(c=>c.st==='Aguardando retorno cliente').length;
   const recPago=irpfCl.filter(c=>c.pg==='Pago').reduce((a,c)=>a+Number(c.h||0),0);
   const aReceber=irpfCl.filter(c=>c.pg!=='Pago').reduce((a,c)=>a+Number(c.h||0),0);
-  const restituir=irpfCl.filter(c=>c.tipoImposto==='restituir').reduce((a,c)=>a+Number(c.valorImposto||0),0);
-  const pagar=irpfCl.filter(c=>c.tipoImposto==='pagar').reduce((a,c)=>a+Number(c.valorImposto||0),0);
+  const restituir=irpfCl.filter(c=>c.tipo_imposto==='restituir').reduce((a,c)=>a+Number(c.valor_imposto||0),0);
+  const pagar=irpfCl.filter(c=>c.tipo_imposto==='pagar').reduce((a,c)=>a+Number(c.valor_imposto||0),0);
+  const darfPend=irpfCl.filter(c=>c.darf_enviadas&&c.darf_enviadas.trim()).length;
   const el=document.getElementById('irpf-stats-pf');
   el.style.gridTemplateColumns='repeat(5,1fr)';
   el.innerHTML=`
-    <div class="stat-card" style="--card-color:var(--accent)"><div class="stat-label">Total PF</div><div class="stat-value">${t}</div><div class="stat-sub">✓ Entregue: ${entregue} · Pendente: ${pendente}</div></div>
-    <div class="stat-card" style="--card-color:var(--green)"><div class="stat-label">Honorários recebidos</div><div class="stat-value" style="font-size:22px">R$${recPago.toLocaleString('pt-BR')}</div></div>
-    <div class="stat-card" style="--card-color:var(--red)"><div class="stat-label">A receber</div><div class="stat-value" style="font-size:22px">R$${aReceber.toLocaleString('pt-BR')}</div></div>
-    <div class="stat-card" style="--card-color:var(--green)"><div class="stat-label">Total a restituir</div><div class="stat-value" style="font-size:22px">R$${restituir.toLocaleString('pt-BR')}</div></div>
-    <div class="stat-card" style="--card-color:var(--orange)"><div class="stat-label">Total a pagar</div><div class="stat-value" style="font-size:22px">R$${pagar.toLocaleString('pt-BR')}</div></div>
+    <div class="stat-card" style="--card-color:var(--accent)">
+      <div class="stat-label">Total</div>
+      <div class="stat-value">${t}</div>
+      <div class="stat-sub" style="display:flex;flex-direction:column;gap:3px;margin-top:6px">
+        <span style="color:var(--green);font-size:11px">✓ Entregue: ${entregue}</span>
+        <span style="color:var(--accent);font-size:11px">◎ Em andamento: ${andamento}</span>
+        <span style="color:var(--yellow);font-size:11px">⏳ Ag. docs: ${aguardando}</span>
+        <span style="color:var(--purple);font-size:11px">✏ Preencher: ${preencher}</span>
+        <span style="color:var(--red);font-size:11px">○ Pendente: ${pendente}</span>
+        <span style="color:var(--text3);font-size:11px">✗ Não entregar: ${naoEntregar}</span>
+        <span style="color:var(--accent2);font-size:11px">↩ Ag. retorno: ${agRetorno}</span>
+      </div>
+    </div>
+    <div class="stat-card" style="--card-color:var(--green)">
+      <div class="stat-label">Honorários recebidos</div>
+      <div class="stat-value" style="font-size:22px;color:var(--green)">R$${recPago.toLocaleString('pt-BR')}</div>
+      <div class="stat-sub">${irpfCl.filter(c=>c.pg==='Pago').length} pagos</div>
+    </div>
+    <div class="stat-card" style="--card-color:var(--red)">
+      <div class="stat-label">A receber</div>
+      <div class="stat-value" style="font-size:22px;color:var(--red)">R$${aReceber.toLocaleString('pt-BR')}</div>
+      <div class="stat-sub">${irpfCl.filter(c=>c.pg!=='Pago').length} pendentes</div>
+    </div>
+    <div class="stat-card" style="--card-color:var(--green)">
+      <div class="stat-label">Total a restituir</div>
+      <div class="stat-value" style="font-size:22px;color:var(--green)">R$${restituir.toLocaleString('pt-BR')}</div>
+      <div class="stat-sub">${irpfCl.filter(c=>c.tipo_imposto==='restituir').length} clientes</div>
+    </div>
+    <div class="stat-card" style="--card-color:var(--orange)">
+      <div class="stat-label">Total a pagar / DARF</div>
+      <div class="stat-value" style="font-size:22px;color:var(--orange)">R$${pagar.toLocaleString('pt-BR')}</div>
+      <div class="stat-sub">${darfPend} com DARF enviado</div>
+    </div>
   `;
 }
 

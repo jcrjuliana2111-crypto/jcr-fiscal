@@ -940,6 +940,7 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
                 <th>Tipo</th>
                 <th>Serviço</th>
                 <th>Competência</th>
+                <th>Vencimento</th>
                 <th>Valor</th>
                 <th>Status</th>
                 <th>Forma Pgto</th>
@@ -1563,10 +1564,14 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
           <input type="text" id="honor-servico" placeholder="Ex: Declaração MEI 2025, Consultoria...">
         </div>
       </div>
-      <div class="form-row form-row-2">
+      <div class="form-row form-row-3">
         <div class="form-group">
           <label>Competência (mês/ano)</label>
           <input type="month" id="honor-competencia">
+        </div>
+        <div class="form-group">
+          <label>Vencimento</label>
+          <input type="date" id="honor-vencimento">
         </div>
         <div class="form-group">
           <label>Valor R$</label>
@@ -3339,6 +3344,7 @@ function honorRender() {
       <td><span class="badge badge-blue">${tipoLabel[h.tipo]||h.tipo||'—'}</span></td>
       <td style="font-size:12px;color:var(--text2)">${h.servico||'—'}</td>
       <td style="font-weight:600">${honorFmtComp(h.competencia)}</td>
+      <td style="${h.vencimento && h.vencimento < today() && h.status !== 'Pago' ? 'color:var(--red);font-weight:600' : 'font-size:12px'}">${h.vencimento ? fmtDate(h.vencimento) : '—'}</td>
       <td style="font-weight:700;color:var(--green)">R$${Number(h.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
       <td><span class="badge ${stBadge}">${h.status}</span></td>
       <td style="font-size:12px">${h.forma||'—'}</td>
@@ -3395,6 +3401,7 @@ function openModalHonorario() {
   document.getElementById('honor-obs').value = '';
   document.getElementById('honor-status').value = 'Pendente';
   document.getElementById('honor-forma').value = 'PIX';
+  document.getElementById('honor-vencimento').value = '';
   document.getElementById('honor-tipo').value = 'mensal';
   // Competência atual
   const agora = new Date();
@@ -3414,6 +3421,7 @@ function editHonorario(id) {
   document.getElementById('honor-tipo').value = h.tipo||'mensal';
   document.getElementById('honor-servico').value = h.servico||'';
   document.getElementById('honor-competencia').value = h.competencia||'';
+  document.getElementById('honor-vencimento').value = h.vencimento||'';
   document.getElementById('honor-valor').value = h.valor||'';
   document.getElementById('honor-status').value = h.status||'Pendente';
   document.getElementById('honor-forma').value = h.forma||'PIX';
@@ -3439,10 +3447,12 @@ async function salvarHonorario() {
   const tipo = document.getElementById('honor-tipo').value;
   const nomeCliente = cli?.razao_social || document.getElementById('honor-cliente').options[document.getElementById('honor-cliente').selectedIndex]?.text || '';
 
+  const vencimento = document.getElementById('honor-vencimento').value || null;
   const basePayload = {
     tipo,
     servico: document.getElementById('honor-servico').value.trim(),
     valor,
+    vencimento,
     status: document.getElementById('honor-status').value,
     forma: document.getElementById('honor-forma').value,
     obs: document.getElementById('honor-obs').value.trim(),

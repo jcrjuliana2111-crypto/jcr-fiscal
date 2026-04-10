@@ -1833,7 +1833,7 @@ function openModalCliente(id) {
       document.getElementById('cli-telefone').value = c.telefone||'';
       document.getElementById('cli-cidade').value = c.cidade||'';
       document.getElementById('cli-obs').value = c.observacoes||'';
-      document.getElementById('cli-honor-mensal').value = c.honor_mensal||'160';
+      document.getElementById('cli-honor-mensal').value = c.honor_mensal||'';
       document.getElementById('cli-dia-venc').value = c.dia_vencimento||'';
     }
   }
@@ -1856,7 +1856,7 @@ async function salvarCliente() {
     telefone: document.getElementById('cli-telefone').value.trim(),
     cidade: document.getElementById('cli-cidade').value.trim(),
     observacoes: document.getElementById('cli-obs').value.trim(),
-    honor_mensal: parseFloat(document.getElementById('cli-honor-mensal').value) || 160,
+    honor_mensal: parseFloat(document.getElementById('cli-honor-mensal').value) || 0,
     dia_vencimento: parseInt(document.getElementById('cli-dia-venc').value) || null,
     tipo_empresa: document.getElementById('cli-tipo-empresa').value,
     estado: document.getElementById('cli-estado').value,

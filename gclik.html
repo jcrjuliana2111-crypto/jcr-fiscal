@@ -608,22 +608,13 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
         </div>
       </div>
 
-      <div class="dash-grid">
+      <div class="dash-grid" style="grid-template-columns:1fr">
         <div class="card">
           <div class="card-header">
             <div class="card-title">Tarefas Urgentes</div>
             <button class="btn btn-ghost btn-sm" onclick="showPage('tarefas')">Ver todas</button>
           </div>
           <div id="dash-tarefas">
-            <div class="loading-overlay"><div class="spinner"></div></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">Próximas Obrigações</div>
-            <button class="btn btn-ghost btn-sm" onclick="showPage('agenda')">Ver todas</button>
-          </div>
-          <div id="dash-obrigacoes">
             <div class="loading-overlay"><div class="spinner"></div></div>
           </div>
         </div>
@@ -2134,7 +2125,6 @@ function renderDashboard() {
   // Próximas obrigações
   const proximas = obrFiltradas.filter(o=>o.vencimento>=today()&&o.status!=='Entregue'&&o.status!=='Pago')
     .sort((a,b)=>a.vencimento.localeCompare(b.vencimento)).slice(0,8);
-  const dashObr = document.getElementById('dash-obrigacoes');
   if (!proximas.length) { dashObr.innerHTML = `<div class="empty-state"><div class="icon">📅</div><p>Sem obrigações próximas</p></div>`; }
   else dashObr.innerHTML = proximas.map(o => {
     const cli = allClientes.find(c=>c.id==o.cliente_id);

@@ -1445,6 +1445,7 @@ async function doLogin() {
 }
 
 async function doLogout() {
+  sessionStorage.clear();
   await sb.auth.signOut();
   location.reload();
 }
@@ -1458,6 +1459,7 @@ async function checkSession() {
 async function initApp(user) {
   currentUser = user;
   document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'none'; // garante que começa oculto
   const name = user.email.split('@')[0];
   document.getElementById('user-name').textContent = name;
   document.getElementById('user-avatar').textContent = name[0].toUpperCase();
@@ -1465,8 +1467,31 @@ async function initApp(user) {
   await Promise.all([loadEscritorios(), loadClientes(), loadTarefas(), loadObrigacoes(), loadTemplates(), loadIRPF()]);
   renderDashboard();
   renderCalendar();
-  // Mostrar tela de seleção de escritório
-  if (allEscritorios.length > 0) {
+
+  // Restaurar escritório e página da sessão anterior (F5 / Ctrl+Shift+R)
+  const escSalvo = sessionStorage.getItem('escritorioAtivo');
+  const pagSalva = sessionStorage.getItem('paginaAtiva') || 'dashboard';
+
+  if (escSalvo !== null) {
+    // Sessão existente — restaurar sem mostrar tela de seleção
+    const id = escSalvo === '__todos__' ? null : escSalvo;
+    escritorioAtivo = id;
+    document.getElementById('app').style.display = 'flex';
+    if (id === null) {
+      document.getElementById('esc-pill-avatar').style.background = 'linear-gradient(135deg,#4f8ef7,#a78bfa)';
+      document.getElementById('esc-pill-avatar').textContent = '★';
+      document.getElementById('esc-pill-nome').textContent = 'Todos';
+    } else {
+      const e = allEscritorios.find(x => x.id === id);
+      if (e) {
+        document.getElementById('esc-pill-avatar').style.background = e.cor||'#4f8ef7';
+        document.getElementById('esc-pill-avatar').textContent = e.nome[0].toUpperCase();
+        document.getElementById('esc-pill-nome').textContent = e.nome;
+      }
+    }
+    filtrarPorEscritorioAtivo();
+    showPage(pagSalva);
+  } else if (allEscritorios.length > 0) {
     mostrarTelaEscritorios();
   } else {
     document.getElementById('app').style.display = 'flex';
@@ -1486,6 +1511,7 @@ function showPage(id) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   document.getElementById('nav-' + id).classList.add('active');
+  sessionStorage.setItem('paginaAtiva', id);
   if (id === 'agenda') renderCalendar();
   if (id === 'alertas') renderAlertas();
   if (id === 'templates') renderTemplates();
@@ -2112,11 +2138,14 @@ function mostrarTelaEscritorios() {
 }
 
 function voltarEscritorios() {
+  sessionStorage.removeItem('escritorioAtivo');
+  sessionStorage.removeItem('paginaAtiva');
   mostrarTelaEscritorios();
 }
 
 function selecionarEscritorio(id) {
   escritorioAtivo = id;
+  sessionStorage.setItem('escritorioAtivo', id === null ? '__todos__' : id);
   document.getElementById('escritorio-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
 

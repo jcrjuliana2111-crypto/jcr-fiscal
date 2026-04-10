@@ -842,6 +842,8 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
                 <th>Estado</th>
                 <th>Recorrência</th>
                 <th>Vencimento</th>
+                <th>Dias</th>
+                <th>Feriado</th>
                 <th>Ações</th>
               </tr>
             </thead>
@@ -1335,6 +1337,37 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
             <option>Alta</option>
             <option selected>Média</option>
             <option>Baixa</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Regra de Competência</label>
+        <select id="tpl-competencia-regra">
+          <option value="mesmo_mes">Mesmo mês do vencimento</option>
+          <option value="mes_anterior">Mês anterior ao vencimento</option>
+          <option value="2_meses_anteriores">2 meses anteriores ao vencimento</option>
+          <option value="3_meses_anteriores">3 meses anteriores ao vencimento</option>
+          <option value="mesmo_ano">Mesmo ano do vencimento</option>
+          <option value="ano_anterior">Ano anterior ao vencimento</option>
+        </select>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">
+          Ex: DAS → mesmo mês | DIME → mês anterior | IRPF → ano anterior
+        </div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>Tipo de dias do vencimento</label>
+          <select id="tpl-tipo-dias">
+            <option value="corridos">Dias corridos</option>
+            <option value="uteis">Dias úteis</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Se cair em feriado/fim de semana</label>
+          <select id="tpl-antecipa-prorroga">
+            <option value="prorroga">Prorroga para o próximo dia útil</option>
+            <option value="antecipa">Antecipa para o dia útil anterior</option>
+            <option value="fixo">Data fixa (não altera)</option>
           </select>
         </div>
       </div>
@@ -2813,6 +2846,8 @@ function renderTemplates() {
       <td><span class="badge badge-gray">${t.estado||'Todos'}</span></td>
       <td><span class="badge badge-yellow">${recLabel(t.recorrencia)}</span></td>
       <td style="font-weight:600">Dia ${t.dia_vencimento||'?'}</td>
+      <td><span class="badge badge-gray" style="font-size:10px">${t.tipo_dias==='uteis'?'Úteis':'Corridos'}</span></td>
+      <td><span class="badge ${t.antecipa_prorroga==='antecipa'?'badge-yellow':t.antecipa_prorroga==='fixo'?'badge-gray':'badge-blue'}" style="font-size:10px">${t.antecipa_prorroga==='antecipa'?'Antecipa':t.antecipa_prorroga==='fixo'?'Fixo':'Prorroga'}</span></td>
       <td><div class="actions-col">
         <button class="btn btn-ghost btn-sm" onclick="editTemplate('${t.id}')">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="delTemplate('${t.id}')">🗑</button>
@@ -2853,6 +2888,9 @@ function openModalTemplate(id) {
       document.getElementById('tpl-dia').value = t.dia_vencimento||'';
       document.getElementById('tpl-mes').value = t.mes_vencimento||'';
       document.getElementById('tpl-mes-group').style.display = t.recorrencia==='anual'?'block':'none';
+      document.getElementById('tpl-competencia-regra').value = t.competencia_regra||'mesmo_mes';
+      document.getElementById('tpl-tipo-dias').value = t.tipo_dias||'corridos';
+      document.getElementById('tpl-antecipa-prorroga').value = t.antecipa_prorroga||'prorroga';
       document.getElementById('tpl-prioridade').value = t.prioridade||'Média';
       document.getElementById('tpl-obs').value = t.observacoes||'';
     }
@@ -2874,6 +2912,9 @@ async function salvarTemplate() {
     recorrencia: document.getElementById('tpl-recorrencia').value,
     dia_vencimento: parseInt(document.getElementById('tpl-dia').value) || null,
     mes_vencimento: parseInt(document.getElementById('tpl-mes').value) || null,
+    competencia_regra: document.getElementById('tpl-competencia-regra').value || 'mesmo_mes',
+    tipo_dias: document.getElementById('tpl-tipo-dias').value || 'corridos',
+    antecipa_prorroga: document.getElementById('tpl-antecipa-prorroga').value || 'prorroga',
     prioridade: document.getElementById('tpl-prioridade').value,
     observacoes: document.getElementById('tpl-obs').value.trim(),
     user_id: currentUser.id
@@ -2998,11 +3039,13 @@ async function aplicarTemplatesCliente() {
 
     const datas = calcularDatas(ano, mes, tpl.recorrencia, tpl.dia_vencimento || 20, tpl.mes_vencimento);
     datas.forEach(data => {
+      const competencia = calcularCompetencia(data, tpl.competencia_regra || 'mesmo_mes');
       obrigacoes.push({
         titulo: tpl.nome,
         tipo: tpl.esfera,
         cliente_id: templateClienteId,
         vencimento: data,
+        competencia,
         status: 'Pendente',
         recorrencia: tpl.recorrencia,
         observacoes: tpl.observacoes || null,
@@ -3034,6 +3077,31 @@ async function aplicarTemplatesCliente() {
   await Promise.all([loadObrigacoes(), loadTarefas()]);
   renderDashboard();
   updateBadges();
+}
+
+function calcularCompetencia(vencimentoStr, regra) {
+  if (!vencimentoStr || !regra) return vencimentoStr ? vencimentoStr.slice(0,7) : '';
+  const [ano, mes] = vencimentoStr.split('-').map(Number);
+  switch(regra) {
+    case 'mes_anterior': {
+      const d = new Date(ano, mes-2, 1);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    }
+    case '2_meses_anteriores': {
+      const d = new Date(ano, mes-3, 1);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    }
+    case '3_meses_anteriores': {
+      const d = new Date(ano, mes-4, 1);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    }
+    case 'mesmo_ano':
+      return `${ano}-01`;
+    case 'ano_anterior':
+      return `${ano-1}-01`;
+    default: // mesmo_mes
+      return `${ano}-${String(mes).padStart(2,'0')}`;
+  }
 }
 
 function calcularDatas(ano, mes, recorrencia, dia, mesVenc) {

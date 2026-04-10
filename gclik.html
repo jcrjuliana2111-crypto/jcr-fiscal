@@ -1567,18 +1567,24 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
         </div>
       </div>
 
-      <!-- Preview -->
+      <!-- Seleção de clientes -->
       <div id="gerar-preview" style="display:none;margin-top:16px">
-        <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">
-          Preview — <span id="gerar-preview-count">0</span> clientes
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px">
+            Selecione os clientes — <span id="gerar-preview-count">0</span> selecionados
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm" onclick="gerarSelecionarTodos(true)">✅ Todos</button>
+            <button class="btn btn-ghost btn-sm" onclick="gerarSelecionarTodos(false)">☐ Nenhum</button>
+          </div>
         </div>
-        <div style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px" id="gerar-preview-lista"></div>
+        <div style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:4px" id="gerar-preview-lista"></div>
         <div style="margin-top:12px;padding:12px;background:var(--accent-soft);border-radius:var(--radius-sm);display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:13px;color:var(--text2)">Total a lançar:</span>
           <span style="font-size:18px;font-weight:700;color:var(--accent)" id="gerar-preview-total">R$0,00</span>
         </div>
         <div id="gerar-aviso-duplicado" style="display:none;margin-top:8px;padding:10px;background:var(--yellow-soft);border:1px solid rgba(245,200,66,0.3);border-radius:var(--radius-sm);font-size:12px;color:var(--yellow)">
-          ⚠️ Alguns clientes já têm honorário lançado nesta competência. Serão ignorados.
+          ⚠️ Alguns clientes já têm honorário nesta competência e foram ocultados.
         </div>
       </div>
     </div>
@@ -3654,7 +3660,7 @@ function openModalGerarMensais() {
 function gerarMensaisPreview() {
   const escId = document.getElementById('gerar-escritorio').value;
   const competencia = document.getElementById('gerar-competencia').value;
-  const valorPadrao = parseFloat(document.getElementById('gerar-valor-padrao').value) || 160;
+  const valorPadrao = parseFloat(document.getElementById('gerar-valor-padrao').value) || 0;
 
   if (!escId || !competencia) {
     document.getElementById('gerar-preview').style.display = 'none';
@@ -3664,12 +3670,8 @@ function gerarMensaisPreview() {
 
   const [ano, mes] = competencia.split('-').map(Number);
   const clientes = allClientes.filter(c => c.escritorio_id === escId && (!c.status || c.status === 'Ativo'));
-
-  // Para cada cliente, gerar lista de meses de competencia até dezembro
-  let totalLancamentos = 0;
-  let totalValor = 0;
   let temDuplicado = false;
-  let previewItems = [];
+  const items = [];
 
   clientes.forEach(c => {
     const meses = [];
@@ -3680,70 +3682,99 @@ function gerarMensaisPreview() {
       meses.push(comp);
     }
     if (meses.length > 0) {
-      const valor = (c.honor_mensal !== null && c.honor_mensal !== undefined) ? Number(c.honor_mensal) : (Number(valorPadrao) || 0);
-      totalLancamentos += meses.length;
-      totalValor += valor * meses.length;
-      previewItems.push({ cliente: c.razao_social, meses: meses.length, valor, total: valor * meses.length });
+      const valor = (c.honor_mensal !== null && c.honor_mensal !== undefined) ? Number(c.honor_mensal) : valorPadrao;
+      items.push({ id: c.id, nome: c.razao_social, meses: meses.length, valor, total: valor * meses.length });
     }
   });
 
   const lista = document.getElementById('gerar-preview-lista');
   const preview = document.getElementById('gerar-preview');
-  const aviso = document.getElementById('gerar-aviso-duplicado');
 
-  document.getElementById('gerar-preview-count').textContent = `${clientes.length} clientes · ${totalLancamentos} lançamentos`;
-  document.getElementById('gerar-preview-total').textContent = `R$${totalValor.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
-  aviso.style.display = temDuplicado ? 'block' : 'none';
+  document.getElementById('gerar-aviso-duplicado').style.display = temDuplicado ? 'block' : 'none';
 
-  lista.innerHTML = previewItems.map(p => `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:var(--radius-sm);font-size:12px">
-      <span style="color:var(--text)">${p.cliente}</span>
-      <span style="color:var(--text2)">${p.meses} mês${p.meses>1?'es':''} × R$${p.valor.toLocaleString('pt-BR')}</span>
-      <span style="font-weight:700;color:var(--green)">R$${p.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
-    </div>`).join('') || '<div style="text-align:center;color:var(--text3);padding:16px">Nenhum cliente novo para lançar</div>';
+  if (!items.length) {
+    lista.innerHTML = '<div style="text-align:center;color:var(--text3);padding:16px">Nenhum cliente disponível para lançar</div>';
+    document.getElementById('gerar-preview-count').textContent = '0 selecionados';
+    document.getElementById('gerar-preview-total').textContent = 'R$0,00';
+    document.getElementById('btn-confirmar-gerar').disabled = true;
+    preview.style.display = 'block';
+    return;
+  }
+
+  lista.innerHTML = items.map(p => `
+    <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius-sm);cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background='var(--surface2)'" class="gerar-cli-item">
+      <input type="checkbox" value="${p.id}" checked style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer"
+        onchange="gerarAtualizarTotal()">
+      <span style="flex:1;font-size:12px;color:var(--text)">${p.nome}</span>
+      <span style="font-size:11px;color:var(--text3)">${p.meses} mês${p.meses>1?'es':''}</span>
+      <input type="number" value="${p.valor}" min="0" step="0.01"
+        style="width:80px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:3px 6px;text-align:right"
+        data-meses="${p.meses}" onchange="gerarAtualizarTotal()" onclick="event.stopPropagation()">
+    </label>`).join('');
+
+  // Adicionar eventos
+  lista.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', gerarAtualizarTotal));
 
   preview.style.display = 'block';
-  document.getElementById('btn-confirmar-gerar').disabled = totalLancamentos === 0;
+  gerarAtualizarTotal();
+}
+
+function gerarSelecionarTodos(val) {
+  document.querySelectorAll('#gerar-preview-lista input[type=checkbox]').forEach(cb => cb.checked = val);
+  gerarAtualizarTotal();
+}
+
+function gerarAtualizarTotal() {
+  const checks = document.querySelectorAll('#gerar-preview-lista input[type=checkbox]:checked');
+  let total = 0;
+  checks.forEach(cb => {
+    const row = cb.closest('label');
+    const valor = parseFloat(row.querySelector('input[type=number]').value) || 0;
+    const meses = parseInt(row.querySelector('input[type=number]').dataset.meses) || 1;
+    total += valor * meses;
+  });
+  document.getElementById('gerar-preview-count').textContent = checks.length + ' selecionado' + (checks.length !== 1 ? 's' : '');
+  document.getElementById('gerar-preview-total').textContent = `R$${total.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+  document.getElementById('btn-confirmar-gerar').disabled = checks.length === 0;
 }
 
 async function confirmarGerarMensais() {
   const escId = document.getElementById('gerar-escritorio').value;
   const competencia = document.getElementById('gerar-competencia').value;
-  const valorPadrao = parseFloat(document.getElementById('gerar-valor-padrao').value) || 160;
   const forma = document.getElementById('gerar-forma').value;
-
   if (!escId || !competencia) { toast('Selecione escritório e competência', 'error'); return; }
 
   const [ano, mes] = competencia.split('-').map(Number);
-  const clientes = allClientes.filter(c => c.escritorio_id === escId && (!c.status || c.status === 'Ativo'));
+  const checks = document.querySelectorAll('#gerar-preview-lista input[type=checkbox]:checked');
+  if (!checks.length) { toast('Selecione ao menos um cliente', 'error'); return; }
 
   const payloads = [];
-  clientes.forEach(c => {
+  checks.forEach(cb => {
+    const cliId = cb.value;
+    const row = cb.closest('label');
+    const valor = parseFloat(row.querySelector('input[type=number]').value) || 0;
+    const cli = allClientes.find(c => c.id === cliId);
+    if (!cli) return;
     for (let m = mes; m <= 12; m++) {
       const comp = `${ano}-${String(m).padStart(2,'0')}`;
-      const jaExiste = allHonorarios.find(h => h.cliente_id === c.id && h.competencia === comp && h.tipo === 'mensal');
+      const jaExiste = allHonorarios.find(h => h.cliente_id === cliId && h.competencia === comp && h.tipo === 'mensal');
       if (jaExiste) continue;
       payloads.push({
-        tipo: 'mensal',
-        servico: 'Mensalidade',
-        competencia: comp,
-        valor: (c.honor_mensal !== null && c.honor_mensal !== undefined) ? Number(c.honor_mensal) : (Number(valorPadrao) || 0),
-        status: 'Pendente',
-        forma,
-        cliente_id: c.id,
+        tipo: 'mensal', servico: 'Mensalidade',
+        competencia: comp, valor,
+        status: 'Pendente', forma,
+        cliente_id: cliId,
         escritorio_id: escId,
-        nome_cliente: c.razao_social,
+        nome_cliente: cli.razao_social,
         user_id: currentUser.id
       });
     }
   });
 
   if (!payloads.length) { toast('Nenhum lançamento novo para gerar', 'error'); return; }
-
   const { error } = await sb.from('gclik_honorarios').insert(payloads);
   if (error) { toast('Erro: ' + error.message, 'error'); return; }
-
-  toast(`✅ ${payloads.length} lançamentos gerados com sucesso!`, 'success');
+  toast(`✅ ${payloads.length} lançamentos gerados!`, 'success');
   closeModal('modal-gerar-mensais');
   await loadHonorarios();
 }

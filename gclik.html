@@ -536,6 +536,9 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       <button class="nav-btn" onclick="showPage('irpf')" id="nav-irpf">
         <span>🧾</span> IRPF
       </button>
+      <button class="nav-btn" onclick="showPage('honorarios')" id="nav-honorarios">
+        <span>💰</span> Honorários
+      </button>
     </nav>
     <div class="topbar-right">
       <div class="user-pill">
@@ -896,6 +899,58 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
         </div>
       </div>
 
+    </div>
+
+
+    <!-- ═══ HONORÁRIOS ═══ -->
+    <div class="page" id="page-honorarios">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Honorários</div>
+          <div class="page-subtitle">Controle de recebimentos por competência</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select class="filter-select" id="honor-filtro-escritorio" onchange="honorFiltrar()">
+            <option value="">Todos os escritórios</option>
+          </select>
+          <select class="filter-select" id="honor-filtro-competencia" onchange="honorFiltrar()">
+          </select>
+          <select class="filter-select" id="honor-filtro-status" onchange="honorFiltrar()">
+            <option value="">Todos os status</option>
+            <option>Pendente</option>
+            <option>Pago</option>
+            <option>Parcial</option>
+          </select>
+          <button class="btn btn-accent" onclick="openModalHonorario()">+ Lançar Honorário</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid" id="honor-stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px"></div>
+
+      <!-- Tabela -->
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente / Empresa</th>
+                <th>Escritório</th>
+                <th>Tipo</th>
+                <th>Serviço</th>
+                <th>Competência</th>
+                <th>Valor</th>
+                <th>Status</th>
+                <th>Forma Pgto</th>
+                <th>Observação</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="honor-tbody"></tbody>
+          </table>
+        </div>
+        <div class="filters" id="honor-pg" style="padding:12px 16px;border-top:1px solid var(--border)"></div>
+      </div>
     </div>
 
   </div><!-- /main-content -->
@@ -1406,6 +1461,90 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   </div>
 </div>
 
+
+<!-- MODAL HONORÁRIO -->
+<div class="modal-overlay" id="modal-honorario">
+  <div class="modal" style="width:560px">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-honor-title">Lançar Honorário</div>
+      <button class="btn-icon" onclick="closeModal('modal-honorario')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="honor-id">
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>Escritório</label>
+          <select id="honor-escritorio" onchange="honorPopulateClientes()">
+            <option value="">Selecione o escritório</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Cliente / Empresa</label>
+          <select id="honor-cliente">
+            <option value="">Selecione o cliente</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>Tipo de Serviço</label>
+          <select id="honor-tipo" onchange="honorTipoChange()">
+            <option value="mensal">Mensal (recorrente)</option>
+            <option value="avulso">Avulso / Pontual</option>
+            <option value="declaracao_mei">Declaração MEI</option>
+            <option value="irpf">IRPF</option>
+            <option value="abertura">Abertura de empresa</option>
+            <option value="consultoria">Consultoria</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Descrição do Serviço</label>
+          <input type="text" id="honor-servico" placeholder="Ex: Declaração MEI 2025, Consultoria...">
+        </div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>Competência (mês/ano)</label>
+          <input type="month" id="honor-competencia">
+        </div>
+        <div class="form-group">
+          <label>Valor R$</label>
+          <input type="number" id="honor-valor" placeholder="0,00" step="0.01">
+        </div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>Status</label>
+          <select id="honor-status">
+            <option>Pendente</option>
+            <option>Pago</option>
+            <option>Parcial</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Forma de Pagamento</label>
+          <select id="honor-forma">
+            <option>PIX</option>
+            <option>Transferência</option>
+            <option>Dinheiro</option>
+            <option>Boleto</option>
+            <option>Cartão</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Observação</label>
+        <textarea id="honor-obs" placeholder="Ex: Pago parcialmente R$100, restante fica para próximo mês..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-honorario')">Cancelar</button>
+      <button class="btn btn-accent" onclick="salvarHonorario()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast"></div>
 
@@ -1464,7 +1603,7 @@ async function initApp(user) {
   document.getElementById('user-name').textContent = name;
   document.getElementById('user-avatar').textContent = name[0].toUpperCase();
   setGreeting();
-  await Promise.all([loadEscritorios(), loadClientes(), loadTarefas(), loadObrigacoes(), loadTemplates(), loadIRPF()]);
+  await Promise.all([loadEscritorios(), loadClientes(), loadTarefas(), loadObrigacoes(), loadTemplates(), loadIRPF(), loadHonorarios()]);
   renderDashboard();
   renderCalendar();
 
@@ -1517,6 +1656,7 @@ function showPage(id) {
   if (id === 'templates') renderTemplates();
   if (id === 'escritorios') renderEscritoriosPage();
   if (id === 'irpf') { irpfRender(); irpfStats(); }
+  if (id === 'honorarios') { honorPopulateSelects(); honorPopulateCompetencias(); honorRender(); honorStats(); }
   if (id === 'tarefas') renderTarefas();
   if (id === 'clientes') renderClientes();
 }
@@ -2060,6 +2200,7 @@ async function loadEscritorios() {
   const { data } = await sb.from('gclik_escritorios').select('*').order('nome');
   allEscritorios = data || [];
   populateEscritorioSelects();
+  honorPopulateSelects();
   renderEscritoriosPage();
 }
 
@@ -3027,6 +3168,243 @@ function irpfExportarPj(){
   const rows=irpfFiltPj().map(c=>[c.nome,c.cnpj,c.tipo,c.resp,c.honor,c.pg]);
   const csv=[cab,...rows].map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(';')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);a.download=`JCR_PJ_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;a.click();
+}
+
+
+
+// ══════════════════════════════════════════
+//  HONORÁRIOS
+// ══════════════════════════════════════════
+let allHonorarios = [];
+let honorPag = 1;
+const HONOR_PP = 20;
+let honorFiltroEsc = '', honorFiltroComp = '', honorFiltroSt = '';
+
+async function loadHonorarios() {
+  const { data } = await sb.from('gclik_honorarios').select('*').order('competencia', { ascending: false });
+  allHonorarios = data || [];
+  honorPopulateCompetencias();
+  honorRender();
+  honorStats();
+}
+
+function honorPopulateCompetencias() {
+  const comps = [...new Set(allHonorarios.map(h => h.competencia).filter(Boolean))].sort().reverse();
+  const sel = document.getElementById('honor-filtro-competencia');
+  if (!sel) return;
+  const agora = new Date();
+  const compAtual = `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}`;
+  sel.innerHTML = '<option value="">Todas as competências</option>' +
+    comps.map(c => `<option value="${c}" ${c===compAtual?'selected':''}>${honorFmtComp(c)}</option>`).join('');
+  if (!honorFiltroComp && comps.includes(compAtual)) honorFiltroComp = compAtual;
+}
+
+function honorFmtComp(c) {
+  if (!c) return '—';
+  const [y, m] = c.split('-');
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  return `${meses[parseInt(m)-1]}/${y}`;
+}
+
+function honorFiltrar() {
+  honorFiltroEsc = document.getElementById('honor-filtro-escritorio')?.value || '';
+  honorFiltroComp = document.getElementById('honor-filtro-competencia')?.value || '';
+  honorFiltroSt = document.getElementById('honor-filtro-status')?.value || '';
+  honorPag = 1;
+  honorRender();
+  honorStats();
+}
+
+function honorFilt() {
+  return allHonorarios.filter(h => {
+    const cli = allClientes.find(c => c.id === h.cliente_id);
+    const matchE = !honorFiltroEsc || (cli && cli.escritorio_id === honorFiltroEsc) || h.escritorio_id === honorFiltroEsc;
+    const matchC = !honorFiltroComp || h.competencia === honorFiltroComp;
+    const matchS = !honorFiltroSt || h.status === honorFiltroSt;
+    return matchE && matchC && matchS;
+  });
+}
+
+function honorStats() {
+  const lista = honorFilt();
+  const total = lista.reduce((a, h) => a + Number(h.valor||0), 0);
+  const recebido = lista.filter(h => h.status==='Pago').reduce((a, h) => a + Number(h.valor||0), 0);
+  const pendente = lista.filter(h => h.status==='Pendente').reduce((a, h) => a + Number(h.valor||0), 0);
+  const parcial = lista.filter(h => h.status==='Parcial').reduce((a, h) => a + Number(h.valor||0), 0);
+  const el = document.getElementById('honor-stats');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="stat-card" style="--card-color:var(--accent)">
+      <div class="stat-label">Total lançado</div>
+      <div class="stat-value" style="font-size:24px">R$${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      <div class="stat-sub">${lista.length} lançamento${lista.length!==1?'s':''}</div>
+    </div>
+    <div class="stat-card" style="--card-color:var(--green)">
+      <div class="stat-label">Recebido</div>
+      <div class="stat-value" style="font-size:24px;color:var(--green)">R$${recebido.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      <div class="stat-sub">${lista.filter(h=>h.status==='Pago').length} pagos</div>
+    </div>
+    <div class="stat-card" style="--card-color:var(--red)">
+      <div class="stat-label">Pendente</div>
+      <div class="stat-value" style="font-size:24px;color:var(--red)">R$${pendente.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      <div class="stat-sub">${lista.filter(h=>h.status==='Pendente').length} em aberto</div>
+    </div>
+    <div class="stat-card" style="--card-color:var(--yellow)">
+      <div class="stat-label">Parcial</div>
+      <div class="stat-value" style="font-size:24px;color:var(--yellow)">R$${parcial.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      <div class="stat-sub">${lista.filter(h=>h.status==='Parcial').length} parciais</div>
+    </div>
+  `;
+}
+
+function honorRender() {
+  const lista = honorFilt();
+  const tp = Math.ceil(lista.length/HONOR_PP)||1;
+  if (honorPag > tp) honorPag = tp;
+  const f = lista.slice((honorPag-1)*HONOR_PP, honorPag*HONOR_PP);
+  const tb = document.getElementById('honor-tbody');
+  if (!tb) return;
+  if (!f.length) {
+    tb.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="icon">💰</div><p>Nenhum honorário encontrado.<br>Clique em "+ Lançar Honorário" para começar.</p></div></td></tr>`;
+    return;
+  }
+  const tipoLabel = { mensal:'Mensal', avulso:'Avulso', declaracao_mei:'Decl. MEI', irpf:'IRPF', abertura:'Abertura', consultoria:'Consultoria', outro:'Outro' };
+  tb.innerHTML = f.map(h => {
+    const cli = allClientes.find(c => c.id === h.cliente_id);
+    const esc = allEscritorios.find(e => e.id === (cli?.escritorio_id || h.escritorio_id));
+    const stBadge = h.status==='Pago'?'badge-green':h.status==='Parcial'?'badge-yellow':'badge-red';
+    return `<tr>
+      <td><div style="font-weight:500">${h.nome_cliente||cli?.razao_social||'—'}</div></td>
+      <td>${esc?`<span class="badge" style="background:${esc.cor||'#4f8ef7'}22;color:${esc.cor||'#4f8ef7'}">${esc.nome}</span>`:'—'}</td>
+      <td><span class="badge badge-blue">${tipoLabel[h.tipo]||h.tipo||'—'}</span></td>
+      <td style="font-size:12px;color:var(--text2)">${h.servico||'—'}</td>
+      <td style="font-weight:600">${honorFmtComp(h.competencia)}</td>
+      <td style="font-weight:700;color:var(--green)">R$${Number(h.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+      <td><span class="badge ${stBadge}">${h.status}</span></td>
+      <td style="font-size:12px">${h.forma||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.obs||'—'}</td>
+      <td><div class="actions-col">
+        <button class="btn btn-ghost btn-sm" onclick="editHonorario('${h.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="delHonorario('${h.id}')">🗑</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  const pg = document.getElementById('honor-pg');
+  if (pg) pg.innerHTML = lista.length>HONOR_PP ?
+    `<button class="btn btn-ghost btn-sm" onclick="honorPag--;honorRender()" ${honorPag===1?'disabled':''}>← Ant</button>
+     <span style="color:var(--text2)">Pág ${honorPag}/${tp} · ${lista.length} lançamentos</span>
+     <button class="btn btn-ghost btn-sm" onclick="honorPag++;honorRender()" ${honorPag===tp?'disabled':''}>Próx →</button>` :
+    `<span style="color:var(--text2)">${lista.length} lançamento${lista.length!==1?'s':''}</span>`;
+}
+
+function honorPopulateSelects() {
+  // Filtro escritório
+  const sel = document.getElementById('honor-filtro-escritorio');
+  if (sel) sel.innerHTML = '<option value="">Todos os escritórios</option>' +
+    allEscritorios.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
+  // Modal escritório
+  const msel = document.getElementById('honor-escritorio');
+  if (msel) msel.innerHTML = '<option value="">Selecione o escritório</option>' +
+    allEscritorios.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
+}
+
+function honorPopulateClientes() {
+  const escId = document.getElementById('honor-escritorio')?.value;
+  const clientes = escId ? allClientes.filter(c => c.escritorio_id === escId) : allClientes;
+  const sel = document.getElementById('honor-cliente');
+  if (sel) sel.innerHTML = '<option value="">Selecione o cliente</option>' +
+    clientes.map(c => `<option value="${c.id}">${c.razao_social}</option>`).join('');
+}
+
+function honorTipoChange() {
+  const tipo = document.getElementById('honor-tipo')?.value;
+  const labels = { mensal:'Mensalidade', avulso:'Serviço avulso', declaracao_mei:'Declaração MEI Anual', irpf:'Declaração IRPF', abertura:'Abertura de empresa', consultoria:'Consultoria', outro:'' };
+  const el = document.getElementById('honor-servico');
+  if (el && labels[tipo]) el.value = labels[tipo];
+  // Preencher valor padrão por tipo
+  const valores = { mensal:'', declaracao_mei:'160', irpf:'160' };
+  const valEl = document.getElementById('honor-valor');
+  if (valEl && valores[tipo] !== undefined) valEl.value = valores[tipo];
+}
+
+function openModalHonorario() {
+  document.getElementById('modal-honor-title').textContent = 'Lançar Honorário';
+  document.getElementById('honor-id').value = '';
+  document.getElementById('honor-servico').value = '';
+  document.getElementById('honor-valor').value = '';
+  document.getElementById('honor-obs').value = '';
+  document.getElementById('honor-status').value = 'Pendente';
+  document.getElementById('honor-forma').value = 'PIX';
+  document.getElementById('honor-tipo').value = 'mensal';
+  // Competência atual
+  const agora = new Date();
+  document.getElementById('honor-competencia').value = `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}`;
+  // Pré-selecionar escritório ativo
+  const msel = document.getElementById('honor-escritorio');
+  if (msel && escritorioAtivo) msel.value = escritorioAtivo;
+  honorPopulateClientes();
+  openModal('modal-honorario');
+}
+
+function editHonorario(id) {
+  const h = allHonorarios.find(x => x.id === id);
+  if (!h) return;
+  document.getElementById('modal-honor-title').textContent = 'Editar Honorário';
+  document.getElementById('honor-id').value = h.id;
+  document.getElementById('honor-tipo').value = h.tipo||'mensal';
+  document.getElementById('honor-servico').value = h.servico||'';
+  document.getElementById('honor-competencia').value = h.competencia||'';
+  document.getElementById('honor-valor').value = h.valor||'';
+  document.getElementById('honor-status').value = h.status||'Pendente';
+  document.getElementById('honor-forma').value = h.forma||'PIX';
+  document.getElementById('honor-obs').value = h.obs||'';
+  // Escritório e cliente
+  const cli = allClientes.find(c => c.id === h.cliente_id);
+  const escEl = document.getElementById('honor-escritorio');
+  if (escEl) escEl.value = cli?.escritorio_id || h.escritorio_id || '';
+  honorPopulateClientes();
+  const cliEl = document.getElementById('honor-cliente');
+  if (cliEl) cliEl.value = h.cliente_id||'';
+  openModal('modal-honorario');
+}
+
+async function salvarHonorario() {
+  const valor = parseFloat(document.getElementById('honor-valor').value);
+  const competencia = document.getElementById('honor-competencia').value;
+  if (!valor || !competencia) { toast('Informe o valor e competência', 'error'); return; }
+  const cliId = document.getElementById('honor-cliente').value;
+  const cli = allClientes.find(c => c.id === cliId);
+  const escId = document.getElementById('honor-escritorio').value || cli?.escritorio_id || null;
+  const id = document.getElementById('honor-id').value;
+  const payload = {
+    tipo: document.getElementById('honor-tipo').value,
+    servico: document.getElementById('honor-servico').value.trim(),
+    competencia,
+    valor,
+    status: document.getElementById('honor-status').value,
+    forma: document.getElementById('honor-forma').value,
+    obs: document.getElementById('honor-obs').value.trim(),
+    cliente_id: cliId || null,
+    escritorio_id: escId,
+    nome_cliente: cli?.razao_social || document.getElementById('honor-cliente').options[document.getElementById('honor-cliente').selectedIndex]?.text || '',
+    user_id: currentUser.id
+  };
+  let err;
+  if (id) { ({ error: err } = await sb.from('gclik_honorarios').update(payload).eq('id', id)); }
+  else { ({ error: err } = await sb.from('gclik_honorarios').insert(payload)); }
+  if (err) { toast('Erro: ' + err.message, 'error'); return; }
+  toast(id ? 'Honorário atualizado!' : 'Honorário lançado!', 'success');
+  closeModal('modal-honorario');
+  await loadHonorarios();
+}
+
+async function delHonorario(id) {
+  if (!confirm('Excluir este lançamento?')) return;
+  await sb.from('gclik_honorarios').delete().eq('id', id);
+  toast('Lançamento removido', 'success');
+  allHonorarios = allHonorarios.filter(h => h.id !== id);
+  honorRender();
+  honorStats();
 }
 
 

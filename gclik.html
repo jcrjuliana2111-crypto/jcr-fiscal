@@ -2231,46 +2231,21 @@ async function extrairDadosCNPJ(input) {
       r.readAsDataURL(file);
     });
 
-    // Chamar Claude via API
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Chamar Edge Function do Supabase
+    const response = await fetch('https://onecnoicxqjhgolqncjj.supabase.co/functions/v1/extrair-cnpj', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'document',
-              source: { type: 'base64', media_type: 'application/pdf', data: base64 }
-            },
-            {
-              type: 'text',
-              text: `Extraia os dados do cartão CNPJ e responda APENAS com JSON válido, sem markdown, sem explicações:
-{
-  "razao_social": "",
-  "nome_fantasia": "",
-  "cnpj": "",
-  "ie": "",
-  "email": "",
-  "telefone": "",
-  "cidade": "",
-  "estado": "",
-  "situacao": ""
-}
-Extraia exatamente o que estiver no documento. Para campos não encontrados, deixe string vazia.`
-            }
-          ]
-        }]
-      })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
+      body: JSON.stringify({ pdfBase64: base64 })
     });
 
     const data = await response.json();
-    if (data.error) throw new Error(data.error.message);
+    if (!data.success) throw new Error(data.error || 'Erro ao extrair dados');
 
-    const text = data.content[0].text.trim();
-    const json = JSON.parse(text.replace(/```json|```/g, '').trim());
+    const json = data.dados;
+
 
     // Preencher os campos do formulário
     if (json.razao_social) document.getElementById('cli-razao').value = json.razao_social;

@@ -2833,9 +2833,15 @@ function irpfRender() {
   if(!f.length){tb.innerHTML=`<tr><td colspan="9"><div class="empty-state"><div class="icon">👤</div><p>Nenhum cliente encontrado</p></div></td></tr>`;return;}
   tb.innerHTML=f.map(c=>`<tr style="cursor:pointer" onclick="irpfAbrirPf(${c.id})">
     <td><div style="font-weight:500">${c.nome}</div>${c.email?`<div style="font-size:11px;color:var(--text2)">${c.email}</div>`:''}</td>
-    <td style="font-family:monospace;font-size:12px">${c.cpf||'—'}</td>
+    <td style="font-family:monospace;font-size:12px">
+      ${c.cpf||'—'}
+      ${c.cpf?`<button onclick="event.stopPropagation();navigator.clipboard.writeText('${c.cpf}').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='📋',1500)})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;margin-left:4px;padding:0" title="Copiar CPF">📋</button>`:''}
+    </td>
     <td style="font-size:12px">${c.tel||'—'}</td>
-    <td><span style="filter:blur(4px);cursor:pointer;font-family:monospace;color:var(--accent)" onclick="event.stopPropagation();this.style.filter=this.style.filter?'':'blur(4px)'">${c.senha||'—'}</span></td>
+    <td>
+      ${c.senha?`<span style="filter:blur(4px);cursor:pointer;font-family:monospace;color:var(--accent);font-size:12px" onclick="event.stopPropagation();this.style.filter=this.style.filter?'':'blur(4px)'" title="Clique para revelar">${c.senha}</span>
+      <button onclick="event.stopPropagation();navigator.clipboard.writeText('${c.senha}').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='📋',1500)})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;margin-left:4px;padding:0" title="Copiar senha">📋</button>`:'<span style="color:var(--text3)">—</span>'}
+    </td>
     <td>${irpfBadgeSt(c.st)}</td>
     <td style="font-size:12px;color:var(--text2)">${c.corretor||'—'}</td>
     <td style="font-size:12px">${c.h?`R$${Number(c.h).toLocaleString('pt-BR')}`:'—'}</td>

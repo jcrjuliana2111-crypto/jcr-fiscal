@@ -1799,7 +1799,7 @@ function renderClientes() {
         <button class="btn btn-danger btn-sm" onclick="delCliente('${c.id}')">🗑</button>
       </div></td>
     </tr>`).join('');
-  document.getElementById('stat-clientes').textContent = allClientes.filter(c=>c.status==='Ativo'||!c.status).length;
+  // stat atualizado pelo renderDashboard
 }
 
 function filtrarClientes(v) { filterCliSearch = v; renderClientes(); }
@@ -2102,14 +2102,28 @@ function renderDashboard() {
   const t = today();
   const em7 = dateAddDays(t, 7);
 
+  // Filtrar por escritório ativo
+  const clisFiltrados = escritorioAtivo
+    ? allClientes.filter(c => c.escritorio_id === escritorioAtivo)
+    : allClientes;
+  const cliIds = new Set(clisFiltrados.map(c => c.id));
+
+  const tarFiltradas = escritorioAtivo
+    ? allTarefas.filter(t => !t.cliente_id || cliIds.has(t.cliente_id))
+    : allTarefas;
+
+  const obrFiltradas = escritorioAtivo
+    ? allObrigacoes.filter(o => !o.cliente_id || cliIds.has(o.cliente_id))
+    : allObrigacoes;
+
   // Stats
-  document.getElementById('stat-clientes').textContent = allClientes.filter(c=>!c.status||c.status==='Ativo').length;
-  document.getElementById('stat-tarefas').textContent = allTarefas.filter(t=>t.status==='Pendente'||t.status==='Em andamento').length;
-  document.getElementById('stat-hoje').textContent = allObrigacoes.filter(o=>o.vencimento===t&&o.status!=='Entregue'&&o.status!=='Pago').length;
-  document.getElementById('stat-7dias').textContent = allObrigacoes.filter(o=>o.vencimento>t&&o.vencimento<=em7&&o.status!=='Entregue'&&o.status!=='Pago').length;
+  document.getElementById('stat-clientes').textContent = clisFiltrados.filter(c=>!c.status||c.status==='Ativo').length;
+  document.getElementById('stat-tarefas').textContent = tarFiltradas.filter(t=>t.status==='Pendente'||t.status==='Em andamento').length;
+  document.getElementById('stat-hoje').textContent = obrFiltradas.filter(o=>o.vencimento===t&&o.status!=='Entregue'&&o.status!=='Pago').length;
+  document.getElementById('stat-7dias').textContent = obrFiltradas.filter(o=>o.vencimento>t&&o.vencimento<=em7&&o.status!=='Entregue'&&o.status!=='Pago').length;
 
   // Tarefas urgentes
-  const urgentes = allTarefas.filter(t=>t.status!=='Concluída'&&t.status!=='Cancelada')
+  const urgentes = tarFiltradas.filter(t=>t.status!=='Concluída'&&t.status!=='Cancelada')
     .sort((a,b)=>{
       const pa = a.prioridade==='Alta'?0:a.prioridade==='Média'?1:2;
       const pb = b.prioridade==='Alta'?0:b.prioridade==='Média'?1:2;
@@ -2135,7 +2149,7 @@ function renderDashboard() {
   }).join('');
 
   // Próximas obrigações
-  const proximas = allObrigacoes.filter(o=>o.vencimento>=today()&&o.status!=='Entregue'&&o.status!=='Pago')
+  const proximas = obrFiltradas.filter(o=>o.vencimento>=today()&&o.status!=='Entregue'&&o.status!=='Pago')
     .sort((a,b)=>a.vencimento.localeCompare(b.vencimento)).slice(0,5);
   const dashObr = document.getElementById('dash-obrigacoes');
   if (!proximas.length) { dashObr.innerHTML = `<div class="empty-state"><div class="icon">📅</div><p>Sem obrigações próximas</p></div>`; }

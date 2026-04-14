@@ -1981,14 +1981,14 @@ function renderClientes() {
   const tbody = document.getElementById('tbody-clientes');
   if (!list.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icon">🏢</div><p>Nenhum cliente encontrado</p></div></td></tr>`; return; }
   tbody.innerHTML = list.map(c => `
-    <tr>
+    <tr style="cursor:pointer" onclick="editCliente('${c.id}')">
       <td>${c.razao_social}</td>
       <td style="font-family:monospace;font-size:12px">${c.cnpj||'—'}</td>
       <td>${(()=>{ const e=allEscritorios.find(x=>x.id===c.escritorio_id); return e?`<span class="badge" style="background:${e.cor||'#4f8ef7'}22;color:${e.cor||'#4f8ef7'}">${e.nome}</span>`:'<span class="badge badge-gray">—</span>'; })()}</td>
       <td><span class="badge badge-blue">${c.regime||'—'}</span></td>
       <td>${c.responsavel||'—'}</td>
       <td><span class="badge ${c.status==='Ativo'?'badge-green':'badge-gray'}">${c.status||'Ativo'}</span></td>
-      <td><div class="actions-col">
+      <td onclick="event.stopPropagation()"><div class="actions-col">
         <button class="btn btn-ghost btn-sm" title="Gerar obrigações" onclick="abrirModalTemplates('${c.id}')">⚡</button>
         <button class="btn btn-ghost btn-sm" onclick="editCliente('${c.id}')">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="delCliente('${c.id}')">🗑</button>
@@ -2135,7 +2135,7 @@ function renderTarefas() {
     const prio = t.prioridade?.toLowerCase() || 'media';
     const vencida = t.prazo && t.status !== 'Concluída' && t.status !== 'Cancelada' && new Date(t.prazo+'T00:00:00') < new Date(today());
     const prazoStr = t.prazo ? fmtDate(t.prazo) : '—';
-    return `<tr>
+    return `<tr style="cursor:pointer" onclick="editTarefa('${t.id}')">
       <td><div class="prio prio-${prio}"></div></td>
       <td style="max-width:200px">
         <div class="task-name ${t.status==='Concluída'?'done':''}">${t.titulo}</div>
@@ -2145,7 +2145,7 @@ function renderTarefas() {
       <td>${t.responsavel||'—'}</td>
       <td style="${vencida?'color:var(--red);font-weight:600':''}">${prazoStr}</td>
       <td>${badgeTarefaStatus(t.status)}</td>
-      <td><div class="actions-col">
+      <td onclick="event.stopPropagation()"><div class="actions-col">
         <button class="btn btn-ghost btn-sm" onclick="editTarefa('${t.id}')">✏️</button>
         ${t.status!=='Concluída'?`<button class="btn btn-ghost btn-sm" title="Concluir" onclick="concluirTarefa('${t.id}')">✅</button>`:''}
         <button class="btn btn-danger btn-sm" onclick="delTarefa('${t.id}')">🗑</button>
@@ -2327,7 +2327,7 @@ function renderDashboard() {
     const cli = allClientes.find(c=>c.id==t.cliente_id);
     const prio = (t.prioridade||'media').toLowerCase();
     const vencida = t.prazo && new Date(t.prazo+'T00:00:00') < new Date(today());
-    return `<div class="task-item">
+    return `<div class="task-item" style="cursor:pointer" onclick="showPage('tarefas');setTimeout(()=>editTarefa('${t.id}'),100)">
       <div class="prio prio-${prio}" style="width:10px;height:10px;flex-shrink:0"></div>
       <div class="task-info">
         <div class="task-name">${t.titulo}</div>
@@ -3046,7 +3046,7 @@ function renderTemplates() {
     return;
   }
   tbody.innerHTML = list.map(t => `
-    <tr>
+    <tr style="cursor:pointer" onclick="editTemplate('${t.id}')">
       <td><strong>${t.nome}</strong>${t.observacoes?`<div style="font-size:11px;color:var(--text3)">${t.observacoes.slice(0,50)}</div>`:''}</td>
       <td><span class="badge" style="background:${tipoColor(t.esfera)}22;color:${tipoColor(t.esfera)}">${t.esfera}</span></td>
       <td><span class="badge badge-blue">${t.regime||'Todos'}</span></td>
@@ -3056,7 +3056,7 @@ function renderTemplates() {
       <td style="font-weight:600">Dia ${t.dia_vencimento||'?'}</td>
       <td><span class="badge badge-gray" style="font-size:10px">${t.tipo_dias==='uteis'?'Úteis':'Corridos'}</span></td>
       <td><span class="badge ${t.antecipa_prorroga==='antecipa'?'badge-yellow':t.antecipa_prorroga==='fixo'?'badge-gray':'badge-blue'}" style="font-size:10px">${t.antecipa_prorroga==='antecipa'?'Antecipa':t.antecipa_prorroga==='fixo'?'Fixo':'Prorroga'}</span></td>
-      <td><div class="actions-col">
+      <td onclick="event.stopPropagation()"><div class="actions-col">
         <button class="btn btn-ghost btn-sm" onclick="editTemplate('${t.id}')">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="delTemplate('${t.id}')">🗑</button>
       </div></td>
@@ -3725,7 +3725,7 @@ function honorRender() {
     const cli = allClientes.find(c => c.id === h.cliente_id);
     const esc = allEscritorios.find(e => e.id === (cli?.escritorio_id || h.escritorio_id));
     const stBadge = h.status==='Pago'?'badge-green':h.status==='Parcial'?'badge-yellow':'badge-red';
-    return `<tr>
+    return `<tr style="cursor:pointer" onclick="editHonorario('${h.id}')">
       <td><div style="font-weight:500">${h.nome_cliente||cli?.razao_social||'—'}</div></td>
       <td>${esc?`<span class="badge" style="background:${esc.cor||'#4f8ef7'}22;color:${esc.cor||'#4f8ef7'}">${esc.nome}</span>`:'—'}</td>
       <td><span class="badge badge-blue">${tipoLabel[h.tipo]||h.tipo||'—'}</span></td>
@@ -3736,7 +3736,7 @@ function honorRender() {
       <td><span class="badge ${stBadge}">${h.status}</span></td>
       <td style="font-size:12px">${h.forma||'—'}</td>
       <td style="font-size:12px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.obs||'—'}</td>
-      <td><div class="actions-col">
+      <td onclick="event.stopPropagation()"><div class="actions-col">
         <button class="btn btn-ghost btn-sm" onclick="editHonorario('${h.id}')">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="delHonorario('${h.id}')">🗑</button>
       </div></td>

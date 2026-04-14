@@ -412,6 +412,11 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 .actions-col { display: flex; gap: 6px; white-space: nowrap; }
 
 /* ── RESPONSIVE ── */
+@media (min-width: 769px) {
+  #irpf-stats-pf { grid-template-columns: repeat(5,1fr); }
+  #irpf-stats-pj { grid-template-columns: repeat(4,1fr); }
+  #honor-stats { grid-template-columns: repeat(4,1fr); }
+}
 @media (max-width: 900px) {
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .calendar-wrapper { grid-template-columns: 1fr; }
@@ -477,6 +482,20 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 }
 
 @media (max-width: 768px) {
+  /* Stats grids responsivos */
+  #irpf-stats-pf { grid-template-columns: 1fr !important; }
+  #irpf-stats-pj { grid-template-columns: 1fr 1fr !important; }
+  #honor-stats { grid-template-columns: 1fr 1fr !important; }
+  #esc-stats-grid { grid-template-columns: 1fr !important; }
+  .stats-grid { grid-template-columns: 1fr 1fr !important; }
+
+  /* Card de total IRPF em linha horizontal no mobile */
+  #irpf-stats-pf .stat-card:first-child .stat-sub {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 4px !important;
+  }
+
   /* Esconder nav desktop */
   .topbar-nav { display: none !important; }
   .topbar-logo { font-size: 18px; }
@@ -3410,7 +3429,7 @@ function irpfStats() {
   const pagar=irpfCl.filter(c=>c.tipo_imposto==='pagar').reduce((a,c)=>a+Number(c.valor_imposto||0),0);
   const darfPend=irpfCl.filter(c=>c.darf_enviadas&&c.darf_enviadas.trim()).length;
   const el=document.getElementById('irpf-stats-pf');
-  el.style.gridTemplateColumns='repeat(5,1fr)';
+  el.style.gridTemplateColumns='';
   el.innerHTML=`
     <div class="stat-card" style="--card-color:var(--accent)">
       <div class="stat-label">Total</div>
@@ -3455,7 +3474,7 @@ function irpfStatsPj() {
   const recPago=irpfClPj.filter(c=>c.pg==='Pago').reduce((a,c)=>a+Number(c.honor||0),0);
   const aReceber=irpfClPj.filter(c=>c.pg!=='Pago').reduce((a,c)=>a+Number(c.honor||0),0);
   const el=document.getElementById('irpf-stats-pj');
-  el.style.gridTemplateColumns='repeat(4,1fr)';
+  el.style.gridTemplateColumns='';
   el.innerHTML=`
     <div class="stat-card" style="--card-color:var(--accent)"><div class="stat-label">Total PJ</div><div class="stat-value">${t}</div><div class="stat-sub">MEI: ${mei} · Simples: ${simples}</div></div>
     <div class="stat-card" style="--card-color:var(--purple)"><div class="stat-label">Lucro Presumido</div><div class="stat-value">${irpfClPj.filter(c=>c.tipo==='Lucro Presumido').length}</div></div>
@@ -3685,6 +3704,7 @@ function honorStats() {
   const parcial = lista.filter(h => h.status==='Parcial').reduce((a, h) => a + Number(h.valor||0), 0);
   const el = document.getElementById('honor-stats');
   if (!el) return;
+  el.style.gridTemplateColumns='';
   el.innerHTML = `
     <div class="stat-card" style="--card-color:var(--accent)">
       <div class="stat-label">Total lançado</div>

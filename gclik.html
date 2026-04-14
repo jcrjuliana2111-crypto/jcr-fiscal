@@ -416,6 +416,8 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   #irpf-stats-pf { grid-template-columns: repeat(5,1fr); }
   #irpf-stats-pj { grid-template-columns: repeat(4,1fr); }
   #honor-stats { grid-template-columns: repeat(4,1fr); }
+  /* Esconder cards mobile no desktop */
+  #mobile-cards-clientes, #mobile-cards-tarefas, #mobile-cards-irpf, #mobile-cards-honorarios { display: none !important; }
 }
 @media (max-width: 900px) {
   .stats-grid { grid-template-columns: 1fr 1fr; }
@@ -529,11 +531,8 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 
   /* Cards mobile para clientes (substitui tabela) */
   .mobile-cards { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
-  /* Esconder tabelas quando há cards mobile correspondentes */
-  .card:has(#tbody-clientes) .table-wrap { display: none; }
-  .card:has(#tbody-tarefas) .table-wrap { display: none; }
-  .card:has(#irpf-tb-pf) .table-wrap { display: none; }
-  .card:has(#honor-tbody) .table-wrap { display: none; }
+  /* Esconder tabelas no mobile, mostrar cards */
+  #mobile-cards-clientes, #mobile-cards-tarefas, #mobile-cards-irpf, #mobile-cards-honorarios { display: flex; }
   .mobile-card {
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 8px;

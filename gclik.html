@@ -418,6 +418,128 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   .dash-grid { grid-template-columns: 1fr; }
   .page { padding: 18px 16px; }
 }
+
+/* ══════════════════════════════════════
+   MOBILE RESPONSIVO
+══════════════════════════════════════ */
+
+/* Overlay do menu lateral */
+#mobile-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6); z-index: 299;
+  backdrop-filter: blur(2px);
+}
+#mobile-overlay.open { display: block; }
+
+/* Menu lateral mobile */
+#mobile-nav {
+  display: none; position: fixed; top: 0; left: 0; bottom: 0;
+  width: 280px; background: var(--surface); border-right: 1px solid var(--border2);
+  z-index: 300; flex-direction: column; overflow-y: auto;
+  transform: translateX(-100%); transition: transform 0.25s ease;
+  box-shadow: var(--shadow-lg);
+}
+#mobile-nav.open { transform: translateX(0); }
+
+.mobile-nav-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 20px 16px; border-bottom: 1px solid var(--border);
+}
+.mobile-nav-logo { font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--accent); }
+.mobile-nav-close { background: none; border: none; color: var(--text2); font-size: 22px; cursor: pointer; padding: 4px; }
+
+.mobile-nav-user {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+
+.mobile-nav-items { padding: 8px 0; flex: 1; }
+.mobile-nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 20px; color: var(--text2); font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s; border: none; background: none; width: 100%; text-align: left;
+  font-family: var(--font-body);
+}
+.mobile-nav-item:hover { background: var(--surface2); color: var(--text); }
+.mobile-nav-item.active { background: var(--accent-soft); color: var(--accent); }
+.mobile-nav-item .icon { font-size: 18px; width: 24px; text-align: center; }
+.mobile-nav-item .badge {
+  margin-left: auto; background: var(--red); color: #fff;
+  border-radius: 999px; font-size: 10px; font-weight: 700; padding: 1px 6px;
+}
+.mobile-nav-footer { padding: 12px 20px; border-top: 1px solid var(--border); }
+
+/* Botão hamburguer */
+.hamburger-btn {
+  display: none; background: none; border: none; color: var(--text);
+  font-size: 22px; cursor: pointer; padding: 4px 8px; border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+  /* Esconder nav desktop */
+  .topbar-nav { display: none !important; }
+  .topbar-logo { font-size: 18px; }
+  .hamburger-btn { display: block; }
+  #mobile-nav { display: flex; }
+
+  /* Topbar mobile */
+  .topbar { padding: 0 14px; gap: 10px; }
+  .escritorio-pill span:not(.escritorio-pill-avatar) { display: none; }
+  .escritorio-pill { padding: 5px 8px; }
+  #esc-dropdown { left: 0; min-width: 260px; }
+
+  /* Pages */
+  .page { padding: 14px 12px; }
+  .page-header { flex-direction: column; gap: 12px; align-items: flex-start; }
+  .page-header > div:last-child { width: 100%; }
+  .page-header .btn { width: 100%; justify-content: center; }
+
+  /* Stats grid */
+  .stats-grid { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+  .stat-value { font-size: 24px !important; }
+
+  /* Filtros */
+  .filters { flex-direction: column; gap: 8px; }
+  .search-input { min-width: unset; width: 100%; }
+  .filter-select { width: 100%; }
+
+  /* TABELAS → CARDS EMPILHADOS */
+  .table-wrap table { display: none; }
+  .table-wrap::after { content: ''; }
+
+  /* Cards mobile para clientes */
+  .mobile-cards { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+  .mobile-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .mobile-card-title { font-weight: 600; font-size: 14px; color: var(--text); }
+  .mobile-card-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+  .mobile-card-label { color: var(--text3); }
+  .mobile-card-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .mobile-card-actions .btn { flex: 1; justify-content: center; }
+
+  /* Modal mais largo no mobile */
+  .modal { width: 95vw !important; max-width: 95vw !important; margin: 8px auto; }
+  .form-row-2, .form-row-3 { grid-template-columns: 1fr !important; }
+
+  /* Calendar */
+  .calendar-wrapper { grid-template-columns: 1fr; }
+  .cal-day { min-height: 60px; padding: 4px; }
+  .cal-weekday { font-size: 10px; padding: 6px 2px; }
+  .day-num { font-size: 11px; }
+  .cal-event-dot { font-size: 9px; padding: 1px 3px; }
+
+  /* Escritório Netflix */
+  .escritorio-grid { gap: 12px; }
+  .escritorio-card, .escritorio-add { width: 140px; padding: 20px 14px; }
+  .escritorio-avatar { width: 56px; height: 56px; font-size: 22px; }
+
+  /* Login */
+  .login-box { padding: 32px 24px; }
+}
+
 </style>
 </head>
 <body>
@@ -508,7 +630,35 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 <!-- ════════════════════════ APP ════════════════════════ -->
 <div id="app">
   <!-- TOPBAR -->
+  <!-- Menu lateral mobile -->
+  <div id="mobile-overlay" onclick="fecharMenuMobile()"></div>
+  <div id="mobile-nav">
+    <div class="mobile-nav-header">
+      <div class="mobile-nav-logo">JCR</div>
+      <button class="mobile-nav-close" onclick="fecharMenuMobile()">✕</button>
+    </div>
+    <div class="mobile-nav-user">
+      <div class="user-avatar" id="mobile-user-avatar">U</div>
+      <span id="mobile-user-name" style="font-size:13px;color:var(--text2)">Usuário</span>
+    </div>
+    <div class="mobile-nav-items" id="mobile-nav-items">
+      <button class="mobile-nav-item active" id="mnav-dashboard" onclick="showPage('dashboard');fecharMenuMobile()"><span class="icon">📊</span> Dashboard</button>
+      <button class="mobile-nav-item" id="mnav-clientes" onclick="showPage('clientes');fecharMenuMobile()"><span class="icon">🏢</span> Clientes</button>
+      <button class="mobile-nav-item" id="mnav-tarefas" onclick="showPage('tarefas');fecharMenuMobile()"><span class="icon">✅</span> Tarefas <span class="badge" id="mbadge-tarefas" style="display:none">0</span></button>
+      <button class="mobile-nav-item" id="mnav-agenda" onclick="showPage('agenda');fecharMenuMobile()"><span class="icon">📅</span> Agenda Fiscal</button>
+      <button class="mobile-nav-item" id="mnav-alertas" onclick="showPage('alertas');fecharMenuMobile()"><span class="icon">🔔</span> Alertas <span class="badge" id="mbadge-alertas" style="display:none">0</span></button>
+      <button class="mobile-nav-item" id="mnav-honorarios" onclick="showPage('honorarios');fecharMenuMobile()"><span class="icon">💰</span> Honorários</button>
+      <button class="mobile-nav-item" id="mnav-irpf" onclick="showPage('irpf');fecharMenuMobile()"><span class="icon">🧾</span> IRPF</button>
+      <button class="mobile-nav-item" id="mnav-templates" onclick="showPage('templates');fecharMenuMobile()"><span class="icon">📋</span> Templates</button>
+      <button class="mobile-nav-item" id="mnav-escritorios" onclick="showPage('escritorios');fecharMenuMobile()"><span class="icon">🏛️</span> Escritórios</button>
+    </div>
+    <div class="mobile-nav-footer">
+      <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="doLogout()">⏻ Sair</button>
+    </div>
+  </div>
+
   <div class="topbar">
+    <button class="hamburger-btn" onclick="abrirMenuMobile()">☰</button>
     <div class="topbar-logo">JCR</div>
     <div class="escritorio-pill" onclick="toggleEscritorioDropdown()" title="Trocar escritório" style="position:relative">
       <div class="escritorio-pill-avatar" id="esc-pill-avatar" style="background:#4f8ef7">J</div>
@@ -1739,6 +1889,8 @@ async function initApp(user) {
   const name = user.email.split('@')[0];
   document.getElementById('user-name').textContent = name;
   document.getElementById('user-avatar').textContent = name[0].toUpperCase();
+  document.getElementById('mobile-user-name').textContent = name;
+  document.getElementById('mobile-user-avatar').textContent = name[0].toUpperCase();
   setGreeting();
   await Promise.all([loadEscritorios(), loadClientes(), loadTarefas(), loadObrigacoes(), loadTemplates(), loadIRPF(), loadHonorarios()]);
   renderDashboard();
@@ -1788,6 +1940,7 @@ function showPage(id) {
   document.getElementById('page-' + id).classList.add('active');
   document.getElementById('nav-' + id).classList.add('active');
   sessionStorage.setItem('paginaAtiva', id);
+  syncMobileNav(id);
   if (id === 'agenda') renderCalendar();
   if (id === 'alertas') renderAlertas();
   if (id === 'templates') renderTemplates();
@@ -1841,6 +1994,32 @@ function renderClientes() {
         <button class="btn btn-danger btn-sm" onclick="delCliente('${c.id}')">🗑</button>
       </div></td>
     </tr>`).join('');
+
+  // Cards mobile para clientes
+  let mobileCards = document.getElementById('mobile-cards-clientes');
+  if (!mobileCards) {
+    mobileCards = document.createElement('div');
+    mobileCards.id = 'mobile-cards-clientes';
+    mobileCards.className = 'mobile-cards';
+    const tw = document.querySelector('#tbody-clientes')?.closest('.table-wrap');
+    if (tw) tw.insertAdjacentElement('afterend', mobileCards);
+  }
+  mobileCards.innerHTML = list.map(c => {
+    const esc = allEscritorios.find(e => e.id === c.escritorio_id);
+    return `<div class="mobile-card">
+      <div class="mobile-card-title">${c.razao_social}</div>
+      <div class="mobile-card-row"><span class="mobile-card-label">CNPJ</span><span style="font-family:monospace;font-size:11px">${c.cnpj||'—'}</span></div>
+      <div class="mobile-card-row"><span class="mobile-card-label">Regime</span><span class="badge badge-blue">${c.regime||'—'}</span></div>
+      ${esc?`<div class="mobile-card-row"><span class="mobile-card-label">Escritório</span><span class="badge" style="background:${esc.cor||'#4f8ef7'}22;color:${esc.cor||'#4f8ef7'}">${esc.nome}</span></div>`:''}
+      <div class="mobile-card-row"><span class="mobile-card-label">Status</span><span class="badge ${c.status==='Ativo'?'badge-green':'badge-gray'}">${c.status||'Ativo'}</span></div>
+      <div class="mobile-card-actions">
+        <button class="btn btn-ghost btn-sm" onclick="abrirModalTemplates('${c.id}')">⚡</button>
+        <button class="btn btn-ghost btn-sm" onclick="editCliente('${c.id}')">✏️ Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="delCliente('${c.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+
   // stat atualizado pelo renderDashboard
 }
 
@@ -2306,6 +2485,11 @@ function updateBadges() {
   const badgeAlt = document.getElementById('badge-alertas');
   if (pendTar>0) { badgeTar.textContent=pendTar; badgeTar.style.display='inline-flex'; } else badgeTar.style.display='none';
   if (urgObr>0) { badgeAlt.textContent=urgObr; badgeAlt.style.display='inline-flex'; } else badgeAlt.style.display='none';
+  // Sync mobile badges
+  const mbTar = document.getElementById('mbadge-tarefas');
+  const mbAlt = document.getElementById('mbadge-alertas');
+  if (mbTar) { if(pendTar>0){mbTar.textContent=pendTar;mbTar.style.display='inline-flex';}else mbTar.style.display='none'; }
+  if (mbAlt) { if(urgObr>0){mbAlt.textContent=urgObr;mbAlt.style.display='inline-flex';}else mbAlt.style.display='none'; }
 }
 
 // ══════════════ HELPERS ══════════════
@@ -3759,9 +3943,13 @@ async function confirmarGerarMensais() {
       const comp = `${ano}-${String(m).padStart(2,'0')}`;
       const jaExiste = allHonorarios.find(h => h.cliente_id === cliId && h.competencia === comp && h.tipo === 'mensal');
       if (jaExiste) continue;
+      // Vencimento = dia 10 do mês seguinte à competência
+      let vencMes = m + 1, vencAno = ano;
+      if (vencMes > 12) { vencMes = 1; vencAno++; }
+      const vencimento = `${vencAno}-${String(vencMes).padStart(2,'0')}-10`;
       payloads.push({
         tipo: 'mensal', servico: 'Mensalidade',
-        competencia: comp, valor,
+        competencia: comp, valor, vencimento,
         status: 'Pendente', forma,
         cliente_id: cliId,
         escritorio_id: escId,
@@ -3868,6 +4056,26 @@ async function concluirObrigacaoDash(id) {
   await Promise.all([loadObrigacoes(), loadTarefas()]);
   renderDashboard();
   updateBadges();
+}
+
+
+// ══════════════ MENU MOBILE ══════════════
+function abrirMenuMobile() {
+  document.getElementById('mobile-nav').classList.add('open');
+  document.getElementById('mobile-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function fecharMenuMobile() {
+  document.getElementById('mobile-nav').classList.remove('open');
+  document.getElementById('mobile-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function syncMobileNav(pageId) {
+  document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('mnav-' + pageId);
+  if (btn) btn.classList.add('active');
 }
 
 // ══════════════ START ══════════════

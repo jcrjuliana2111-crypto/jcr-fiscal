@@ -523,12 +523,17 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   .search-input { min-width: unset; width: 100%; }
   .filter-select { width: 100%; }
 
-  /* TABELAS → CARDS EMPILHADOS */
-  .table-wrap table { display: none; }
-  .table-wrap::after { content: ''; }
+  /* TABELAS - scroll horizontal no mobile */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 500px; }
 
-  /* Cards mobile para clientes */
+  /* Cards mobile para clientes (substitui tabela) */
   .mobile-cards { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+  /* Esconder tabelas quando há cards mobile correspondentes */
+  .card:has(#tbody-clientes) .table-wrap { display: none; }
+  .card:has(#tbody-tarefas) .table-wrap { display: none; }
+  .card:has(#irpf-tb-pf) .table-wrap { display: none; }
+  .card:has(#honor-tbody) .table-wrap { display: none; }
   .mobile-card {
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 8px;
@@ -2149,6 +2154,32 @@ function renderTarefas() {
   });
   const tbody = document.getElementById('tbody-tarefas');
   if (!list.length) { tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">✅</div><p>Nenhuma tarefa encontrada</p></div></td></tr>`; return; }
+  // Cards mobile tarefas
+  let mcTar = document.getElementById('mobile-cards-tarefas');
+  if (!mcTar) {
+    mcTar = document.createElement('div');
+    mcTar.id = 'mobile-cards-tarefas';
+    mcTar.className = 'mobile-cards';
+    tbody.closest('.table-wrap')?.insertAdjacentElement('afterend', mcTar);
+  }
+  mcTar.innerHTML = list.map(t => {
+    const cli = allClientes.find(c => c.id == t.cliente_id);
+    const prio = t.prioridade?.toLowerCase() || 'media';
+    const vencida = t.prazo && t.status !== 'Concluída' && t.status !== 'Cancelada' && new Date(t.prazo+'T00:00:00') < new Date(today());
+    return `<div class="mobile-card" onclick="editTarefa('${t.id}')" style="cursor:pointer">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="prio prio-${prio}" style="width:10px;height:10px;border-radius:50%;flex-shrink:0"></div>
+        <div class="mobile-card-title" style="margin:0">${t.titulo}</div>
+      </div>
+      ${cli?`<div class="mobile-card-row"><span class="mobile-card-label">Cliente</span><span style="font-size:12px">${cli.razao_social.split(' ')[0]}</span></div>`:''}
+      <div class="mobile-card-row"><span class="mobile-card-label">Prazo</span><span style="${vencida?'color:var(--red);font-weight:600':''}">${t.prazo?fmtDate(t.prazo):'—'}</span></div>
+      <div class="mobile-card-row"><span class="mobile-card-label">Status</span>${badgeTarefaStatus(t.status)}</div>
+      <div class="mobile-card-actions" onclick="event.stopPropagation()">
+        ${t.status!=='Concluída'?`<button class="btn btn-ghost btn-sm" onclick="concluirTarefa('${t.id}')">✅ Concluir</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="delTarefa('${t.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
   tbody.innerHTML = list.map(t => {
     const cli = allClientes.find(c => c.id == t.cliente_id);
     const prio = t.prioridade?.toLowerCase() || 'media';
@@ -3506,6 +3537,23 @@ function irpfRender() {
   const tb=document.getElementById('irpf-tb-pf');
   if(!tb)return;
   if(!f.length){tb.innerHTML=`<tr><td colspan="9"><div class="empty-state"><div class="icon">👤</div><p>Nenhum cliente encontrado</p></div></td></tr>`;return;}
+  // Cards mobile IRPF
+  let mcIrpf = document.getElementById('mobile-cards-irpf');
+  if (!mcIrpf) {
+    mcIrpf = document.createElement('div');
+    mcIrpf.id = 'mobile-cards-irpf';
+    mcIrpf.className = 'mobile-cards';
+    tb.closest('.table-wrap')?.insertAdjacentElement('afterend', mcIrpf);
+  }
+  mcIrpf.innerHTML = f.map(c => `<div class="mobile-card" onclick="irpfAbrirPf(${c.id})" style="cursor:pointer">
+    <div class="mobile-card-title">${c.nome}</div>
+    <div class="mobile-card-row"><span class="mobile-card-label">CPF</span><span style="font-family:monospace;font-size:11px">${c.cpf||'—'}</span></div>
+    <div class="mobile-card-row"><span class="mobile-card-label">Status</span>${irpfBadgeSt(c.st)}</div>
+    <div class="mobile-card-row"><span class="mobile-card-label">Pagamento</span>${irpfBadgePg(c.pg)}</div>
+    <div class="mobile-card-row"><span class="mobile-card-label">Honorários</span><span style="font-weight:600">R$${Number(c.h||0).toLocaleString('pt-BR')}</span></div>
+    ${c.corretor?`<div class="mobile-card-row"><span class="mobile-card-label">Indicação</span><span style="font-size:12px">${c.corretor}</span></div>`:''}
+  </div>`).join('') || '<div class="empty-state"><div class="icon">👤</div><p>Nenhum cliente</p></div>';
+
   tb.innerHTML=f.map(c=>`<tr style="cursor:pointer" onclick="irpfAbrirPf(${c.id})">
     <td><div style="font-weight:500">${c.nome}</div>${c.email?`<div style="font-size:11px;color:var(--text2)">${c.email}</div>`:''}</td>
     <td style="font-family:monospace;font-size:12px">
@@ -3741,6 +3789,30 @@ function honorRender() {
     return;
   }
   const tipoLabel = { mensal:'Mensal', avulso:'Avulso', declaracao_mei:'Decl. MEI', irpf:'IRPF', abertura:'Abertura', consultoria:'Consultoria', outro:'Outro' };
+  // Cards mobile honorários
+  let mcHonor = document.getElementById('mobile-cards-honorarios');
+  if (!mcHonor) {
+    mcHonor = document.createElement('div');
+    mcHonor.id = 'mobile-cards-honorarios';
+    mcHonor.className = 'mobile-cards';
+    tb.closest('.table-wrap')?.insertAdjacentElement('afterend', mcHonor);
+  }
+  mcHonor.innerHTML = f.map(h => {
+    const stBadge = h.status==='Pago'?'badge-green':h.status==='Parcial'?'badge-yellow':'badge-red';
+    const esc = allEscritorios.find(e => e.id === h.escritorio_id);
+    return `<div class="mobile-card" onclick="editHonorario('${h.id}')" style="cursor:pointer">
+      <div class="mobile-card-title">${h.nome_cliente||'—'}</div>
+      <div class="mobile-card-row"><span class="mobile-card-label">Serviço</span><span class="badge badge-blue" style="font-size:10px">${tipoLabel[h.tipo]||h.tipo}</span></div>
+      <div class="mobile-card-row"><span class="mobile-card-label">Competência</span><span style="font-weight:600">${honorFmtComp(h.competencia)}</span></div>
+      <div class="mobile-card-row"><span class="mobile-card-label">Vencimento</span><span style="${h.vencimento&&h.vencimento<today()&&h.status!=='Pago'?'color:var(--red);font-weight:600':''}">${h.vencimento?fmtDate(h.vencimento):'—'}</span></div>
+      <div class="mobile-card-row"><span class="mobile-card-label">Valor</span><span style="font-weight:700;color:var(--green)">R$${Number(h.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span></div>
+      <div class="mobile-card-row"><span class="mobile-card-label">Status</span><span class="badge ${stBadge}">${h.status}</span></div>
+      <div class="mobile-card-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm" onclick="editHonorario('${h.id}')">✏️ Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="delHonorario('${h.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
   tb.innerHTML = f.map(h => {
     const cli = allClientes.find(c => c.id === h.cliente_id);
     const esc = allEscritorios.find(e => e.id === (cli?.escritorio_id || h.escritorio_id));

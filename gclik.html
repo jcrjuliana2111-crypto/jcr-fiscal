@@ -853,7 +853,10 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
           <div class="page-title">Tarefas</div>
           <div class="page-subtitle">Controle de atividades fiscais</div>
         </div>
-        <button class="btn btn-accent" onclick="openModalTarefa()">+ Nova Tarefa</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="openModalServicoAvulso()">💼 Serviço Avulso</button>
+          <button class="btn btn-accent" onclick="openModalTarefa()">+ Nova Tarefa</button>
+        </div>
       </div>
       <div class="filters">
         <input type="text" class="search-input" placeholder="🔍  Buscar tarefa…" oninput="filtrarTarefas(this.value)">
@@ -1277,6 +1280,113 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-cliente')">Cancelar</button>
       <button class="btn btn-accent" onclick="salvarCliente()">💾 Salvar Cliente</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL SERVIÇO AVULSO -->
+<div class="modal-overlay" id="modal-servico-avulso">
+  <div class="modal" style="width:580px">
+    <div class="modal-header">
+      <div class="modal-title">💼 Novo Serviço Avulso</div>
+      <button class="btn-icon" onclick="closeModal('modal-servico-avulso')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:16px">Cria automaticamente uma <strong>tarefa</strong> e um <strong>lançamento de honorário</strong> vinculados.</p>
+
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>Escritório</label>
+          <select id="avulso-escritorio" onchange="avulsoPopulateClientes()">
+            <option value="">Selecione...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Cliente *</label>
+          <select id="avulso-cliente">
+            <option value="">Selecione...</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Tipo de Serviço *</label>
+        <select id="avulso-tipo" onchange="avulsoTipoChange()">
+          <option value="declaracao_mei">Declaração MEI Anual</option>
+          <option value="irpf">Declaração IRPF</option>
+          <option value="abertura">Abertura de empresa</option>
+          <option value="encerramento">Encerramento de empresa</option>
+          <option value="consultoria">Consultoria</option>
+          <option value="certidao">Certidão / Regularização</option>
+          <option value="parcelamento">Parcelamento / REFIS</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Descrição / Título *</label>
+        <input type="text" id="avulso-titulo" placeholder="Ex: Declaração MEI 2025 — Empresa XYZ">
+      </div>
+
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>Prazo da Tarefa</label>
+          <input type="date" id="avulso-prazo">
+        </div>
+        <div class="form-group">
+          <label>Prioridade</label>
+          <select id="avulso-prioridade">
+            <option>Alta</option>
+            <option selected>Média</option>
+            <option>Baixa</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--border);margin:16px 0"></div>
+      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px">💰 Financeiro</div>
+
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>Valor R$ *</label>
+          <input type="number" id="avulso-valor" placeholder="0,00" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Vencimento do Pagamento</label>
+          <input type="date" id="avulso-vencimento">
+        </div>
+      </div>
+
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label>Forma de Pagamento</label>
+          <select id="avulso-forma">
+            <option>PIX</option>
+            <option>Transferência</option>
+            <option>Dinheiro</option>
+            <option>Boleto</option>
+            <option>Cartão</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Status do Pagamento</label>
+          <select id="avulso-status-pgto">
+            <option>Pendente</option>
+            <option>Pago</option>
+            <option>Parcial</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Observações</label>
+        <textarea id="avulso-obs" placeholder="Detalhes do serviço..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-servico-avulso')">Cancelar</button>
+      <button class="btn btn-accent" onclick="salvarServicoAvulso()">💼 Criar Tarefa + Honorário</button>
     </div>
   </div>
 </div>
@@ -4167,6 +4277,135 @@ function syncMobileNav(pageId) {
   document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('mnav-' + pageId);
   if (btn) btn.classList.add('active');
+}
+
+
+// ══════════════════════════════════════════
+//  SERVIÇO AVULSO
+// ══════════════════════════════════════════
+function openModalServicoAvulso() {
+  // Popular escritórios
+  const selEsc = document.getElementById('avulso-escritorio');
+  selEsc.innerHTML = '<option value="">Selecione...</option>' +
+    allEscritorios.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
+  // Pré-selecionar escritório ativo
+  if (escritorioAtivo) { selEsc.value = escritorioAtivo; avulsoPopulateClientes(); }
+  // Limpar campos
+  document.getElementById('avulso-cliente').value = '';
+  document.getElementById('avulso-titulo').value = '';
+  document.getElementById('avulso-valor').value = '';
+  document.getElementById('avulso-obs').value = '';
+  document.getElementById('avulso-prazo').value = '';
+  document.getElementById('avulso-vencimento').value = '';
+  document.getElementById('avulso-tipo').value = 'declaracao_mei';
+  document.getElementById('avulso-prioridade').value = 'Média';
+  document.getElementById('avulso-forma').value = 'PIX';
+  document.getElementById('avulso-status-pgto').value = 'Pendente';
+  avulsoTipoChange();
+  openModal('modal-servico-avulso');
+}
+
+function avulsoPopulateClientes() {
+  const escId = document.getElementById('avulso-escritorio').value;
+  const clientes = escId ? allClientes.filter(c => c.escritorio_id === escId) : allClientes;
+  document.getElementById('avulso-cliente').innerHTML =
+    '<option value="">Selecione...</option>' +
+    clientes.map(c => `<option value="${c.id}">${c.razao_social}</option>`).join('');
+}
+
+function avulsoTipoChange() {
+  const tipo = document.getElementById('avulso-tipo').value;
+  const titulos = {
+    declaracao_mei: 'Declaração MEI Anual',
+    irpf: 'Declaração IRPF 2025',
+    abertura: 'Abertura de Empresa',
+    encerramento: 'Encerramento de Empresa',
+    consultoria: 'Consultoria Tributária',
+    certidao: 'Certidão/Regularização Fiscal',
+    parcelamento: 'Parcelamento de Débitos',
+    outro: ''
+  };
+  const valores = {
+    declaracao_mei: '160',
+    irpf: '160',
+    abertura: '',
+    encerramento: '',
+    consultoria: '',
+    certidao: '',
+    parcelamento: '',
+    outro: ''
+  };
+  const el = document.getElementById('avulso-titulo');
+  const cli = allClientes.find(c => c.id === document.getElementById('avulso-cliente').value);
+  const sufixo = cli ? ` — ${cli.razao_social.split(' ')[0]}` : '';
+  if (titulos[tipo]) el.value = titulos[tipo] + sufixo;
+  const valEl = document.getElementById('avulso-valor');
+  if (valores[tipo]) valEl.value = valores[tipo];
+}
+
+async function salvarServicoAvulso() {
+  const titulo = document.getElementById('avulso-titulo').value.trim();
+  const valor = parseFloat(document.getElementById('avulso-valor').value);
+  const cliId = document.getElementById('avulso-cliente').value;
+
+  if (!titulo) { toast('Informe o título do serviço', 'error'); return; }
+  if (!valor) { toast('Informe o valor do serviço', 'error'); return; }
+  if (!cliId) { toast('Selecione o cliente', 'error'); return; }
+
+  const cli = allClientes.find(c => c.id === cliId);
+  const escId = document.getElementById('avulso-escritorio').value || cli?.escritorio_id || null;
+  const prazo = document.getElementById('avulso-prazo').value || null;
+  const vencimento = document.getElementById('avulso-vencimento').value || null;
+  const forma = document.getElementById('avulso-forma').value;
+  const statusPgto = document.getElementById('avulso-status-pgto').value;
+  const obs = document.getElementById('avulso-obs').value.trim();
+  const tipo = document.getElementById('avulso-tipo').value;
+  const prioridade = document.getElementById('avulso-prioridade').value;
+
+  // Competência = mês atual
+  const agora = new Date();
+  const competencia = `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}`;
+
+  try {
+    // 1. Criar tarefa
+    const { error: errTar } = await sb.from('gclik_tarefas').insert({
+      titulo,
+      descricao: obs || `Serviço avulso: ${titulo}`,
+      cliente_id: cliId,
+      prazo,
+      prioridade,
+      status: 'Pendente',
+      responsavel: '',
+      user_id: currentUser.id
+    });
+    if (errTar) throw new Error(errTar.message);
+
+    // 2. Criar honorário
+    const { error: errHon } = await sb.from('gclik_honorarios').insert({
+      tipo,
+      servico: titulo,
+      competencia,
+      valor,
+      vencimento,
+      status: statusPgto,
+      forma,
+      obs,
+      cliente_id: cliId,
+      escritorio_id: escId,
+      nome_cliente: cli?.razao_social || '',
+      user_id: currentUser.id
+    });
+    if (errHon) throw new Error(errHon.message);
+
+    toast(`✅ Tarefa e honorário criados com sucesso!`, 'success');
+    closeModal('modal-servico-avulso');
+    await Promise.all([loadTarefas(), loadHonorarios()]);
+    renderDashboard();
+    updateBadges();
+
+  } catch(e) {
+    toast('Erro: ' + e.message, 'error');
+  }
 }
 
 // ══════════════ START ══════════════

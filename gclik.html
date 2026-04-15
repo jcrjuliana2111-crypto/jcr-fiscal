@@ -2604,7 +2604,9 @@ function renderTarefas() {
     const matchC = !filterTarCliente || t.cliente_id == filterTarCliente;
     const cli = allClientes.find(c => c.id === t.cliente_id);
     const matchE = !filterTarEscritorio || (cli && cli.escritorio_id === filterTarEscritorio);
-    return matchQ && matchS && matchP && matchC && matchE;
+    // Filtro pelo escritório ativo (pill)
+    const matchEscrAtivo = !escritorioAtivo || (cli && cli.escritorio_id === escritorioAtivo);
+    return matchQ && matchS && matchP && matchC && matchE && matchEscrAtivo;
   });
   const tbody = document.getElementById('tbody-tarefas');
   if (!list.length) { tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">✅</div><p>Nenhuma tarefa encontrada</p></div></td></tr>`; return; }
@@ -2864,7 +2866,12 @@ function renderCalendar() {
     else { d = i - first + 1; }
     const dateStr = `${yr}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = dateStr === t;
-    const obrs = allObrigacoes.filter(o=>o.vencimento===dateStr);
+    const obrs = allObrigacoes.filter(o=>{
+      if (o.vencimento!==dateStr) return false;
+      if (!escritorioAtivo) return true;
+      const cli = allClientes.find(c=>c.id===o.cliente_id);
+      return cli && cli.escritorio_id === escritorioAtivo;
+    });
     // Agrupar por título único
     const obrsUnicas = obrs.reduce((acc, o) => {
       if (!acc.find(x => x.titulo === o.titulo)) acc.push(o);
@@ -2892,7 +2899,12 @@ function changeMonth(dir) {
 function renderAgendaProximas() {
   const t = today();
   const todas = allObrigacoes
-    .filter(o=>o.vencimento>=t&&o.status!=='Entregue'&&o.status!=='Pago')
+    .filter(o=>{
+      if (o.vencimento<t || o.status==='Entregue' || o.status==='Pago') return false;
+      if (!escritorioAtivo) return true;
+      const cli = allClientes.find(c=>c.id===o.cliente_id);
+      return cli && cli.escritorio_id === escritorioAtivo;
+    })
     .sort((a,b)=>a.vencimento.localeCompare(b.vencimento));
 
   // Agrupar por título + data de vencimento
@@ -3189,6 +3201,16 @@ function selecionarEscritorio(id) {
 
   // Filtrar dados pelo escritório ativo
   filtrarPorEscritorioAtivo();
+  // Sincronizar filtro de honorários com escritório ativo
+  if (escritorioAtivo) {
+    honorFiltroEsc = escritorioAtivo;
+    const selHonorEsc = document.getElementById('honor-filtro-escritorio');
+    if (selHonorEsc) selHonorEsc.value = escritorioAtivo;
+  } else {
+    honorFiltroEsc = '';
+    const selHonorEsc = document.getElementById('honor-filtro-escritorio');
+    if (selHonorEsc) selHonorEsc.value = '';
+  }
   renderDashboard();
   showPage('dashboard');
   // Mostrar Fechamento Fiscal só para Lewis
@@ -4199,7 +4221,9 @@ function honorFilt() {
     const matchE = !honorFiltroEsc || (cli && cli.escritorio_id === honorFiltroEsc) || h.escritorio_id === honorFiltroEsc;
     const matchC = !honorFiltroComp || h.competencia === honorFiltroComp;
     const matchS = !honorFiltroSt || h.status === honorFiltroSt;
-    return matchE && matchC && matchS;
+    // Filtro pelo escritório ativo (pill)
+    const matchEscrAtivo = !escritorioAtivo || (cli && cli.escritorio_id === escritorioAtivo) || h.escritorio_id === escritorioAtivo;
+    return matchE && matchC && matchS && matchEscrAtivo;
   });
 }
 

@@ -1228,6 +1228,11 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#222;background:#f5f5f5;p
           <select class="filter-select" onchange="irpfRender()" id="irpf-fcorretor">
             <option value="">Todas as indicações</option>
           </select>
+          <select class="filter-select" onchange="irpfRender()" id="irpf-fsenha">
+            <option value="">🔑 Todas</option>
+            <option value="com">✅ Com senha</option>
+            <option value="sem">❌ Sem senha</option>
+          </select>
           <button class="btn btn-accent" onclick="irpfNovo()">+ Novo Cliente PF</button>
           <button class="btn btn-ghost" onclick="irpfExportar()">⬇️ Excel</button>
         </div>
@@ -4001,11 +4006,14 @@ function irpfFilt() {
   const st=document.getElementById('irpf-fst')?.value||'';
   const pg=document.getElementById('irpf-fpg')?.value||'';
   const cor=document.getElementById('irpf-fcorretor')?.value||'';
+  const fsenha=document.getElementById('irpf-fsenha')?.value||'';
   return irpfCl.filter(c=>{
     if(b&&!c.nome.toLowerCase().includes(b)&&!(c.cpf||'').includes(b))return false;
     if(st&&(c.st||'Pendente')!==st)return false;
     if(pg&&c.pg!==pg)return false;
     if(cor&&c.corretor!==cor)return false;
+    if(fsenha==='com'&&!c.senha)return false;
+    if(fsenha==='sem'&&c.senha)return false;
     return true;
   });
 }

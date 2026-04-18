@@ -1241,7 +1241,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#222;background:#f5f5f5;p
             <table>
               <thead><tr>
                 <th>Nome</th><th>CPF</th><th>Telefone</th><th>Senha Gov.br</th>
-                <th>Status</th><th>Indicação</th><th>Honorários</th><th>Pagamento</th><th></th>
+                <th>Status</th><th>Indicação</th><th>Honorários</th><th>Pagamento</th><th>Observações</th><th></th>
               </tr></thead>
               <tbody id="irpf-tb-pf"></tbody>
             </table>
@@ -4039,6 +4039,7 @@ function irpfRender() {
     <div class="mobile-card-row"><span class="mobile-card-label">CPF</span><span style="font-family:monospace;font-size:11px">${c.cpf||'—'}</span></div>
     <div class="mobile-card-row"><span class="mobile-card-label">Status</span>${irpfBadgeSt(c.st)}</div>
     <div class="mobile-card-row"><span class="mobile-card-label">Pagamento</span>${irpfBadgePg(c.pg)}</div>
+    ${c.obs?`<div class="mobile-card-row"><span class="mobile-card-label">Obs</span><span style="font-size:11px;color:var(--text2)">${c.obs}</span></div>`:''}
     <div class="mobile-card-row"><span class="mobile-card-label">Honorários</span><span style="font-weight:600">R$${Number(c.h||0).toLocaleString('pt-BR')}</span></div>
     ${c.corretor?`<div class="mobile-card-row"><span class="mobile-card-label">Indicação</span><span style="font-size:12px">${c.corretor}</span></div>`:''}
   </div>`).join('') || '<div class="empty-state"><div class="icon">👤</div><p>Nenhum cliente</p></div>';

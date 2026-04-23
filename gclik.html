@@ -822,9 +822,10 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       <button class="mobile-nav-item" id="mnav-agenda" onclick="showPage('agenda');fecharMenuMobile()"><span class="icon">📅</span> Agenda Fiscal</button>
       <button class="mobile-nav-item" id="mnav-alertas" onclick="showPage('alertas');fecharMenuMobile()"><span class="icon">🔔</span> Alertas <span class="badge" id="mbadge-alertas" style="display:none">0</span></button>
       <button class="mobile-nav-item" id="mnav-honorarios" onclick="showPage('honorarios');fecharMenuMobile()"><span class="icon">💰</span> Honorários</button>
-      <button class="mobile-nav-item" id="mnav-irpf" onclick="showPage('irpf');fecharMenuMobile()"><span class="icon">🧾</span> IRPF</button>
+      <button class="mobile-nav-item" id="mnav-irpf" onclick="showPage('irpf');fecharMenuMobile()" style="display:none"><span class="icon">🧾</span> IRPF</button>
       <button class="mobile-nav-item" id="mnav-fechamento" onclick="showPage('fechamento');fecharMenuMobile()" style="display:none"><span class="icon">📋</span> Fechamento Fiscal</button>
-      <button class="mobile-nav-item" id="mnav-fechamento" onclick="showPage('fechamento');fecharMenuMobile()" style="display:none"><span class="icon">📋</span> Fechamento Fiscal</button>
+      <button class="mobile-nav-item" id="mnav-hub-jcr" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/hub-jcr/'" style="display:none"><span class="icon">🔗</span> Hub JCR</button>
+      <button class="mobile-nav-item" id="mnav-ctrl-fiscal" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/controle-fiscal/'"><span class="icon">🔔</span> Notificações</button>
       <button class="mobile-nav-item" id="mnav-templates" onclick="showPage('templates');fecharMenuMobile()"><span class="icon">📋</span> Templates</button>
       <button class="mobile-nav-item" id="mnav-escritorios" onclick="showPage('escritorios');fecharMenuMobile()"><span class="icon">🏛️</span> Escritórios</button>
     </div>
@@ -879,11 +880,17 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       <button class="nav-btn" onclick="showPage('escritorios')" id="nav-escritorios">
         <span>🏛️</span> Escritórios
       </button>
-      <button class="nav-btn" onclick="showPage('irpf')" id="nav-irpf">
+      <button class="nav-btn" onclick="showPage('irpf')" id="nav-irpf" style="display:none">
         <span>🧾</span> IRPF
       </button>
       <button class="nav-btn" onclick="showPage('fechamento')" id="nav-fechamento" style="display:none">
         <span>📋</span> Fechamento
+      </button>
+      <button class="nav-btn" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/hub-jcr/'" id="nav-hub-jcr" style="display:none">
+        <span>🔗</span> Hub JCR
+      </button>
+      <button class="nav-btn" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/controle-fiscal/'" id="nav-ctrl-fiscal">
+        <span>🔔</span> Notificações
       </button>
       <button class="nav-btn" onclick="showPage('honorarios')" id="nav-honorarios">
         <span>💰</span> Honorários
@@ -3219,8 +3226,24 @@ function selecionarEscritorio(id) {
   showPage('dashboard');
   // Mostrar Fechamento Fiscal só para Lewis
   var isLewis = (id === 'dd5246b8-5158-4de2-98bb-71b9a802badf');
+  var isJCR   = (id === 'ca9fb94f-abd6-4d55-bd3e-76170860d0ef');
+  var isTodos = (id === null);
+
+  // Fechamento → só Lewis
   ['nav-fechamento','mnav-fechamento'].forEach(function(n){
     var el=document.getElementById(n); if(el) el.style.display=isLewis?'':'none';
+  });
+  // IRPF → só JCR
+  ['nav-irpf','mnav-irpf'].forEach(function(n){
+    var el=document.getElementById(n); if(el) el.style.display=isJCR?'':'none';
+  });
+  // Hub JCR → só JCR
+  ['nav-hub-jcr','mnav-hub-jcr'].forEach(function(n){
+    var el=document.getElementById(n); if(el) el.style.display=isJCR?'':'none';
+  });
+  // Notificações → sempre visível
+  ['nav-ctrl-fiscal','mnav-ctrl-fiscal'].forEach(function(n){
+    var el=document.getElementById(n); if(el) el.style.display='';
   });
 }
 

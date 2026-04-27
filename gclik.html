@@ -960,7 +960,7 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       <button class="mobile-nav-item" id="mnav-irpf" onclick="showPage('irpf');fecharMenuMobile()" style="display:none"><span class="icon">🧾</span> IRPF</button>
       <button class="mobile-nav-item" id="mnav-fechamento" onclick="showPage('fechamento');fecharMenuMobile()" style="display:none"><span class="icon">📋</span> Fechamento Fiscal</button>
       <button class="mobile-nav-item" id="mnav-hub-jcr" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/hub-jcr/'" style="display:none"><span class="icon">🔗</span> Hub JCR</button>
-      <button class="mobile-nav-item" id="mnav-ctrl-fiscal" onclick="showPage('notificacoes');fecharMenuMobile()"><span class="icon">🔔</span> Notificações</button>
+      <button class="mobile-nav-item" id="mnav-notificacoes" onclick="showPage('notificacoes');fecharMenuMobile()"><span class="icon">🔔</span> Notificações</button>
       <button class="mobile-nav-item" id="mnav-templates" onclick="showPage('templates');fecharMenuMobile()"><span class="icon">📋</span> Templates</button>
       <button class="mobile-nav-item" id="mnav-escritorios" onclick="showPage('escritorios');fecharMenuMobile()"><span class="icon">🏛️</span> Escritórios</button>
     </div>
@@ -1024,7 +1024,7 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       <button class="nav-btn" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/hub-jcr/'" id="nav-hub-jcr" style="display:none">
         <span>🔗</span> Hub JCR
       </button>
-      <button class="nav-btn" onclick="showPage('notificacoes')" id="nav-ctrl-fiscal">
+      <button class="nav-btn" onclick="showPage('notificacoes')" id="nav-notificacoes">
         <span>🔔</span> Notificações
       </button>
       <button class="nav-btn" onclick="showPage('honorarios')" id="nav-honorarios">
@@ -2734,7 +2734,8 @@ function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
-  document.getElementById('nav-' + id).classList.add('active');
+  const navEl = document.getElementById('nav-' + id);
+  if (navEl) navEl.classList.add('active');
   sessionStorage.setItem('paginaAtiva', id);
   syncMobileNav(id);
   if (id === 'agenda') renderCalendar();

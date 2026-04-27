@@ -714,6 +714,141 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   .ff-content{padding:1rem}
 }
 
+
+/* ══════════════════════════════════════
+   ASSISTENTE PESSOAL — PAINEL LATERAL
+══════════════════════════════════════ */
+#as-toggle {
+  position: fixed; bottom: 24px; right: 24px; z-index: 400;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: linear-gradient(135deg, #c9a84c, #e8c97a);
+  border: none; cursor: pointer; font-size: 22px;
+  box-shadow: 0 4px 20px rgba(201,168,76,0.4);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.2s;
+}
+#as-toggle:hover { transform: scale(1.08); }
+
+#as-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5); z-index: 401;
+  backdrop-filter: blur(2px);
+}
+#as-overlay.open { display: block; }
+
+#as-panel {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 380px; max-width: 95vw;
+  background: #0f1b2d; border-left: 1px solid rgba(201,168,76,0.2);
+  z-index: 402; display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform 0.25s ease;
+  font-family: 'Syne', 'Inter', sans-serif;
+}
+#as-panel.open { transform: translateX(0); }
+
+.as-header {
+  background: #162030; border-bottom: 1px solid rgba(201,168,76,0.2);
+  padding: .75rem 1.25rem; display: flex; align-items: center;
+  justify-content: space-between; flex-shrink: 0;
+}
+.as-header-left { display: flex; align-items: center; gap: .75rem; }
+.as-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, #c9a84c, #e8c97a);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; font-weight: 800; color: #0f1b2d; flex-shrink: 0;
+}
+.as-name { font-size: .95rem; font-weight: 700; color: #f5f0e8; }
+.as-sub { font-size: .65rem; font-family: monospace; color: #8a9bb0; }
+.as-close { background: none; border: none; color: #8a9bb0; font-size: 20px; cursor: pointer; padding: 4px; }
+.as-close:hover { color: #f5f0e8; }
+
+.as-tabs { display: flex; gap: .4rem; padding: .6rem 1.25rem; background: #162030; border-bottom: 1px solid rgba(201,168,76,0.1); flex-shrink: 0; }
+.as-tb { background: none; border: 1px solid rgba(201,168,76,0.2); color: #8a9bb0; font-family: inherit; font-size: .72rem; padding: .35rem .8rem; border-radius: 20px; cursor: pointer; transition: all .15s; }
+.as-tb.on { background: #c9a84c; color: #0f1b2d; border-color: #c9a84c; font-weight: 700; }
+
+.as-main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.as-pane { display: none; flex: 1; overflow-y: auto; padding: 1rem 1.25rem; flex-direction: column; gap: .9rem; }
+.as-pane.on { display: flex; }
+
+.as-card { background: #162030; border: 1px solid rgba(201,168,76,0.15); border-radius: 12px; padding: 1rem 1.25rem; }
+.as-slabel { font-size: .62rem; font-family: monospace; letter-spacing: .12em; text-transform: uppercase; color: #c9a84c; margin-bottom: .6rem; display: flex; align-items: center; gap: .4rem; }
+.as-slabel::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #c9a84c; flex-shrink: 0; }
+
+.as-crow { display: flex; gap: .5rem; margin-top: .5rem; flex-wrap: wrap; }
+.as-crow input { flex: 1; min-width: 100px; background: #1c2a3f; border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; color: #f5f0e8; font-family: inherit; font-size: .85rem; padding: .55rem .85rem; outline: none; }
+.as-crow input:focus { border-color: #c9a84c; }
+.as-crow input::placeholder { color: #8a9bb0; }
+.as-crow select { background: #1c2a3f; border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; color: #f5f0e8; font-family: inherit; font-size: .78rem; padding: .55rem .6rem; outline: none; cursor: pointer; }
+.as-crow button { background: #c9a84c; color: #0f1b2d; border: none; border-radius: 7px; font-family: inherit; font-weight: 700; font-size: .8rem; padding: .55rem .9rem; cursor: pointer; }
+
+.as-fgrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .6rem; margin-top: .5rem; }
+.as-fslot { background: #1c2a3f; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: .65rem .8rem; min-height: 60px; cursor: pointer; }
+.as-fslot.on { border-color: rgba(201,168,76,0.4); }
+.as-fn { font-size: .6rem; font-family: monospace; color: #8a9bb0; margin-bottom: .3rem; }
+.as-ft { font-size: .75rem; color: #f5f0e8; line-height: 1.4; }
+.as-fe { font-size: .72rem; color: #8a9bb0; }
+
+.as-ti { display: flex; align-items: center; gap: .6rem; padding: .55rem 0; border-bottom: .5px solid rgba(255,255,255,0.04); }
+.as-ti:last-child { border-bottom: none; }
+.as-tt { flex: 1; font-size: .83rem; color: #f5f0e8; }
+.as-ttag { font-family: monospace; font-size: .65rem; padding: .15rem .5rem; border-radius: 20px; background: rgba(74,158,255,0.15); color: #4a9eff; }
+.as-ttag.lewis { background: rgba(167,139,250,0.15); color: #a78bfa; }
+.as-ttag.mei { background: rgba(46,204,138,0.12); color: #2ecc8a; }
+.as-ttag.irpf { background: rgba(245,166,35,0.12); color: #f5a623; }
+.as-mb { background: none; border: none; cursor: pointer; font-size: .85rem; color: #8a9bb0; padding: 0 2px; }
+.as-mb:hover { color: #f5f0e8; }
+.as-em { font-size: .8rem; color: #8a9bb0; text-align: center; padding: .75rem 0; }
+
+.as-prow { display: flex; align-items: center; gap: .75rem; padding: .55rem 0; border-bottom: .5px solid rgba(255,255,255,0.04); }
+.as-prow:last-child { border-bottom: none; }
+.as-pd { font-family: monospace; font-size: .72rem; color: #c9a84c; min-width: 42px; flex-shrink: 0; }
+.as-pn { flex: 1; font-size: .82rem; color: #f5f0e8; }
+.as-pbadge { font-size: .65rem; padding: .15rem .5rem; border-radius: 20px; flex-shrink: 0; }
+.as-pu { background: rgba(232,85,85,0.15); color: #e85555; }
+.as-ps { background: rgba(245,166,35,0.12); color: #f5a623; }
+.as-po { background: rgba(46,204,138,0.1); color: #2ecc8a; }
+
+.as-urg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-top: .5rem; }
+.as-urg-item { background: #1c2a3f; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: .75rem 1rem; cursor: pointer; }
+.as-urg-item.selected { border-color: #c9a84c; }
+.as-urg-val { font-size: 1.6rem; font-weight: 800; font-family: monospace; }
+.as-urg-lbl { font-size: .68rem; color: #8a9bb0; margin-top: .2rem; }
+
+.as-task-urg { display: flex; align-items: center; gap: .6rem; padding: .6rem 0; border-bottom: .5px solid rgba(255,255,255,0.04); }
+.as-task-urg:last-child { border-bottom: none; }
+.as-tu-body { flex: 1; }
+.as-tu-name { font-size: .83rem; color: #f5f0e8; }
+.as-tu-meta { font-size: .68rem; color: #8a9bb0; margin-top: 2px; }
+
+/* Chat assistente */
+.as-chat-pane { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.as-chat-pane.on { display: flex; }
+.as-msgs { flex: 1; overflow-y: auto; padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: .75rem; }
+.as-sugs { display: flex; gap: .4rem; flex-wrap: wrap; padding: .5rem 1.25rem 0; flex-shrink: 0; }
+.as-sg { background: none; border: 1px solid rgba(201,168,76,0.2); color: #8a9bb0; font-family: inherit; font-size: .7rem; padding: .3rem .75rem; border-radius: 20px; cursor: pointer; }
+.as-sg:hover { border-color: #c9a84c; color: #c9a84c; }
+.as-msg { max-width: 85%; display: flex; flex-direction: column; gap: 3px; }
+.as-msg.u { align-self: flex-end; align-items: flex-end; }
+.as-msg.a { align-self: flex-start; align-items: flex-start; }
+.as-bub { padding: .7rem 1rem; border-radius: 12px; font-size: .85rem; line-height: 1.6; }
+.as-msg.u .as-bub { background: #c9a84c; color: #0f1b2d; font-weight: 600; border-radius: 12px 12px 2px 12px; }
+.as-msg.a .as-bub { background: #162030; color: #f5f0e8; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px 12px 12px 2px; }
+.as-mt { font-size: .6rem; color: #8a9bb0; }
+.as-arow { display: flex; gap: .5rem; align-items: flex-start; }
+.as-aav { width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg,#c9a84c,#e8c97a); display: flex; align-items: center; justify-content: center; font-size: .65rem; font-weight: 800; color: #0f1b2d; flex-shrink: 0; }
+.as-typing { display: none; padding: .4rem 1.25rem; gap: .4rem; align-items: center; flex-shrink: 0; }
+.as-typing span { width: 6px; height: 6px; background: #8a9bb0; border-radius: 50%; animation: asb .8s infinite; }
+.as-typing span:nth-child(2) { animation-delay: .15s; }
+.as-typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes asb { 0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)} }
+.as-cinp { display: flex; gap: .6rem; padding: .85rem 1.25rem; border-top: 1px solid rgba(201,168,76,0.2); flex-shrink: 0; background: #162030; }
+.as-cinp textarea { flex: 1; background: #1c2a3f; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #f5f0e8; font-family: inherit; font-size: .85rem; padding: .6rem .9rem; outline: none; resize: none; max-height: 80px; }
+.as-cinp textarea:focus { border-color: #c9a84c; }
+.as-cinp textarea::placeholder { color: #8a9bb0; }
+.as-cinp button { background: #c9a84c; color: #0f1b2d; border: none; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: .85rem; padding: .6rem 1rem; cursor: pointer; flex-shrink: 0; align-self: flex-end; }
+.as-cinp button:disabled { opacity: .4; cursor: not-allowed; }
+.as-btn-gold { background: #c9a84c; color: #0f1b2d; border: none; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: .88rem; padding: .75rem; cursor: pointer; width: 100%; }
 </style>
 </head>
 <body>
@@ -2320,6 +2455,122 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
     </div>
   </div>
 </div>
+
+
+<!-- ════════ ASSISTENTE PESSOAL ════════ -->
+<button id="as-toggle" onclick="asToggle()" title="Assistente Pessoal">🤖</button>
+<div id="as-overlay" onclick="asFechar()"></div>
+<div id="as-panel">
+  <div class="as-header">
+    <div class="as-header-left">
+      <div class="as-avatar">J</div>
+      <div>
+        <div class="as-name">Juliana · JCR</div>
+        <div class="as-sub">Assistente Pessoal</div>
+      </div>
+    </div>
+    <button class="as-close" onclick="asFechar()">✕</button>
+  </div>
+  <div class="as-tabs">
+    <button class="as-tb on" onclick="asSw('as-painel',this)">📋 Painel</button>
+    <button class="as-tb" onclick="asSw('as-urgencias',this)">⚡ Urgências</button>
+    <button class="as-tb" onclick="asSw('as-chat',this)">💬 Chat IA</button>
+  </div>
+  <div class="as-main">
+
+    <!-- PAINEL -->
+    <div class="as-pane on" id="as-painel">
+      <div class="as-card">
+        <div class="as-slabel">Captura rápida</div>
+        <div class="as-crow">
+          <input type="text" id="as-ci" placeholder="O que veio à cabeça? Anota agora..." onkeydown="if(event.key==='Enter')asAddT()"/>
+          <select id="as-cs">
+            <option value="jcr">#JCR</option>
+            <option value="lewis">#Lewis</option>
+            <option value="mei">#MEI</option>
+            <option value="irpf">#IRPF</option>
+            <option value="pessoal">#Pessoal</option>
+          </select>
+          <select id="as-cu">
+            <option value="2">normal</option>
+            <option value="1">hoje</option>
+            <option value="0">urgente</option>
+          </select>
+          <button onclick="asAddT()">+ Add</button>
+        </div>
+      </div>
+      <div class="as-card">
+        <div class="as-slabel">Foco do dia — máx. 3</div>
+        <div class="as-fgrid">
+          <div class="as-fslot" id="as-s0" onclick="asCs2(0)"><div class="as-fn">Tarefa 1</div><span class="as-fe">toque p/ definir</span></div>
+          <div class="as-fslot" id="as-s1" onclick="asCs2(1)"><div class="as-fn">Tarefa 2</div><span class="as-fe">toque p/ definir</span></div>
+          <div class="as-fslot" id="as-s2" onclick="asCs2(2)"><div class="as-fn">Tarefa 3</div><span class="as-fe">toque p/ definir</span></div>
+        </div>
+      </div>
+      <div class="as-card" style="flex:1">
+        <div class="as-slabel">Inbox</div>
+        <div id="as-inbox"><p class="as-em">Inbox vazia!</p></div>
+      </div>
+      <div class="as-card">
+        <div class="as-slabel">Prazos fiscais</div>
+        <div id="as-prazos"></div>
+      </div>
+    </div>
+
+    <!-- URGÊNCIAS -->
+    <div class="as-pane" id="as-urgencias">
+      <div class="as-card">
+        <div class="as-slabel">Resumo por urgência</div>
+        <div class="as-urg-grid">
+          <div class="as-urg-item selected" onclick="asFiltrUrg('todas',this)">
+            <div class="as-urg-val" id="as-uTot">0</div>
+            <div class="as-urg-lbl">total de tarefas</div>
+          </div>
+          <div class="as-urg-item" onclick="asFiltrUrg('urgente',this)">
+            <div class="as-urg-val" style="color:#e85555" id="as-uUrg">0</div>
+            <div class="as-urg-lbl">urgentes agora</div>
+          </div>
+          <div class="as-urg-item" onclick="asFiltrUrg('hoje',this)">
+            <div class="as-urg-val" style="color:#f5a623" id="as-uHoje">0</div>
+            <div class="as-urg-lbl">para hoje</div>
+          </div>
+          <div class="as-urg-item" onclick="asFiltrUrg('normal',this)">
+            <div class="as-urg-val" style="color:#2ecc8a" id="as-uNorm">0</div>
+            <div class="as-urg-lbl">normais</div>
+          </div>
+        </div>
+      </div>
+      <div class="as-card" style="flex:1">
+        <div class="as-slabel" id="as-urgTitulo">Todas as tarefas</div>
+        <div id="as-urgLista"><p class="as-em">Nenhuma tarefa ainda.</p></div>
+      </div>
+      <button class="as-btn-gold" onclick="asPriorizarIA()">⚡ Priorizar com IA</button>
+    </div>
+
+    <!-- CHAT -->
+    <div class="as-chat-pane" id="as-chat">
+      <div class="as-sugs" id="as-sugs">
+        <button class="as-sg" onclick="asSug(this)">Prioriza minhas tarefas</button>
+        <button class="as-sg" onclick="asSug(this)">Prazos dessa semana</button>
+        <button class="as-sg" onclick="asSug(this)">Estou travada</button>
+        <button class="as-sg" onclick="asSug(this)">Por onde começo?</button>
+      </div>
+      <div class="as-msgs" id="as-msgs">
+        <div class="as-msg a">
+          <div class="as-arow"><div class="as-aav">J</div><div class="as-bub">Oi Juliana! 👋 Sou sua assistente pessoal da JCR. Me manda sua lista de tarefas ou me conta o que está travado — vou te ajudar a começar!</div></div>
+          <span class="as-mt">agora</span>
+        </div>
+      </div>
+      <div class="as-typing" id="as-typ"><div class="as-aav">J</div><span></span><span></span><span></span></div>
+      <div class="as-cinp">
+        <textarea id="as-mi" placeholder="Digite aqui..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();asSend()}"></textarea>
+        <button id="as-sb" onclick="asSend()">Enviar</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+<!-- ════════ /ASSISTENTE ════════ -->
 
 <!-- TOAST -->
 <div id="toast"></div>
@@ -4813,6 +5064,235 @@ async function salvarServicoAvulso() {
     toast('Erro: ' + e.message, 'error');
   }
 }
+
+
+// ══════════════════════════════════════════
+//  ASSISTENTE PESSOAL
+// ══════════════════════════════════════════
+let asTasks=[], asSlots=[null,null,null], asHist=[], asUrgFiltro='todas';
+
+const AS_URG_LABEL=['urgente','hoje','normal'];
+const AS_URG_BG=['rgba(232,85,85,0.15)','rgba(245,166,35,0.12)','rgba(46,204,138,0.1)'];
+const AS_URG_TXT=['#e85555','#f5a623','#2ecc8a'];
+
+const AS_PRAZOS=[
+  {d:'20/05',n:'PGDAS-MEI — maio',days:23},
+  {d:'20/05',n:'DAS Simples — abril',days:23},
+  {d:'31/05',n:'DIRF — prazo final',days:34},
+  {d:'30/06',n:'DASN-SIMEI anual',days:64},
+  {d:'31/07',n:'IRPF — prazo final',days:95},
+];
+
+const AS_SYS=`Você é a assistente pessoal da Juliana Ribeiro, consultora tributária da JCR Consultoria em Campinas SP. Ela tem TDAH. Clientes: Lewis Contabil, MEI, IRPF. Sistemas: GClik (gestão fiscal), FISCAL.CTRL (notificações), Hub JCR. Seja direta, acolhedora, prática. Máx 4 linhas. Sem listas longas. Se mandar tarefas, priorize: alguém esperando hoje? + esforço P/M/G.`;
+
+function asToggle() {
+  const p = document.getElementById('as-panel');
+  const o = document.getElementById('as-overlay');
+  const isOpen = p.classList.contains('open');
+  if (isOpen) { asFechar(); } else {
+    p.classList.add('open'); o.classList.add('open');
+    asRenderPrazos();
+  }
+}
+function asFechar() {
+  document.getElementById('as-panel').classList.remove('open');
+  document.getElementById('as-overlay').classList.remove('open');
+}
+
+function asSw(tab, btn) {
+  document.querySelectorAll('.as-pane, .as-chat-pane').forEach(e => e.classList.remove('on'));
+  document.querySelectorAll('.as-tb').forEach(e => e.classList.remove('on'));
+  document.getElementById(tab).classList.add('on');
+  if(btn) btn.classList.add('on');
+}
+
+function asRenderPrazos() {
+  const hoje = new Date();
+  const el = document.getElementById('as-prazos');
+  if (!el) return;
+
+  // Prazos do sistema + prazos estáticos
+  const prazos = [...AS_PRAZOS];
+
+  // Obrigações do GClik próximas
+  if (typeof allObrigacoes !== 'undefined') {
+    const t = today();
+    const proximas = allObrigacoes
+      .filter(o => o.vencimento >= t && o.status !== 'Entregue' && o.status !== 'Pago')
+      .reduce((acc, o) => {
+        if (!acc.find(x => x.titulo === o.titulo && x.vencimento === o.vencimento))
+          acc.push(o);
+        return acc;
+      }, [])
+      .sort((a,b) => a.vencimento.localeCompare(b.vencimento))
+      .slice(0, 8)
+      .map(o => {
+        const [y,m,d] = o.vencimento.split('-');
+        const days = Math.ceil((new Date(o.vencimento+'T00:00:00') - new Date(t+'T00:00:00'))/(1000*60*60*24));
+        return { d: d+'/'+m, n: o.titulo, days };
+      });
+    prazos.unshift(...proximas);
+  }
+
+  el.innerHTML = prazos.slice(0,10).map(p => {
+    const cls = p.days <= 0 ? 'as-pu' : p.days <= 7 ? 'as-pu' : p.days <= 14 ? 'as-ps' : 'as-po';
+    const lbl = p.days <= 0 ? 'vencido' : p.days === 1 ? 'amanhã' : p.days + 'd';
+    return `<div class="as-prow"><span class="as-pd">${p.d}</span><span class="as-pn">${p.n}</span><span class="as-pbadge ${cls}">${lbl}</span></div>`;
+  }).join('') || '<p class="as-em">Sem prazos próximos!</p>';
+}
+
+function asAddT() {
+  const inp = document.getElementById('as-ci');
+  const lst = document.getElementById('as-cs').value;
+  const urg = parseInt(document.getElementById('as-cu').value);
+  const txt = inp.value.trim();
+  if (!txt) return;
+  asTasks.push({ id: Date.now(), text: txt, list: lst, urg });
+  inp.value = '';
+  asRi(); asUpdateUrg();
+}
+
+function asRi() {
+  const el = document.getElementById('as-inbox');
+  const ac = asTasks.filter(t => !asSlots.includes(t.id));
+  if (!ac.length) { el.innerHTML = '<p class="as-em">Inbox vazia!</p>'; return; }
+  el.innerHTML = ac.map(t => `<div class="as-ti">
+    <span class="as-tt">${t.text}</span>
+    <span class="as-ttag ${t.list}">#${t.list}</span>
+    <span style="font-size:.65rem;padding:.15rem .5rem;border-radius:20px;background:${AS_URG_BG[t.urg]};color:${AS_URG_TXT[t.urg]}">${AS_URG_LABEL[t.urg]}</span>
+    <button class="as-mb" onclick="asMf(${t.id})">→</button>
+    <button class="as-mb" onclick="asRm(${t.id})">✕</button>
+  </div>`).join('');
+}
+
+function asMf(id) {
+  const s = asSlots.indexOf(null);
+  if (s === -1) { toast('Foco cheio! Máx 3 tarefas.', 'error'); return; }
+  asSlots[s] = id; asRf(); asRi();
+}
+
+function asCs2(i) { asSlots[i] = null; asRf(); asRi(); }
+
+function asRf() {
+  for (let i = 0; i < 3; i++) {
+    const el = document.getElementById('as-s' + i);
+    const id = asSlots[i];
+    if (id) {
+      const t = asTasks.find(x => x.id === id);
+      if (t) { el.className='as-fslot on'; el.innerHTML=`<div class="as-fn">Tarefa ${i+1}</div><div class="as-ft">${t.text}</div>`; }
+    } else {
+      el.className = 'as-fslot';
+      el.innerHTML = `<div class="as-fn">Tarefa ${i+1}</div><span class="as-fe">toque p/ definir</span>`;
+    }
+  }
+}
+
+function asRm(id) {
+  const idx = asSlots.indexOf(id); if (idx > -1) asSlots[idx] = null;
+  asTasks = asTasks.filter(t => t.id !== id); asRf(); asRi(); asUpdateUrg();
+}
+
+function asUpdateUrg() {
+  document.getElementById('as-uTot').textContent = asTasks.length;
+  document.getElementById('as-uUrg').textContent = asTasks.filter(t=>t.urg===0).length;
+  document.getElementById('as-uHoje').textContent = asTasks.filter(t=>t.urg===1).length;
+  document.getElementById('as-uNorm').textContent = asTasks.filter(t=>t.urg===2).length;
+  asRenderUrgLista();
+}
+
+function asFiltrUrg(f, el) {
+  asUrgFiltro = f;
+  document.querySelectorAll('.as-urg-item').forEach(e => e.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+  const titulos = { todas:'Todas as tarefas', urgente:'Urgentes agora', hoje:'Para hoje', normal:'Normais' };
+  document.getElementById('as-urgTitulo').textContent = titulos[f] || 'Tarefas';
+  asRenderUrgLista();
+}
+
+function asRenderUrgLista() {
+  const el = document.getElementById('as-urgLista');
+  const urgMap = { urgente:0, hoje:1, normal:2 };
+  const filtered = asUrgFiltro === 'todas' ? asTasks : asTasks.filter(t => t.urg === urgMap[asUrgFiltro]);
+  if (!filtered.length) { el.innerHTML = '<p class="as-em">Nenhuma tarefa neste filtro.</p>'; return; }
+  el.innerHTML = filtered.map(t => `<div class="as-task-urg">
+    <div class="as-tu-body">
+      <div class="as-tu-name">${t.text}</div>
+      <div class="as-tu-meta">#${t.list}</div>
+    </div>
+    <span style="font-size:.65rem;padding:.15rem .5rem;border-radius:20px;background:${AS_URG_BG[t.urg]};color:${AS_URG_TXT[t.urg]}">${AS_URG_LABEL[t.urg]}</span>
+    <button class="as-mb" onclick="asMf(${t.id})">→</button>
+    <button class="as-mb" onclick="asRm(${t.id})">✕</button>
+  </div>`).join('');
+}
+
+async function asPriorizarIA() {
+  if (!asTasks.length) { toast('Adicione tarefas primeiro!', 'error'); return; }
+  const lista = asTasks.map((t,i) => `${i+1}. [${AS_URG_LABEL[t.urg].toUpperCase()}] #${t.list} — ${t.text}`).join('\n');
+  asSw('as-chat', document.querySelector('.as-tb:nth-child(3)'));
+  document.getElementById('as-mi').value = `Prioriza essas tarefas pra mim:\n${lista}`;
+  asSend();
+}
+
+async function asSend() {
+  const inp = document.getElementById('as-mi');
+  const txt = inp.value.trim();
+  if (!txt) return;
+  inp.value = '';
+  asAddMsg('u', txt);
+  asHist.push({ role:'user', content: txt });
+  document.getElementById('as-sb').disabled = true;
+  document.getElementById('as-sugs').style.display = 'none';
+  document.getElementById('as-typ').style.display = 'flex';
+  asScrollM();
+
+  // Contexto do GClik
+  let contexto = '';
+  if (typeof allTarefas !== 'undefined') {
+    const pendentes = allTarefas.filter(t => t.status !== 'Concluída').length;
+    const vencidas = allObrigacoes ? allObrigacoes.filter(o => o.vencimento < today() && o.status !== 'Entregue').length : 0;
+    contexto = `\n\nContexto atual GClik: ${pendentes} tarefas pendentes, ${vencidas} obrigações vencidas.`;
+  }
+
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 1000,
+        system: AS_SYS + contexto,
+        messages: asHist
+      })
+    });
+    const d = await r.json();
+    const rep = d.content.map(i => i.text||'').join('');
+    asHist.push({ role:'assistant', content: rep });
+    document.getElementById('as-typ').style.display = 'none';
+    asAddMsg('a', rep);
+  } catch(e) {
+    document.getElementById('as-typ').style.display = 'none';
+    asAddMsg('a', 'Ops, problema de conexão. Tenta de novo 🙏');
+  }
+  document.getElementById('as-sb').disabled = false;
+}
+
+function asAddMsg(role, text) {
+  const area = document.getElementById('as-msgs');
+  const time = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const div = document.createElement('div');
+  div.className = `as-msg ${role}`;
+  const txt = text.replace(/\n/g,'<br>');
+  if (role === 'a') {
+    div.innerHTML = `<div class="as-arow"><div class="as-aav">J</div><div class="as-bub">${txt}</div></div><span class="as-mt">${time}</span>`;
+  } else {
+    div.innerHTML = `<div class="as-bub">${txt}</div><span class="as-mt">${time}</span>`;
+  }
+  area.appendChild(div);
+  asScrollM();
+}
+
+function asScrollM() { const a = document.getElementById('as-msgs'); a.scrollTop = a.scrollHeight; }
+function asSug(btn) { document.getElementById('as-mi').value = btn.textContent; asSend(); }
 
 // ══════════════ START ══════════════
 checkSession();

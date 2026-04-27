@@ -5368,13 +5368,15 @@ async function notifCarregar() {
   const tb = document.getElementById('notif-tbody');
   if (tb) tb.innerHTML = `<tr><td colspan="10"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>`;
   try {
-    const r = await fetch(`${FISCAL_URL}/functions/v1/smart-handler`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${FISCAL_KEY}`, 'apikey': FISCAL_KEY },
-      body: JSON.stringify({ action: 'get' })
+    const r = await fetch(`${FISCAL_URL}/rest/v1/notificacoes_fiscais?order=created_at.desc`, {
+      headers: {
+        'apikey': FISCAL_KEY,
+        'Authorization': `Bearer ${FISCAL_KEY}`,
+        'Content-Type': 'application/json'
+      }
     });
     const d = await r.json();
-    allNotificacoes = Array.isArray(d) ? d : (d.data || []);
+    allNotificacoes = Array.isArray(d) ? d : [];
     notifRender();
     notifStats();
   } catch(e) {
@@ -5396,7 +5398,7 @@ function notifFilt() {
 
 function notifStats() {
   const lista = allNotificacoes;
-  const aberto = lista.filter(n => n.status === 'Aberto').length;
+  const aberto = lista.filter(n => n.status === 'Aberto' || n.status === 'Em aberto').length;
   const vencido = lista.filter(n => n.status === 'Vencido').length;
   const aguardando = lista.filter(n => n.status === 'Aguardando Empresa').length;
   const concluido = lista.filter(n => n.status === 'Concluído').length;
@@ -5446,13 +5448,13 @@ function notifRender() {
     const valor = n.valor_disputa ? `R$${Number(n.valor_disputa).toLocaleString('pt-BR',{minimumFractionDigits:2})}` : '—';
     return `<tr style="cursor:pointer" onclick="notifEditar('${n.id}')">
       <td>
-        <div style="font-weight:500;font-size:13px">${n.empresa||n.razao_social||'—'}</div>
-        <div style="font-size:11px;color:var(--text3);font-family:monospace">${n.cnpj||''}</div>
+        <div style="font-weight:500;font-size:13px">${n.nome_empresa||n.empresa||n.razao_social||'—'}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:monospace">${n.cnpj||n.cpf_cnpj||''}</div>
       </td>
       <td style="font-size:12px;font-family:monospace">${n.numero_processo||'—'}</td>
-      <td><span class="badge badge-blue" style="font-size:10px">${n.esfera||'—'}</span></td>
-      <td style="font-size:12px">${n.tipo_notificacao||n.tipo||'—'}</td>
-      <td style="font-size:12px">${n.data_notificacao?fmtDate(n.data_notificacao):'—'}</td>
+      <td><span class="badge badge-blue" style="font-size:10px">${n.esfera_fiscal||n.esfera||'—'}</span></td>
+      <td style="font-size:12px">${n.tipo_notificacao||n.tipo_auto||n.tipo||'—'}</td>
+      <td style="font-size:12px">${(n.data_notificacao||n.data_ciencia)?fmtDate(n.data_notificacao||n.data_ciencia):'—'}</td>
       <td style="font-size:12px;${vencida?'color:var(--red);font-weight:600':''}">${prazo?fmtDate(prazo):'—'}</td>
       <td style="font-size:12px;font-weight:600;color:var(--yellow)">${valor}</td>
       <td>${stBadge(n.status)}</td>
@@ -5484,10 +5486,9 @@ function notifEditar(id) {
 async function notifExcluir(id) {
   if (!confirm('Excluir esta notificação?')) return;
   try {
-    await fetch(`${FISCAL_URL}/functions/v1/smart-handler`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${FISCAL_KEY}`, 'apikey': FISCAL_KEY },
-      body: JSON.stringify({ action: 'delete', id })
+    await fetch(`${FISCAL_URL}/rest/v1/notificacoes_fiscais?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': FISCAL_KEY, 'Authorization': `Bearer ${FISCAL_KEY}` }
     });
     allNotificacoes = allNotificacoes.filter(n => n.id !== id);
     notifRender(); notifStats();

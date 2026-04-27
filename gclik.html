@@ -960,7 +960,7 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       <button class="mobile-nav-item" id="mnav-irpf" onclick="showPage('irpf');fecharMenuMobile()" style="display:none"><span class="icon">🧾</span> IRPF</button>
       <button class="mobile-nav-item" id="mnav-fechamento" onclick="showPage('fechamento');fecharMenuMobile()" style="display:none"><span class="icon">📋</span> Fechamento Fiscal</button>
       <button class="mobile-nav-item" id="mnav-hub-jcr" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/hub-jcr/'" style="display:none"><span class="icon">🔗</span> Hub JCR</button>
-      <button class="mobile-nav-item" id="mnav-ctrl-fiscal" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/controle-fiscal/'"><span class="icon">🔔</span> Notificações</button>
+      <button class="mobile-nav-item" id="mnav-ctrl-fiscal" onclick="showPage('notificacoes');fecharMenuMobile()"><span class="icon">🔔</span> Notificações</button>
       <button class="mobile-nav-item" id="mnav-templates" onclick="showPage('templates');fecharMenuMobile()"><span class="icon">📋</span> Templates</button>
       <button class="mobile-nav-item" id="mnav-escritorios" onclick="showPage('escritorios');fecharMenuMobile()"><span class="icon">🏛️</span> Escritórios</button>
     </div>
@@ -1024,7 +1024,7 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       <button class="nav-btn" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/hub-jcr/'" id="nav-hub-jcr" style="display:none">
         <span>🔗</span> Hub JCR
       </button>
-      <button class="nav-btn" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/controle-fiscal/'" id="nav-ctrl-fiscal">
+      <button class="nav-btn" onclick="showPage('notificacoes')" id="nav-ctrl-fiscal">
         <span>🔔</span> Notificações
       </button>
       <button class="nav-btn" onclick="showPage('honorarios')" id="nav-honorarios">
@@ -1633,6 +1633,62 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 
       </div>
       <input type="file" id="ff-file-input" accept="image/*" style="display:none" onchange="ffHandleFile(event)">
+    </div>
+
+
+    <!-- ═══ NOTIFICAÇÕES FISCAIS (LEWIS) ═══ -->
+    <div class="page" id="page-notificacoes">
+      <div class="page-header">
+        <div>
+          <div class="page-title">🔔 Notificações Fiscais</div>
+          <div class="page-subtitle">Lewis Contabil — Controle de notificações governamentais</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="notifCarregar()">🔄 Atualizar</button>
+          <button class="btn btn-accent" onclick="notifNova()">+ Nova Notificação</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid" id="notif-stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+
+      <!-- Filtros -->
+      <div class="filters" style="margin-bottom:16px">
+        <input type="text" class="search-input" id="notif-busca" placeholder="🔍 Buscar por empresa, processo..." oninput="notifRender()">
+        <select class="filter-select" id="notif-fsfera" onchange="notifRender()">
+          <option value="">Todas as esferas</option>
+          <option>Federal</option><option>Estadual</option><option>Municipal</option>
+        </select>
+        <select class="filter-select" id="notif-fstatus" onchange="notifRender()">
+          <option value="">Todos os status</option>
+          <option>Aberto</option><option>Prorrogado</option>
+          <option>Aguardando Empresa</option><option>Concluído</option><option>Vencido</option>
+        </select>
+      </div>
+
+      <!-- Tabela -->
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Empresa / CNPJ</th>
+                <th>Processo</th>
+                <th>Esfera</th>
+                <th>Tipo</th>
+                <th>Data Notif.</th>
+                <th>Prazo</th>
+                <th>Valor</th>
+                <th>Status</th>
+                <th>Responsável</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="notif-tbody"></tbody>
+          </table>
+        </div>
+        <div id="notif-pg" style="padding:12px 16px;border-top:1px solid var(--border);color:var(--text2);font-size:12px"></div>
+      </div>
     </div>
 
   </div><!-- /main-content -->
@@ -2687,6 +2743,7 @@ function showPage(id) {
   if (id === 'escritorios') renderEscritoriosPage();
   if (id === 'irpf') { irpfRender(); irpfStats(); }
   if (id === 'honorarios') { honorPopulateSelects(); honorPopulateCompetencias(); honorRender(); honorStats(); }
+  if (id === 'notificacoes') { notifCarregar(); }
   if (id === 'tarefas') renderTarefas();
   if (id === 'clientes') renderClientes();
 }
@@ -3496,6 +3553,8 @@ function selecionarEscritorio(id) {
   ['nav-ctrl-fiscal','mnav-ctrl-fiscal'].forEach(function(n){
     var el=document.getElementById(n); if(el) el.style.display='';
   });
+  // Sincronizar nav-notificacoes
+  var navN=document.getElementById('nav-notificacoes'); if(navN) navN.style.display='';
 }
 
 function filtrarPorEscritorioAtivo() {
@@ -5293,6 +5352,149 @@ function asAddMsg(role, text) {
 
 function asScrollM() { const a = document.getElementById('as-msgs'); a.scrollTop = a.scrollHeight; }
 function asSug(btn) { document.getElementById('as-mi').value = btn.textContent; asSend(); }
+
+
+// ══════════════════════════════════════════
+//  NOTIFICAÇÕES FISCAIS (LEWIS)
+// ══════════════════════════════════════════
+const FISCAL_URL = 'https://qftusjwnlyjokilcjuzb.supabase.co';
+const FISCAL_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmdHVzandubHlqb2tpbGNqdXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDk4MjI4MDIsImV4cCI6MjAyNTM5ODgwMn0.yPqHgUGmHdFHSbMVFjqNEDNaYhKZwVvJrNe8AHVPW0U';
+let allNotificacoes = [];
+let notifPag = 1;
+const NOTIF_PP = 15;
+
+async function notifCarregar() {
+  const tb = document.getElementById('notif-tbody');
+  if (tb) tb.innerHTML = `<tr><td colspan="10"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>`;
+  try {
+    const r = await fetch(`${FISCAL_URL}/functions/v1/smart-handler`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${FISCAL_KEY}`, 'apikey': FISCAL_KEY },
+      body: JSON.stringify({ action: 'get' })
+    });
+    const d = await r.json();
+    allNotificacoes = Array.isArray(d) ? d : (d.data || []);
+    notifRender();
+    notifStats();
+  } catch(e) {
+    toast('Erro ao carregar notificações: ' + e.message, 'error');
+  }
+}
+
+function notifFilt() {
+  const q = (document.getElementById('notif-busca')?.value || '').toLowerCase();
+  const esfera = document.getElementById('notif-fsfera')?.value || '';
+  const status = document.getElementById('notif-fstatus')?.value || '';
+  return allNotificacoes.filter(n => {
+    const matchQ = !q || (n.empresa||'').toLowerCase().includes(q) || (n.cnpj||'').includes(q) || (n.numero_processo||'').includes(q);
+    const matchE = !esfera || n.esfera === esfera;
+    const matchS = !status || n.status === status;
+    return matchQ && matchE && matchS;
+  });
+}
+
+function notifStats() {
+  const lista = allNotificacoes;
+  const aberto = lista.filter(n => n.status === 'Aberto').length;
+  const vencido = lista.filter(n => n.status === 'Vencido').length;
+  const aguardando = lista.filter(n => n.status === 'Aguardando Empresa').length;
+  const concluido = lista.filter(n => n.status === 'Concluído').length;
+  const el = document.getElementById('notif-stats');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="stat-card" style="--card-color:var(--accent)">
+      <div class="stat-label">Total</div>
+      <div class="stat-value">${lista.length}</div>
+    </div>
+    <div class="stat-card" style="--card-color:var(--yellow)">
+      <div class="stat-label">Em aberto</div>
+      <div class="stat-value" style="color:var(--yellow)">${aberto}</div>
+    </div>
+    <div class="stat-card" style="--card-color:var(--red)">
+      <div class="stat-label">Vencidos</div>
+      <div class="stat-value" style="color:var(--red)">${vencido}</div>
+    </div>
+    <div class="stat-card" style="--card-color:var(--green)">
+      <div class="stat-label">Concluídos</div>
+      <div class="stat-value" style="color:var(--green)">${concluido}</div>
+    </div>
+  `;
+}
+
+function notifRender() {
+  const lista = notifFilt();
+  const tp = Math.ceil(lista.length / NOTIF_PP) || 1;
+  if (notifPag > tp) notifPag = tp;
+  const f = lista.slice((notifPag-1)*NOTIF_PP, notifPag*NOTIF_PP);
+  const tb = document.getElementById('notif-tbody');
+  if (!tb) return;
+
+  if (!f.length) {
+    tb.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="icon">🔔</div><p>Nenhuma notificação encontrada.</p></div></td></tr>`;
+    return;
+  }
+
+  const stBadge = s => {
+    const m = { 'Aberto':'badge-yellow','Vencido':'badge-red','Concluído':'badge-green','Prorrogado':'badge-blue','Aguardando Empresa':'badge-gray' };
+    return `<span class="badge ${m[s]||'badge-gray'}">${s||'—'}</span>`;
+  };
+
+  tb.innerHTML = f.map(n => {
+    const prazo = n.prazo_original || n.prazo_prorrogado || '';
+    const vencida = prazo && prazo < today() && n.status !== 'Concluído';
+    const valor = n.valor_disputa ? `R$${Number(n.valor_disputa).toLocaleString('pt-BR',{minimumFractionDigits:2})}` : '—';
+    return `<tr style="cursor:pointer" onclick="notifEditar('${n.id}')">
+      <td>
+        <div style="font-weight:500;font-size:13px">${n.empresa||n.razao_social||'—'}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:monospace">${n.cnpj||''}</div>
+      </td>
+      <td style="font-size:12px;font-family:monospace">${n.numero_processo||'—'}</td>
+      <td><span class="badge badge-blue" style="font-size:10px">${n.esfera||'—'}</span></td>
+      <td style="font-size:12px">${n.tipo_notificacao||n.tipo||'—'}</td>
+      <td style="font-size:12px">${n.data_notificacao?fmtDate(n.data_notificacao):'—'}</td>
+      <td style="font-size:12px;${vencida?'color:var(--red);font-weight:600':''}">${prazo?fmtDate(prazo):'—'}</td>
+      <td style="font-size:12px;font-weight:600;color:var(--yellow)">${valor}</td>
+      <td>${stBadge(n.status)}</td>
+      <td style="font-size:12px">${n.responsavel||'—'}</td>
+      <td onclick="event.stopPropagation()">
+        <div class="actions-col">
+          <button class="btn btn-danger btn-sm" onclick="notifExcluir('${n.id}')">🗑</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const pg = document.getElementById('notif-pg');
+  if (pg) pg.innerHTML = lista.length > NOTIF_PP ?
+    `<button class="btn btn-ghost btn-sm" onclick="notifPag--;notifRender()" ${notifPag===1?'disabled':''}>← Ant</button>
+     <span style="margin:0 8px">Pág ${notifPag}/${tp} · ${lista.length} notificações</span>
+     <button class="btn btn-ghost btn-sm" onclick="notifPag++;notifRender()" ${notifPag===tp?'disabled':''}>Próx →</button>` :
+    `<span>${lista.length} notificação${lista.length!==1?'s':''}</span>`;
+}
+
+function notifNova() {
+  window.open('https://jcrjuliana2111-crypto.github.io/controle-fiscal/', '_blank');
+}
+
+function notifEditar(id) {
+  window.open('https://jcrjuliana2111-crypto.github.io/controle-fiscal/', '_blank');
+}
+
+async function notifExcluir(id) {
+  if (!confirm('Excluir esta notificação?')) return;
+  try {
+    await fetch(`${FISCAL_URL}/functions/v1/smart-handler`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${FISCAL_KEY}`, 'apikey': FISCAL_KEY },
+      body: JSON.stringify({ action: 'delete', id })
+    });
+    allNotificacoes = allNotificacoes.filter(n => n.id !== id);
+    notifRender(); notifStats();
+    toast('Notificação removida!', 'success');
+  } catch(e) {
+    toast('Erro ao excluir: ' + e.message, 'error');
+  }
+}
 
 // ══════════════ START ══════════════
 checkSession();

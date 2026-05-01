@@ -198,8 +198,8 @@ html, body { height: 100%; font-family: var(--font-body); background: var(--bg);
 
 /* ── MAIN ── */
 .main-content { flex: 1; overflow: hidden; display: flex; }
-.page { display: none; flex: 1; overflow-y: auto; padding: 28px 32px; }
-.page.active { display: block; }
+.page { display: none; flex: 1; overflow-y: auto; padding: 28px 32px; min-height: 0; }
+.page.active { display: flex; flex-direction: column; }
 
 /* ── PAGE HEADER ── */
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }

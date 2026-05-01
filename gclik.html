@@ -494,7 +494,7 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 .actions-col { display: flex; gap: 6px; white-space: nowrap; }
 
 /* ── RESPONSIVE ── */
-@media (min-width: 1101px) {
+@media (min-width: 100000px) {
   #irpf-stats-pf { grid-template-columns: repeat(5,1fr); }
   #irpf-stats-pj { grid-template-columns: repeat(4,1fr); }
   #honor-stats { grid-template-columns: repeat(4,1fr); }
@@ -565,7 +565,7 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   font-size: 22px; cursor: pointer; padding: 4px 8px; border-radius: 6px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 99999px) {
   /* Stats grids responsivos */
   #irpf-stats-pf { grid-template-columns: 1fr !important; }
   #irpf-stats-pj { grid-template-columns: 1fr 1fr !important; }
@@ -960,7 +960,7 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       <button class="mobile-nav-item" id="mnav-irpf" onclick="showPage('irpf');fecharMenuMobile()" style="display:none"><span class="icon">🧾</span> IRPF</button>
       <button class="mobile-nav-item" id="mnav-fechamento" onclick="showPage('fechamento');fecharMenuMobile()" style="display:none"><span class="icon">📋</span> Fechamento Fiscal</button>
       <button class="mobile-nav-item" id="mnav-hub-jcr" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/hub-jcr/'" style="display:none"><span class="icon">🔗</span> Hub JCR</button>
-      <button class="mobile-nav-item" id="mnav-notificacoes" onclick="showPage('notificacoes');fecharMenuMobile()"><span class="icon">🔔</span> Notificações</button>
+      <button class="mobile-nav-item" id="mnav-notificacoes" onclick="window.open('https://jcrjuliana2111-crypto.github.io/controle-fiscal/','_blank');fecharMenuMobile()"><span class="icon">🔔</span> Notificações</button>
       <button class="mobile-nav-item" id="mnav-templates" onclick="showPage('templates');fecharMenuMobile()"><span class="icon">📋</span> Templates</button>
       <button class="mobile-nav-item" id="mnav-escritorios" onclick="showPage('escritorios');fecharMenuMobile()"><span class="icon">🏛️</span> Escritórios</button>
     </div>
@@ -1024,7 +1024,7 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       <button class="nav-btn" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/hub-jcr/'" id="nav-hub-jcr" style="display:none">
         <span>🔗</span> Hub JCR
       </button>
-      <button class="nav-btn" onclick="showPage('notificacoes')" id="nav-notificacoes">
+      <button class="nav-btn" onclick="window.open('https://jcrjuliana2111-crypto.github.io/controle-fiscal/','_blank')" id="nav-notificacoes">
         <span>🔔</span> Notificações
       </button>
       <button class="nav-btn" onclick="showPage('honorarios')" id="nav-honorarios">
@@ -1635,19 +1635,6 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
       <input type="file" id="ff-file-input" accept="image/*" style="display:none" onchange="ffHandleFile(event)">
     </div>
 
-
-    <!-- ═══ NOTIFICAÇÕES FISCAIS (LEWIS) ═══ -->
-    <div class="page" id="page-notificacoes">
-      <div class="page-header">
-        <div>
-          <div class="page-title">🔔 Notificações Fiscais</div>
-          <div class="page-subtitle">Lewis Contabil — Controle de notificações governamentais</div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-ghost" onclick="notifCarregar()">🔄 Atualizar</button>
-          <button class="btn btn-accent" onclick="notifNova()">+ Nova Notificação</button>
-        </div>
-      </div>
 
       <!-- Stats -->
       <div class="stats-grid" id="notif-stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
@@ -2744,7 +2731,6 @@ function showPage(id) {
   if (id === 'escritorios') renderEscritoriosPage();
   if (id === 'irpf') { irpfRender(); irpfStats(); }
   if (id === 'honorarios') { honorPopulateSelects(); honorPopulateCompetencias(); honorRender(); honorStats(); }
-  if (id === 'notificacoes') { notifCarregar(); }
   if (id === 'tarefas') renderTarefas();
   if (id === 'clientes') renderClientes();
 }
@@ -5354,35 +5340,6 @@ function asAddMsg(role, text) {
 function asScrollM() { const a = document.getElementById('as-msgs'); a.scrollTop = a.scrollHeight; }
 function asSug(btn) { document.getElementById('as-mi').value = btn.textContent; asSend(); }
 
-
-// ══════════════════════════════════════════
-//  NOTIFICAÇÕES FISCAIS (LEWIS)
-// ══════════════════════════════════════════
-const FISCAL_URL = 'https://qftusjwnlyjokilcjuzb.supabase.co';
-const FISCAL_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmdHVzandubHlqb2tpbGNqdXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NDUwNzAsImV4cCI6MjA5MDMyMTA3MH0.rs_L_f4gkybqhQesg6kh66xv2fGABvaC7WHzJk-PQ9M';
-let allNotificacoes = [];
-let notifPag = 1;
-const NOTIF_PP = 15;
-
-async function notifCarregar() {
-  const tb = document.getElementById('notif-tbody');
-  if (tb) tb.innerHTML = `<tr><td colspan="10"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>`;
-  try {
-    const r = await fetch(`${FISCAL_URL}/rest/v1/notificacoes_fiscais?order=created_at.desc`, {
-      headers: {
-        'apikey': FISCAL_KEY,
-        'Authorization': `Bearer ${FISCAL_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    const d = await r.json();
-    allNotificacoes = Array.isArray(d) ? d : [];
-    notifRender();
-    notifStats();
-  } catch(e) {
-    toast('Erro ao carregar notificações: ' + e.message, 'error');
-  }
-}
 
 function notifFilt() {
   const q = (document.getElementById('notif-busca')?.value || '').toLowerCase();

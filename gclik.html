@@ -5398,9 +5398,9 @@ function notifFilt() {
 
 function notifStats() {
   const lista = allNotificacoes;
-  const aberto = lista.filter(n => n.status === 'Aberto' || n.status === 'Em aberto').length;
+  const aberto = lista.filter(n => n.status === 'Aberto').length;
   const vencido = lista.filter(n => n.status === 'Vencido').length;
-  const aguardando = lista.filter(n => n.status === 'Aguardando Empresa').length;
+  const aguardando = lista.filter(n => n.status === 'Aguardando Empresa' || n.status === 'Aguardando empresa').length;
   const concluido = lista.filter(n => n.status === 'Concluído').length;
   const el = document.getElementById('notif-stats');
   if (!el) return;
@@ -5443,15 +5443,16 @@ function notifRender() {
   };
 
   tb.innerHTML = f.map(n => {
-    const prazo = n.prazo_original || n.prazo_prorrogado || '';
+    const prazo = n.prazo_prorrogado || n.prazo_original || '';
     const vencida = prazo && prazo < today() && n.status !== 'Concluído';
-    const valor = n.valor_disputa ? `R$${Number(n.valor_disputa).toLocaleString('pt-BR',{minimumFractionDigits:2})}` : '—';
+    const vDisp = n.valor_disputa || n.valor || 0;
+      const valor = vDisp ? `R$${Number(vDisp).toLocaleString('pt-BR',{minimumFractionDigits:2})}` : '—';
     return `<tr style="cursor:pointer" onclick="notifEditar('${n.id}')">
       <td>
         <div style="font-weight:500;font-size:13px">${n.nome_empresa||n.empresa||n.razao_social||'—'}</div>
         <div style="font-size:11px;color:var(--text3);font-family:monospace">${n.cnpj||n.cpf_cnpj||''}</div>
       </td>
-      <td style="font-size:12px;font-family:monospace">${n.numero_processo||'—'}</td>
+      <td style="font-size:12px;font-family:monospace">${n.numero_processo||n.processo||'—'}</td>
       <td><span class="badge badge-blue" style="font-size:10px">${n.esfera_fiscal||n.esfera||'—'}</span></td>
       <td style="font-size:12px">${n.tipo_notificacao||n.tipo_auto||n.tipo||'—'}</td>
       <td style="font-size:12px">${(n.data_notificacao||n.data_ciencia)?fmtDate(n.data_notificacao||n.data_ciencia):'—'}</td>

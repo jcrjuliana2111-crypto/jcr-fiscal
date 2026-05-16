@@ -1352,50 +1352,68 @@ table thead th { padding: 10px 12px; }
 
     <!-- ═══ IRPF ═══ -->
     <div class="page" id="page-irpf">
-      <div class="page-header">
-        <div>
-          <div class="page-title">IRPF 2026</div>
-          <div class="page-subtitle">Gestão de declarações de Imposto de Renda</div>
+
+      <!-- HEADER COM LOGO -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div style="width:48px;height:48px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:20px;font-weight:900;color:#fff">JCR</div>
+          <div>
+            <div style="font-size:18px;font-weight:700;color:var(--text)">JCR Consultoria e Serviços Tributários</div>
+            <div style="font-size:12px;color:var(--text3)">Gestão de IRPF 2026 — Ano-base 2025</div>
+          </div>
         </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--text2)">Ano-base 2025</div>
       </div>
 
-      <!-- ── PF ── -->
-      <div id="irpf-secao-pf">
-        <div id="irpf-stats-pf" style="display:grid;gap:16px;margin-bottom:20px"></div>
-        <div class="filters" style="margin-bottom:16px">
-          <input type="text" class="search-input" placeholder="🔍  Buscar por nome ou CPF…" oninput="irpfRender()" id="irpf-busca">
-          <select class="filter-select" onchange="irpfRender()" id="irpf-fst">
-            <option value="">Todos os status</option>
-            <option>Pendente</option><option>Aguardando docs</option><option>Em andamento</option>
-            <option>Preencher</option><option>Entregue</option><option>Não entregar</option><option>Aguardando retorno cliente</option>
-          </select>
-          <select class="filter-select" onchange="irpfRender()" id="irpf-fpg">
-            <option value="">Todos pagamentos</option>
-            <option>Pago</option><option>Parcial</option><option>Pendente</option>
-          </select>
-          <select class="filter-select" onchange="irpfRender()" id="irpf-fcorretor">
-            <option value="">Todas as indicações</option>
-          </select>
-          <select class="filter-select" onchange="irpfRender()" id="irpf-fsenha">
-            <option value="">🔑 Todas</option>
-            <option value="com">✅ Com senha</option>
-            <option value="sem">❌ Sem senha</option>
-          </select>
-          <button class="btn btn-accent" onclick="irpfNovo()">+ Novo Cliente PF</button>
-          <button class="btn btn-ghost" onclick="irpfExportar()">⬇️ Excel</button>
+      <!-- STATS COMPACTOS -->
+      <div id="irpf-stats-pf" style="display:grid;gap:12px;margin-bottom:20px"></div>
+
+      <!-- FILTROS -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+        <input type="text" class="search-input" placeholder="🔍 Buscar por nome ou CPF..." oninput="irpfRender()" id="irpf-busca" style="flex:1;min-width:200px">
+        <select class="filter-select" onchange="irpfRender()" id="irpf-fst">
+          <option value="">Todos os status</option>
+          <option>Pendente</option><option>Aguardando docs</option><option>Em andamento</option>
+          <option>Preencher</option><option>Entregue</option><option>Não entregar</option><option>Aguardando retorno cliente</option>
+        </select>
+        <select class="filter-select" onchange="irpfRender()" id="irpf-fpg">
+          <option value="">Todos pagamentos</option>
+          <option>Pago</option><option>Parcial</option><option>Pendente</option>
+        </select>
+        <select class="filter-select" onchange="irpfRender()" id="irpf-fcorretor">
+          <option value="">Todas as indicações</option>
+        </select>
+        <select class="filter-select" onchange="irpfRender()" id="irpf-fsenha">
+          <option value="">🔑 Todas</option>
+          <option value="com">✅ Com senha</option>
+          <option value="sem">❌ Sem senha</option>
+        </select>
+        <button class="btn btn-accent" onclick="irpfNovo()">+ Novo cliente</button>
+        <button class="btn btn-ghost" onclick="irpfExportar()">⬇️ Excel</button>
+        <button class="btn btn-ghost" onclick="irpfImportar()">⬆️ Importar</button>
+      </div>
+
+      <!-- TABELA -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+        <div class="table-wrap">
+          <table style="border-collapse:collapse">
+            <thead>
+              <tr style="background:var(--surface2)">
+                <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border)">Nome</th>
+                <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border)">CPF</th>
+                <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border)">Telefone</th>
+                <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border)">Senha Gov.br</th>
+                <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border)">Status Declaração</th>
+                <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border)">Indicação</th>
+                <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border)">Honorários</th>
+                <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border)">Pagamento</th>
+                <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border)"></th>
+              </tr>
+            </thead>
+            <tbody id="irpf-tb-pf"></tbody>
+          </table>
         </div>
-        <div class="card">
-          <div class="table-wrap">
-            <table>
-              <thead><tr>
-                <th>Nome</th><th>CPF</th><th>Telefone</th><th>Senha Gov.br</th>
-                <th>Status</th><th>Indicação</th><th>Honorários</th><th>Pagamento</th><th>Observações</th><th></th>
-              </tr></thead>
-              <tbody id="irpf-tb-pf"></tbody>
-            </table>
-          </div>
-          <div class="filters" id="irpf-pg-pf" style="padding:12px 16px;border-top:1px solid var(--border)"></div>
-        </div>
+        <div class="filters" id="irpf-pg-pf" style="padding:10px 14px;border-top:1px solid var(--border);font-size:12px"></div>
       </div>
 
     </div>
@@ -4367,7 +4385,6 @@ function irpfRender() {
     <td style="font-size:12px;color:var(--text2)">${c.corretor||'—'}</td>
     <td style="font-size:12px">${c.h?`R$${Number(c.h).toLocaleString('pt-BR')}`:'—'}</td>
     <td>${irpfBadgePg(c.pg)}</td>
-    <td style="max-width:180px;font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.obs||''}">${c.obs||'—'}</td>
     <td><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();irpfDelPf(${c.id})">🗑</button></td>
   </tr>`).join('');
   const pg2=document.getElementById('irpf-pg-pf');
@@ -4553,7 +4570,8 @@ function honorStats() {
   const parcial = lista.filter(h => h.status==='Parcial').reduce((a, h) => a + Number(h.valor||0), 0);
   const el = document.getElementById('honor-stats');
   if (!el) return;
-  el.style.gridTemplateColumns='';
+  el.style.gridTemplateColumns='repeat(5,1fr)';
+  el.style.gap='12px';
   el.innerHTML = `
     <div class="stat-card" style="--card-color:var(--accent)">
       <div class="stat-label">Total lançado</div>

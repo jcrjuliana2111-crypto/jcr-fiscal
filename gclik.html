@@ -494,13 +494,15 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 .actions-col { display: flex; gap: 6px; white-space: nowrap; }
 
 /* ── RESPONSIVE ── */
-@media (min-width: 100000px) {
-  #irpf-stats-pf { grid-template-columns: repeat(5,1fr); }
-  #irpf-stats-pj { grid-template-columns: repeat(4,1fr); }
-  #honor-stats { grid-template-columns: repeat(4,1fr); }
-  /* Esconder cards mobile no desktop */
-  #mobile-cards-clientes, #mobile-cards-tarefas, #mobile-cards-irpf, #mobile-cards-honorarios { display: none !important; }
+/* Stats sempre em múltiplas colunas no desktop */
+@media (min-width: 900px) {
+  #irpf-stats-pf { grid-template-columns: repeat(5,1fr) !important; }
+  #irpf-stats-pj { grid-template-columns: repeat(4,1fr) !important; }
+  #honor-stats { grid-template-columns: repeat(4,1fr) !important; }
 }
+/* Cards mobile — esconder sempre, tabelas sempre visíveis */
+#mobile-cards-clientes, #mobile-cards-tarefas, #mobile-cards-irpf, #mobile-cards-honorarios { display: none !important; }
+.mobile-cards { display: none !important; }
 @media (max-width: 900px) {
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .calendar-wrapper { grid-template-columns: 1fr; }
@@ -613,8 +615,8 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 
   /* Cards mobile para clientes (substitui tabela) */
   .mobile-cards { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
-  /* Esconder tabelas no mobile, mostrar cards */
-  #mobile-cards-clientes, #mobile-cards-tarefas, #mobile-cards-irpf, #mobile-cards-honorarios { display: flex; }
+  /* Tabelas com scroll horizontal no mobile */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .mobile-card {
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 8px;
@@ -849,6 +851,11 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 .as-cinp button { background: #c9a84c; color: #0f1b2d; border: none; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: .85rem; padding: .6rem 1rem; cursor: pointer; flex-shrink: 0; align-self: flex-end; }
 .as-cinp button:disabled { opacity: .4; cursor: not-allowed; }
 .as-btn-gold { background: #c9a84c; color: #0f1b2d; border: none; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: .88rem; padding: .75rem; cursor: pointer; width: 100%; }
+
+/* ── LINHAS UNIFORMES TABELAS ── */
+table tbody tr { height: 48px; }
+table tbody td { padding: 0 12px; vertical-align: middle; white-space: nowrap; }
+table thead th { padding: 10px 12px; }
 </style>
 </head>
 <body>
@@ -4345,25 +4352,7 @@ function irpfRender() {
   const tb=document.getElementById('irpf-tb-pf');
   if(!tb)return;
   if(!f.length){tb.innerHTML=`<tr><td colspan="9"><div class="empty-state"><div class="icon">👤</div><p>Nenhum cliente encontrado</p></div></td></tr>`;return;}
-  // Cards mobile IRPF
-  let mcIrpf = document.getElementById('mobile-cards-irpf');
-  if (!mcIrpf) {
-    mcIrpf = document.createElement('div');
-    mcIrpf.id = 'mobile-cards-irpf';
-    mcIrpf.className = 'mobile-cards';
-    tb.closest('.table-wrap')?.insertAdjacentElement('afterend', mcIrpf);
-  }
-  mcIrpf.innerHTML = f.map(c => `<div class="mobile-card" onclick="irpfAbrirPf(${c.id})" style="cursor:pointer">
-    <div class="mobile-card-title">${c.nome}</div>
-    <div class="mobile-card-row"><span class="mobile-card-label">CPF</span><span style="font-family:monospace;font-size:11px">${c.cpf||'—'}</span></div>
-    <div class="mobile-card-row"><span class="mobile-card-label">Status</span>${irpfBadgeSt(c.st)}</div>
-    <div class="mobile-card-row"><span class="mobile-card-label">Pagamento</span>${irpfBadgePg(c.pg)}</div>
-    ${c.obs?`<div class="mobile-card-row"><span class="mobile-card-label">Obs</span><span style="font-size:11px;color:var(--text2)">${c.obs}</span></div>`:''}
-    <div class="mobile-card-row"><span class="mobile-card-label">Honorários</span><span style="font-weight:600">R$${Number(c.h||0).toLocaleString('pt-BR')}</span></div>
-    ${c.corretor?`<div class="mobile-card-row"><span class="mobile-card-label">Indicação</span><span style="font-size:12px">${c.corretor}</span></div>`:''}
-  </div>`).join('') || '<div class="empty-state"><div class="icon">👤</div><p>Nenhum cliente</p></div>';
-
-  tb.innerHTML=f.map(c=>`<tr style="cursor:pointer" onclick="irpfAbrirPf(${c.id})">
+  tb.innerHTML=f.map(c=>`<tr style="cursor:pointer;height:48px" onclick="irpfAbrirPf(${c.id})">
     <td><div style="font-weight:500">${c.nome}</div>${c.email?`<div style="font-size:11px;color:var(--text2)">${c.email}</div>`:''}</td>
     <td style="font-family:monospace;font-size:12px">
       ${c.cpf||'—'}

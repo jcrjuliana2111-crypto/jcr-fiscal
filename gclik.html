@@ -1113,20 +1113,53 @@ table thead th { padding: 10px 12px; }
           <button class="btn btn-accent" onclick="openModalCliente()">+ Novo Cliente</button>
         </div>
       </div>
-      <div class="filters">
-        <input type="text" class="search-input" placeholder="🔍  Buscar por nome ou CNPJ…" oninput="filtrarClientes(this.value)">
-        <select class="filter-select" onchange="filtrarClienteRegime(this.value)">
-          <option value="">Todos os regimes</option>
-          <option>Lucro Real</option>
-          <option>Lucro Presumido</option>
-          <option>Simples Nacional</option>
-          <option>MEI</option>
-        </select>
-        <select class="filter-select" onchange="filtrarClienteStatus(this.value)">
-          <option value="">Todos os status</option>
-          <option>Ativo</option>
-          <option>Inativo</option>
-        </select>
+      <div style="margin-bottom:16px;display:flex;flex-direction:column;gap:10px">
+        <!-- Linha 1: busca + botões -->
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div style="position:relative;flex:1;min-width:200px">
+            <input type="text" class="search-input" id="cli-busca-input" placeholder="🔍  Buscar por nome ou CNPJ…" oninput="filtrarClientes(this.value)" style="width:100%;padding-right:32px">
+            <button onclick="cliLimparBusca()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1" title="Limpar busca">✕</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+            <span style="font-size:12px;color:var(--text2)">Linhas:</span>
+            <select class="filter-select" onchange="cliMudarPP(this.value)" style="width:70px">
+              <option value="15">15</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+        <!-- Linha 2: filtros dropdown -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <!-- Regime -->
+          <div style="position:relative" id="cli-reg-wrap">
+            <button onclick="cliToggleDrop('cli-reg-drop','cli-reg-wrap')" class="filter-select" style="display:flex;align-items:center;gap:6px;min-width:160px;justify-content:space-between;cursor:pointer">
+              <span id="cli-reg-label">Todos os regimes</span>
+              <span style="font-size:10px;color:var(--text3)">▾</span>
+            </button>
+            <div id="cli-reg-drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:100;min-width:200px;padding:6px 0">
+              <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="cli-reg-r" value="" checked onchange="filtrarClienteRegime('');document.getElementById('cli-reg-label').textContent='Todos os regimes'" style="accent-color:var(--accent)"> Todos</label>
+              <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="cli-reg-r" value="MEI" onchange="filtrarClienteRegime('MEI');document.getElementById('cli-reg-label').textContent='MEI'" style="accent-color:var(--accent)"> MEI</label>
+              <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="cli-reg-r" value="Simples Nacional" onchange="filtrarClienteRegime('Simples Nacional');document.getElementById('cli-reg-label').textContent='Simples Nacional'" style="accent-color:var(--accent)"> Simples Nacional</label>
+              <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="cli-reg-r" value="Lucro Presumido" onchange="filtrarClienteRegime('Lucro Presumido');document.getElementById('cli-reg-label').textContent='Lucro Presumido'" style="accent-color:var(--accent)"> Lucro Presumido</label>
+              <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="cli-reg-r" value="Lucro Real" onchange="filtrarClienteRegime('Lucro Real');document.getElementById('cli-reg-label').textContent='Lucro Real'" style="accent-color:var(--accent)"> Lucro Real</label>
+            </div>
+          </div>
+          <!-- Status -->
+          <div style="position:relative" id="cli-st-wrap">
+            <button onclick="cliToggleDrop('cli-st-drop','cli-st-wrap')" class="filter-select" style="display:flex;align-items:center;gap:6px;min-width:140px;justify-content:space-between;cursor:pointer">
+              <span id="cli-st-label">Todos os status</span>
+              <span style="font-size:10px;color:var(--text3)">▾</span>
+            </button>
+            <div id="cli-st-drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:100;min-width:160px;padding:6px 0">
+              <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="cli-st-r" value="" checked onchange="filtrarClienteStatus('');document.getElementById('cli-st-label').textContent='Todos os status'" style="accent-color:var(--accent)"> Todos</label>
+              <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="cli-st-r" value="Ativo" onchange="filtrarClienteStatus('Ativo');document.getElementById('cli-st-label').textContent='Ativo'" style="accent-color:var(--accent)"> Ativo</label>
+              <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="cli-st-r" value="Inativo" onchange="filtrarClienteStatus('Inativo');document.getElementById('cli-st-label').textContent='Inativo'" style="accent-color:var(--accent)"> Inativo</label>
+            </div>
+          </div>
+          <button onclick="cliLimparFiltros()" style="background:none;border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);font-size:12px;padding:7px 12px;cursor:pointer">✕ Limpar filtros</button>
+        </div>
       </div>
       <div class="card">
         <div class="table-wrap">
@@ -2821,6 +2854,7 @@ function populateClienteSelects() {
   });
 }
 
+let cliPag = 1;
 function renderClientes() {
   let list = allClientes.filter(c => {
     const q = filterCliSearch.toLowerCase();
@@ -2835,7 +2869,10 @@ function renderClientes() {
   tbody.innerHTML = list.map(c => `
     <tr style="cursor:pointer" onclick="editCliente('${c.id}')">
       <td>${c.razao_social}</td>
-      <td style="font-family:monospace;font-size:12px">${c.cnpj||'—'}</td>
+      <td style="font-family:monospace;font-size:12px;white-space:nowrap">
+        ${c.cnpj||'—'}
+        ${c.cnpj?`<button onclick="event.stopPropagation();irpfCopiar('${c.cnpj.replace(/[.'\-]/g,'')}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;margin-left:4px;padding:0" title="Copiar CNPJ">📋</button>`:''}
+      </td>
       <td>${(()=>{ const e=allEscritorios.find(x=>x.id===c.escritorio_id); return e?`<span class="badge" style="background:${e.cor||'#4f8ef7'}22;color:${e.cor||'#4f8ef7'}">${e.nome}</span>`:'<span class="badge badge-gray">—</span>'; })()}</td>
       <td><span class="badge badge-blue">${c.regime||'—'}</span></td>
       <td>${c.responsavel||'—'}</td>
@@ -2875,9 +2912,42 @@ function renderClientes() {
   // stat atualizado pelo renderDashboard
 }
 
-function filtrarClientes(v) { filterCliSearch = v; renderClientes(); }
-function filtrarClienteRegime(v) { filterCliRegime = v; renderClientes(); }
-function filtrarClienteStatus(v) { filterCliStatus = v; renderClientes(); }
+function filtrarClientes(v) { filterCliSearch = v; cliPag = 1; renderClientes(); }
+function filtrarClienteRegime(v) { filterCliRegime = v; cliPag = 1; renderClientes(); }
+function filtrarClienteStatus(v) { filterCliStatus = v; cliPag = 1; renderClientes(); }
+
+let cliPP = 15;
+function cliMudarPP(v) { cliPP = parseInt(v); cliPag = 1; renderClientes(); }
+
+function cliLimparBusca() {
+  const el = document.getElementById('cli-busca-input');
+  if (el) { el.value = ''; filtrarClientes(''); }
+}
+
+function cliLimparFiltros() {
+  cliLimparBusca();
+  const rAll = document.querySelector('input[name="cli-reg-r"][value=""]');
+  const sAll = document.querySelector('input[name="cli-st-r"][value=""]');
+  if (rAll) rAll.checked = true;
+  if (sAll) sAll.checked = true;
+  document.getElementById('cli-reg-label').textContent = 'Todos os regimes';
+  document.getElementById('cli-st-label').textContent = 'Todos os status';
+  filtrarClienteRegime('');
+  filtrarClienteStatus('');
+}
+
+function cliToggleDrop(dropId, wrapId) {
+  const drop = document.getElementById(dropId);
+  const isOpen = drop.style.display !== 'none';
+  ['cli-reg-drop','cli-st-drop'].forEach(id => {
+    if (id !== dropId) { const el = document.getElementById(id); if(el) el.style.display='none'; }
+  });
+  drop.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) setTimeout(() => document.addEventListener('click', e => {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap?.contains(e.target)) drop.style.display = 'none';
+  }, {once:true}), 10);
+}
 
 function openModalCliente(id) {
   document.getElementById('modal-cliente-title').textContent = id ? 'Editar Cliente' : 'Novo Cliente';

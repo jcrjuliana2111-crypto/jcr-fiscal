@@ -1384,7 +1384,7 @@ table thead th { padding: 10px 12px; }
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <!-- Multi-select status -->
             <div style="position:relative" id="irpf-fst-wrap">
-              <button onclick="irpfToggleStatus()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-body);font-size:13px;padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:6px;min-width:160px;justify-content:space-between" id="irpf-fst-btn">
+              <button onclick="irpfToggleStatus()" class="filter-select" style="display:flex;align-items:center;gap:6px;min-width:160px;justify-content:space-between;cursor:pointer" id="irpf-fst-btn">
                 <span id="irpf-fst-label">Todos os status</span>
                 <span style="font-size:10px;color:var(--text3)">▾</span>
               </button>
@@ -1401,19 +1401,47 @@ table thead th { padding: 10px 12px; }
                 </div>
               </div>
             </div>
-            <select class="filter-select" onchange="irpfRender()" id="irpf-fpg">
-              <option value="">Todos pagamentos</option>
-              <option>Pago</option><option>Parcial</option><option>Pendente</option>
-              <option value="isento">Isento (familiar)</option>
-            </select>
-            <select class="filter-select" onchange="irpfRender()" id="irpf-fcorretor">
-              <option value="">Todas as indicações</option>
-            </select>
-            <select class="filter-select" onchange="irpfRender()" id="irpf-fsenha">
-              <option value="">🔑 Todas</option>
-              <option value="com">✅ Com senha</option>
-              <option value="sem">❌ Sem senha</option>
-            </select>
+            <!-- Dropdown Pagamento -->
+            <div style="position:relative" id="irpf-fpg-wrap">
+              <button onclick="irpfToggleDrop('irpf-fpg-drop','irpf-fpg-wrap')" class="filter-select" style="display:flex;align-items:center;gap:6px;min-width:150px;justify-content:space-between;cursor:pointer">
+                <span id="irpf-fpg-label">Todos pagamentos</span>
+                <span style="font-size:10px;color:var(--text3)">▾</span>
+              </button>
+              <div id="irpf-fpg-drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:100;min-width:200px;padding:6px 0">
+                <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="irpf-fpg-r" value="" checked onchange="irpfRender();document.getElementById('irpf-fpg-label').textContent='Todos pagamentos'" class="irpf-fpg-r" style="accent-color:var(--accent)"> Todos</label>
+                <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="irpf-fpg-r" value="Pago" onchange="irpfRender();document.getElementById('irpf-fpg-label').textContent='Pago'" class="irpf-fpg-r" style="accent-color:var(--accent)"> Pago</label>
+                <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="irpf-fpg-r" value="Parcial" onchange="irpfRender();document.getElementById('irpf-fpg-label').textContent='Parcial'" class="irpf-fpg-r" style="accent-color:var(--accent)"> Parcial</label>
+                <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="irpf-fpg-r" value="Pendente" onchange="irpfRender();document.getElementById('irpf-fpg-label').textContent='Pendente'" class="irpf-fpg-r" style="accent-color:var(--accent)"> Pendente</label>
+                <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="irpf-fpg-r" value="Isento" onchange="irpfRender();document.getElementById('irpf-fpg-label').textContent='Isento'" class="irpf-fpg-r" style="accent-color:var(--accent)"> Isento (familiar)</label>
+              </div>
+            </div>
+            <!-- Dropdown Indicação -->
+            <div style="position:relative" id="irpf-fcor-wrap">
+              <button onclick="irpfToggleDrop('irpf-fcor-drop','irpf-fcor-wrap')" class="filter-select" style="display:flex;align-items:center;gap:6px;min-width:150px;justify-content:space-between;cursor:pointer">
+                <span id="irpf-fcor-label">Todas indicações</span>
+                <span style="font-size:10px;color:var(--text3)">▾</span>
+              </button>
+              <div id="irpf-fcor-drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:100;min-width:180px;padding:6px 0;max-height:220px;overflow-y:auto" id="irpf-fcorretor-lista">
+                <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="irpf-fcor-r" value="" checked onchange="irpfRender();document.getElementById('irpf-fcor-label').textContent='Todas indicações'" style="accent-color:var(--accent)"> Todas</label>
+                <div id="irpf-fcor-opcoes"></div>
+              </div>
+            </div>
+            <!-- Dropdown Senha -->
+            <div style="position:relative" id="irpf-fsen-wrap">
+              <button onclick="irpfToggleDrop('irpf-fsen-drop','irpf-fsen-wrap')" class="filter-select" style="display:flex;align-items:center;gap:6px;min-width:130px;justify-content:space-between;cursor:pointer">
+                <span id="irpf-fsen-label">🔑 Todas</span>
+                <span style="font-size:10px;color:var(--text3)">▾</span>
+              </button>
+              <div id="irpf-fsen-drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:100;min-width:160px;padding:6px 0">
+                <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="irpf-fsen-r" value="" checked onchange="irpfRender();document.getElementById('irpf-fsen-label').textContent='🔑 Todas'" style="accent-color:var(--accent)"> Todas</label>
+                <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="irpf-fsen-r" value="com" onchange="irpfRender();document.getElementById('irpf-fsen-label').textContent='✅ Com senha'" style="accent-color:var(--accent)"> ✅ Com senha</label>
+                <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="irpf-fsen-r" value="sem" onchange="irpfRender();document.getElementById('irpf-fsen-label').textContent='❌ Sem senha'" style="accent-color:var(--accent)"> ❌ Sem senha</label>
+              </div>
+            </div>
+            <!-- Hidden selects para compatibilidade -->
+            <select id="irpf-fpg" style="display:none"></select>
+            <select id="irpf-fcorretor" style="display:none"></select>
+            <select id="irpf-fsenha" style="display:none"></select>
             <button onclick="irpfLimparFiltros()" style="background:none;border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);font-size:12px;padding:7px 12px;cursor:pointer" title="Limpar todos os filtros">✕ Limpar filtros</button>
           </div>
         </div>
@@ -4277,6 +4305,10 @@ function irpfPjTab(n) {
 }
 
 // ── BADGES ──
+function irpfCopiar(txt) {
+  navigator.clipboard.writeText(txt).then(() => toast('Copiado!', 'success'));
+}
+
 function irpfBadgeSt(s) {
   const m = {
     'Entregue':'badge-green','Em andamento':'badge-blue',
@@ -4367,6 +4399,20 @@ let irpfPP = 15;
 
 function irpfMudarPP(v) { irpfPP = parseInt(v); irpfPag = 1; irpfRender(); }
 
+function irpfToggleDrop(dropId, wrapId) {
+  const drop = document.getElementById(dropId);
+  const isOpen = drop.style.display !== 'none';
+  // Fechar todos os outros drops
+  ['irpf-fst-drop','irpf-fpg-drop','irpf-fcor-drop','irpf-fsen-drop'].forEach(id => {
+    if (id !== dropId) { const el = document.getElementById(id); if(el) el.style.display='none'; }
+  });
+  drop.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) setTimeout(() => document.addEventListener('click', e => {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap?.contains(e.target)) drop.style.display = 'none';
+  }, {once:true}), 10);
+}
+
 function irpfToggleStatus() {
   const drop = document.getElementById('irpf-fst-drop');
   const isOpen = drop.style.display !== 'none';
@@ -4399,8 +4445,14 @@ function irpfLimparBusca() {
 function irpfLimparFiltros() {
   irpfLimparBusca();
   irpfLimparStatus();
-  const ids = ['irpf-fpg','irpf-fcorretor','irpf-fsenha'];
-  ids.forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  // Reset radios
+  ['irpf-fpg-r','irpf-fcor-r','irpf-fsen-r'].forEach(name => {
+    const el = document.querySelector(`input[name="${name}"][value=""]`);
+    if(el) el.checked = true;
+  });
+  document.getElementById('irpf-fpg-label').textContent = 'Todos pagamentos';
+  document.getElementById('irpf-fcor-label').textContent = 'Todas indicações';
+  document.getElementById('irpf-fsen-label').textContent = '🔑 Todas';
   irpfRender();
 }
 
@@ -4408,14 +4460,13 @@ function irpfFilt() {
   const b=(document.getElementById('irpf-busca')?.value||'').toLowerCase();
   const sts=[...document.querySelectorAll('.irpf-st-chk:checked')].map(c=>c.value);
   irpfAtualizarLabelStatus();
-  const pg=document.getElementById('irpf-fpg')?.value||'';
-  const cor=document.getElementById('irpf-fcorretor')?.value||'';
-  const fsenha=document.getElementById('irpf-fsenha')?.value||'';
+  const pg=document.querySelector('input[name="irpf-fpg-r"]:checked')?.value||'';
+  const cor=document.querySelector('input[name="irpf-fcor-r"]:checked')?.value||'';
+  const fsenha=document.querySelector('input[name="irpf-fsen-r"]:checked')?.value||'';
   return irpfCl.filter(c=>{
     if(b&&!c.nome.toLowerCase().includes(b)&&!(c.cpf||'').includes(b))return false;
     if(sts.length && !sts.includes(c.st||'Pendente')) return false;
-    if(pg==='isento'&&c.pg!=='Isento')return false;
-    else if(pg&&pg!=='isento'&&c.pg!==pg)return false;
+    if(pg&&c.pg!==pg)return false;
     if(cor&&c.corretor!==cor)return false;
     if(fsenha==='com'&&!c.senha)return false;
     if(fsenha==='sem'&&c.senha)return false;
@@ -4436,12 +4487,12 @@ function irpfRender() {
     <td><div style="font-weight:500">${c.nome}</div>${c.email?`<div style="font-size:11px;color:var(--text2)">${c.email}</div>`:''}</td>
     <td style="font-family:monospace;font-size:12px">
       ${c.cpf||'—'}
-      ${c.cpf?`<button onclick="event.stopPropagation();navigator.clipboard.writeText('${c.cpf}').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='📋',1500)})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;margin-left:4px;padding:0" title="Copiar CPF">📋</button>`:''}
+      ${c.cpf?`<button onclick="event.stopPropagation();irpfCopiar('${(c.cpf||'').replace(/'/g,'')}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;margin-left:4px;padding:0" title="Copiar CPF">📋</button>`:''}
     </td>
     <td style="font-size:12px">${c.tel||'—'}</td>
     <td>
       ${c.senha?`<span style="filter:blur(4px);cursor:pointer;font-family:monospace;color:var(--accent);font-size:12px" onclick="event.stopPropagation();this.style.filter=this.style.filter?'':'blur(4px)'" title="Clique para revelar">${c.senha}</span>
-      <button onclick="event.stopPropagation();navigator.clipboard.writeText('${c.senha}').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='📋',1500)})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;margin-left:4px;padding:0" title="Copiar senha">📋</button>`:'<span style="color:var(--text3)">—</span>'}
+      <button onclick="event.stopPropagation();irpfCopiar('${(c.senha||'').replace(/'/g,'')}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;margin-left:4px;padding:0" title="Copiar senha">📋</button>`:'<span style="color:var(--text3)">—</span>'}
     </td>
     <td>${irpfBadgeSt(c.st)}</td>
     <td style="font-size:12px;color:var(--text2)">${c.corretor||'—'}</td>
@@ -4454,8 +4505,13 @@ function irpfRender() {
   const pp2=irpfPP||IRPF_PP;
   if(pg2)pg2.innerHTML=lista.length>pp2?`<button class="btn btn-ghost btn-sm" onclick="irpfPag--;irpfRender()" ${irpfPag===1?'disabled':''}>← Ant</button><span style="color:var(--text2)">Pág ${irpfPag}/${tp} · ${lista.length} clientes</span><button class="btn btn-ghost btn-sm" onclick="irpfPag++;irpfRender()" ${irpfPag===tp?'disabled':''}>Próx →</button>`:`<span style="color:var(--text2)">${lista.length} cliente${lista.length!==1?'s':''}</span>`;
   // Atualizar filtro corretor
-  const sel=document.getElementById('irpf-fcorretor');
-  if(sel){const atual=sel.value;const cors=[...new Set(irpfCl.map(c=>c.corretor).filter(c=>c&&c.trim()))].sort();sel.innerHTML=`<option value="">Todas as indicações</option>`+cors.map(c=>`<option value="${c}">${c}</option>`).join('');sel.value=atual;}
+  // Atualizar indicações no dropdown
+  const corOpcoes = document.getElementById('irpf-fcor-opcoes');
+  if(corOpcoes){
+    const cors=[...new Set(irpfCl.map(c=>c.corretor).filter(c=>c&&c.trim()))].sort();
+    const corAtual = document.querySelector('input[name="irpf-fcor-r"]:checked')?.value||'';
+    corOpcoes.innerHTML = cors.map(c=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"><input type="radio" name="irpf-fcor-r" value="${c}" ${c===corAtual?'checked':''} onchange="irpfRender();document.getElementById('irpf-fcor-label').textContent='${c}'" style="accent-color:var(--accent)"> ${c}</label>`).join('');
+  }
 }
 
 // ── RENDER PJ ──

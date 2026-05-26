@@ -575,6 +575,15 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   #esc-stats-grid { grid-template-columns: 1fr !important; }
   .stats-grid { grid-template-columns: 1fr 1fr !important; }
 
+  /* Cards IRPF compactos no mobile */
+  #irpf-stats-pf { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  #irpf-stats-pf .stat-card { padding: 12px 14px !important; }
+  #irpf-stats-pf .stat-value { font-size: 20px !important; }
+  #irpf-stats-pf .stat-label { font-size: 9px !important; }
+  #irpf-stats-pf .stat-sub span { font-size: 9px !important; }
+  #irpf-stats-pf .stat-sub { grid-template-columns: 1fr 1fr !important; gap: 1px !important; }
+  #irpf-stats-pf .stat-card:first-child { grid-column: 1 / -1; }
+
   /* Card de total IRPF em linha horizontal no mobile */
   #irpf-stats-pf .stat-card:first-child .stat-sub {
     display: grid !important;

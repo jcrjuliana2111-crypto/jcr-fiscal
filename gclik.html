@@ -497,8 +497,19 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
 /* ── RESPONSIVE ── */
 /* Stats sempre em múltiplas colunas no desktop */
 @media (min-width: 900px) {
+  .irpf-stats-grid { grid-template-columns: repeat(5,1fr) !important; gap: 14px !important; }
+  .irpf-stats-grid .stat-card { padding: 20px 22px !important; }
+  .irpf-stats-grid .stat-value { font-size: 28px !important; }
+  .irpf-stats-grid .stat-label { font-size: 11px !important; }
+  .irpf-stats-grid .stat-sub span { font-size: 11px !important; }
+  .irpf-stats-grid .stat-card:first-child { grid-column: auto; }
+  #honor-stats { grid-template-columns: repeat(4,1fr) !important; gap: 14px !important; }
+  #honor-stats .stat-card { padding: 20px 22px !important; }
+  #honor-stats .stat-value { font-size: 28px !important; }
   #irpf-stats-pj { grid-template-columns: repeat(4,1fr) !important; }
-  #honor-stats { grid-template-columns: repeat(4,1fr) !important; }
+  .stats-grid { grid-template-columns: repeat(4,1fr) !important; gap: 14px !important; }
+  .stats-grid .stat-card { padding: 20px 22px !important; }
+  .stats-grid .stat-value { font-size: 28px !important; }
 }
 /* Cards mobile — esconder sempre, tabelas sempre visíveis */
 #mobile-cards-clientes, #mobile-cards-tarefas, #mobile-cards-irpf, #mobile-cards-honorarios { display: none !important; }
@@ -574,14 +585,20 @@ tbody td:first-child { color: var(--text); font-weight: 500; }
   #esc-stats-grid { grid-template-columns: 1fr !important; }
   .stats-grid { grid-template-columns: 1fr 1fr !important; }
 
-  /* Cards IRPF compactos no mobile */
-  #irpf-stats-pf { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-  #irpf-stats-pf .stat-card { padding: 12px 14px !important; }
-  #irpf-stats-pf .stat-value { font-size: 20px !important; }
-  #irpf-stats-pf .stat-label { font-size: 9px !important; }
-  #irpf-stats-pf .stat-sub span { font-size: 9px !important; }
-  #irpf-stats-pf .stat-sub { grid-template-columns: 1fr 1fr !important; gap: 1px !important; }
-  #irpf-stats-pf .stat-card:first-child { grid-column: 1 / -1; }
+  /* Todos os grids de stats compactos */
+  .irpf-stats-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  .irpf-stats-grid .stat-card { padding: 10px 12px !important; }
+  .irpf-stats-grid .stat-value { font-size: 18px !important; }
+  .irpf-stats-grid .stat-label { font-size: 9px !important; }
+  .irpf-stats-grid .stat-sub span { font-size: 9px !important; }
+  .irpf-stats-grid .stat-sub { gap: 1px !important; }
+  .irpf-stats-grid .stat-card:first-child { grid-column: 1 / -1; }
+  #honor-stats { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  #honor-stats .stat-card { padding: 10px 12px !important; }
+  #honor-stats .stat-value { font-size: 18px !important; }
+  .stats-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  .stats-grid .stat-card { padding: 10px 12px !important; }
+  .stats-grid .stat-value { font-size: 18px !important; }
 
   /* Card de total IRPF em linha horizontal no mobile */
   #irpf-stats-pf .stat-card:first-child .stat-sub {
@@ -1402,7 +1419,7 @@ table thead th { padding: 10px 12px; }
 
       <!-- ── PF ── -->
       <div id="irpf-secao-pf">
-        <div id="irpf-stats-pf" style="display:grid;gap:16px;margin-bottom:20px"></div>
+        <div id="irpf-stats-pf" class="irpf-stats-grid" style="margin-bottom:20px"></div>
         <div style="margin-bottom:16px;display:flex;flex-direction:column;gap:10px">
           <!-- Linha 1: busca + botões -->
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -4769,9 +4786,6 @@ function honorStats() {
   const parcial = lista.filter(h => h.status==='Parcial').reduce((a, h) => a + Number(h.valor||0), 0);
   const el = document.getElementById('honor-stats');
   if (!el) return;
-  // Responsivo: mobile=2 colunas, desktop=5
-  el.style.gridTemplateColumns = window.innerWidth <= 768 ? '1fr 1fr' : 'repeat(5,1fr)';
-  el.style.gap = window.innerWidth <= 768 ? '8px' : '12px';
   el.innerHTML = `
     <div class="stat-card" style="--card-color:var(--accent)">
       <div class="stat-label">Total lançado</div>
@@ -5663,7 +5677,6 @@ async function notifExcluir(id) {
   }
 }
 
-window.addEventListener('resize', () => { if(typeof irpfStats==='function') irpfStats(); });
 // ══════════════ START ══════════════
 checkSession();
 </script>

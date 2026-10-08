@@ -6,7 +6,10 @@ Site único do escritório, com login, reunindo todas as ferramentas.
 
 | Caminho | O que é |
 |---|---|
-| `index.html` | **Portal**: login (Supabase Auth) e catálogo de todas as ferramentas |
+| `index.html` | **Portal**: login (Supabase Auth) e departamentos do escritório |
+| `procedimento.html` | Página de procedimento (POP) de cada processo |
+| `assets/departamentos.js` | **Catálogo**: departamentos, processos e ferramentas (ativas e ideias) |
+| `assets/procedimentos.js` | **Procedimentos** escritos, por `departamento/processo` |
 | `gclik.html` | Gestão Fiscal: clientes, tarefas, obrigações, agenda, honorários, IRPF, fechamento |
 | `notificacoes/` | Controle de Notificações Fiscais (antigo repositório `controle-fiscal`) |
 | `hub/` | Ferramentas, conhecimento e documentos do antigo repositório `hub-jcr` |
@@ -14,6 +17,19 @@ Site único do escritório, com login, reunindo todas as ferramentas.
 
 As páginas de `hub/` ficaram juntas na mesma pasta de propósito: os links entre
 elas continuam funcionando exatamente como antes.
+
+## Departamentos, processos e procedimentos
+
+A página inicial mostra os 12 departamentos: Societário, Fiscal, Contábil, Pessoal,
+BPO Financeiro, Recuperação Tributária, Fiscalização, IRPF, Comercial, Financeiro do
+escritório, Administrativo e Conhecimento. Cada um lista seus processos, as ferramentas
+que já existem e as automações a criar.
+
+- **Novo processo ou ferramenta:** editar `assets/departamentos.js`.
+- **Escrever um procedimento:** adicionar em `assets/procedimentos.js` com a chave
+  `departamento/processo`. O processo passa de "A documentar" para "Procedimento".
+- **Ferramenta nova pronta:** colocar o arquivo HTML no site e trocar o item de
+  `status: 'ideia'` para `status: 'ativa'`, informando a `url`.
 
 ## Onde ficam os dados (nada foi movido)
 

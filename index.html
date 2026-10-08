@@ -8,20 +8,21 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="assets/departamentos.js"></script>
+<script src="assets/procedimentos.js"></script>
 <style>
 :root{
   --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;
   --border:#2a2f42; --border2:#363d55;
   --text:#e8eaf2; --text2:#9aa1b8; --text3:#626a85;
   --accent:#4f8ef7; --accent2:#a78bfa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171;
-  --radius:16px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh}
 body{
   background:
-    radial-gradient(900px 500px at 10% -10%, rgba(79,142,247,.13), transparent 60%),
-    radial-gradient(700px 500px at 100% 0%, rgba(167,139,250,.10), transparent 60%),
+    radial-gradient(900px 500px at 10% -10%, rgba(79,142,247,.12), transparent 60%),
+    radial-gradient(700px 500px at 100% 0%, rgba(167,139,250,.09), transparent 60%),
     var(--bg);
   background-attachment:fixed;
 }
@@ -34,7 +35,7 @@ a{color:inherit}
 .login-card{width:100%;max-width:400px;background:rgba(19,22,30,.85);border:1px solid var(--border);
   border-radius:22px;padding:36px 30px;box-shadow:0 30px 80px rgba(0,0,0,.45);backdrop-filter:blur(10px)}
 .brand{display:flex;align-items:center;gap:12px;margin-bottom:26px}
-.brand-mark{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;
+.brand-mark{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;flex:none;
   background:linear-gradient(135deg,var(--accent),var(--accent2));font:800 12px Syne,sans-serif;letter-spacing:-.03em;color:#fff;
   box-shadow:0 8px 24px rgba(79,142,247,.35)}
 .brand-name{font:800 22px Syne,sans-serif;letter-spacing:-.01em}
@@ -44,7 +45,7 @@ a{color:inherit}
 label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin:0 0 6px}
 .field{margin-bottom:16px}
 input[type=email],input[type=password],input[type=search]{width:100%;background:var(--surface2);
-  border:1px solid var(--border2);border-radius:11px;padding:12px 14px;font-size:14px;outline:none;transition:border-color .15s}
+  border:1px solid var(--border2);border-radius:11px;padding:11px 14px;font-size:14px;outline:none;transition:border-color .15s}
 input:focus{border-color:var(--accent)}
 .btn{width:100%;border:0;border-radius:11px;padding:12px 16px;font-weight:700;font-size:14px;cursor:pointer;
   background:linear-gradient(135deg,var(--accent),#6b7ff7);color:#fff;transition:filter .15s,transform .1s}
@@ -56,66 +57,89 @@ input:focus{border-color:var(--accent)}
 .msg.err{color:var(--danger)} .msg.ok{color:var(--ok)}
 .login-foot{margin-top:22px;font-size:11.5px;color:var(--text3);text-align:center}
 
-/* ───────── PORTAL ───────── */
-.top{position:sticky;top:0;z-index:10;background:rgba(13,15,20,.78);backdrop-filter:blur(12px);
-  border-bottom:1px solid var(--border)}
-.top-in{max-width:1180px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:14px}
-.top .brand{margin:0}
-.top .brand-mark{width:36px;height:36px;border-radius:11px;font-size:10px}
-.top .brand-name{font-size:18px}
+/* ───────── TOPO ───────── */
+.top{position:sticky;top:0;z-index:10;background:rgba(13,15,20,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.top-in{max-width:1180px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:14px}
+.top .brand{margin:0;text-decoration:none;cursor:pointer}
+.top .brand-mark{width:34px;height:34px;border-radius:10px;font-size:10px}
+.top .brand-name{font-size:17px}
 .spacer{flex:1}
 .user{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)}
-.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:700 13px Syne,sans-serif;
+.avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 12px Syne,sans-serif;
   background:var(--surface3);border:1px solid var(--border2);color:var(--text)}
-.ghost{background:transparent;border:1px solid var(--border2);border-radius:9px;padding:7px 12px;font-size:12.5px;
-  font-weight:600;cursor:pointer;color:var(--text2)}
+.ghost{background:transparent;border:1px solid var(--border2);border-radius:9px;padding:6px 12px;font-size:12.5px;
+  font-weight:600;cursor:pointer;color:var(--text2);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
 .ghost:hover{color:var(--text);border-color:var(--text3)}
 
-main{max-width:1180px;margin:0 auto;padding:34px 20px 80px}
-.hero{display:flex;flex-wrap:wrap;align-items:flex-end;gap:20px;margin-bottom:30px}
-.hero h1{font:800 clamp(26px,4vw,36px)/1.1 Syne,sans-serif;letter-spacing:-.02em}
-.hero p{color:var(--text2);margin-top:8px;font-size:14.5px}
-.search{flex:1 1 280px;max-width:380px;margin-left:auto;position:relative}
-.search input{padding-left:40px}
+main{max-width:1180px;margin:0 auto;padding:26px 20px 70px}
+
+/* ───────── CABEÇALHO DA HOME ───────── */
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;margin-bottom:22px}
+.head h1{font:800 24px/1.15 Syne,sans-serif;letter-spacing:-.015em}
+.head p{color:var(--text2);font-size:13.5px;margin-top:3px}
+.search{flex:1 1 260px;max-width:360px;margin-left:auto;position:relative}
+.search input{padding-left:38px}
 .search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);opacity:.55}
 
-.featured{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:40px}
-.feat{position:relative;overflow:hidden;display:block;text-decoration:none;border-radius:20px;padding:24px;
-  background:linear-gradient(160deg,var(--surface2),var(--surface));border:1px solid var(--border2);
-  transition:transform .18s,border-color .18s,box-shadow .18s}
-.feat:hover{transform:translateY(-3px);border-color:var(--c,var(--accent));box-shadow:0 18px 40px rgba(0,0,0,.35)}
-.feat::after{content:"";position:absolute;right:-60px;top:-60px;width:200px;height:200px;border-radius:50%;
-  background:radial-gradient(circle,var(--c,var(--accent)) 0%,transparent 70%);opacity:.18}
-.feat .ic{font-size:26px;width:52px;height:52px;border-radius:14px;display:grid;place-items:center;
-  background:rgba(255,255,255,.04);border:1px solid var(--border2);margin-bottom:16px}
-.feat h3{font:700 19px Syne,sans-serif;margin-bottom:6px}
-.feat p{color:var(--text2);font-size:13.5px;line-height:1.5}
-.feat .go{margin-top:16px;font-size:12.5px;font-weight:700;color:var(--c,var(--accent))}
+.quick{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;text-decoration:none;
+  background:var(--surface);border:1px solid var(--border2);font-size:13px;font-weight:600;transition:border-color .15s,background .15s}
+.chip:hover{border-color:var(--accent);background:var(--surface2)}
+.chip-label{font-size:11.5px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;align-self:center;margin-right:4px}
 
-.section{margin-bottom:34px}
-.section-h{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-.section-h h2{font:700 13px Syne,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text2)}
-.section-h .line{flex:1;height:1px;background:var(--border)}
-.section-h .count{font-size:11.5px;color:var(--text3)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
-.card{display:flex;gap:14px;align-items:flex-start;text-decoration:none;padding:16px;border-radius:var(--radius);
-  background:var(--surface);border:1px solid var(--border);transition:border-color .15s,background .15s,transform .15s}
-.card:hover{border-color:var(--border2);background:var(--surface2);transform:translateY(-2px)}
-.card .ic{flex:none;font-size:20px;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
-  background:var(--surface3)}
-.card h4{font-size:14.5px;font-weight:700;margin-bottom:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.card p{font-size:12.5px;color:var(--text2);line-height:1.45}
-.tag{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:999px;
-  background:rgba(79,142,247,.14);color:var(--accent)}
-.tag.ia{background:rgba(167,139,250,.15);color:var(--accent2)}
-.tag.int{background:rgba(251,191,36,.13);color:var(--warn)}
+.stats{display:flex;flex-wrap:wrap;gap:22px;font-size:12.5px;color:var(--text2);margin-bottom:14px}
+.stats b{color:var(--text);font-weight:700}
+
+/* ───────── DEPARTAMENTOS (compacto) ───────── */
+.deps{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.dep{display:flex;gap:12px;align-items:center;padding:13px 14px;border-radius:14px;text-decoration:none;
+  background:var(--surface);border:1px solid var(--border);position:relative;overflow:hidden;
+  transition:border-color .15s,background .15s,transform .15s}
+.dep::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
+.dep:hover{border-color:var(--border2);background:var(--surface2);transform:translateY(-1px)}
+.dep .ic{flex:none;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:18px;
+  background:color-mix(in srgb,var(--c) 14%,transparent)}
+.dep .tx{min-width:0;flex:1}
+.dep h3{font-size:14px;font-weight:700;line-height:1.25}
+.dep .meta{font-size:11.5px;color:var(--text3);margin-top:3px}
+.bar{height:3px;border-radius:3px;background:var(--surface3);margin-top:7px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--c)}
+.dep .arrow{color:var(--text3);font-size:14px}
+
+/* ───────── VISÃO DO DEPARTAMENTO ───────── */
+.dep-head{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-bottom:22px}
+.dep-head .ic{width:50px;height:50px;border-radius:14px;display:grid;place-items:center;font-size:24px;
+  background:color-mix(in srgb,var(--c) 16%,transparent);border:1px solid color-mix(in srgb,var(--c) 35%,transparent)}
+.dep-head h1{font:800 24px/1.15 Syne,sans-serif}
+.dep-head p{color:var(--text2);font-size:13.5px;margin-top:3px}
+.cols{display:grid;grid-template-columns:1.25fr 1fr;gap:18px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.panel-h{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border)}
+.panel-h h2{font:700 12px Syne,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text2)}
+.panel-h .n{font-size:11.5px;color:var(--text3);margin-left:auto}
+.row{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border);text-decoration:none;transition:background .12s}
+.row:last-child{border-bottom:0}
+a.row:hover{background:var(--surface2)}
+.row .nm{flex:1;min-width:0;font-size:13.5px;font-weight:600}
+.row .ds{display:block;font-size:12px;color:var(--text2);font-weight:400;margin-top:2px}
+.freq{font-size:11px;color:var(--text3);white-space:nowrap}
+.badge{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.b-pend{background:rgba(251,191,36,.12);color:var(--warn)}
+.b-ok{background:rgba(52,211,153,.13);color:var(--ok)}
+.b-ativa{background:rgba(79,142,247,.14);color:var(--accent)}
+.b-ideia{background:rgba(167,139,250,.14);color:var(--accent2)}
+.row.ideia{opacity:.85}
+.row.ideia .nm{font-weight:500}
+.tool-ic{flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:13px;background:var(--surface3)}
+.dep-tag{font-size:11px;color:var(--text3);white-space:nowrap}
 .empty{color:var(--text3);font-size:14px;padding:30px 0;text-align:center}
 footer{max-width:1180px;margin:0 auto;padding:0 20px 40px;color:var(--text3);font-size:12px}
 
+@media (max-width:860px){ .cols{grid-template-columns:1fr} }
 @media (max-width:640px){
   .user .nome{display:none}
-  main{padding-top:24px}
   .search{max-width:none;margin-left:0}
+  .freq{display:none}
 }
 </style>
 </head>
@@ -154,27 +178,13 @@ footer{max-width:1180px;margin:0 auto;padding:0 20px 40px;color:var(--text3);fon
 <!-- ═════════ PORTAL ═════════ -->
 <div id="portal" class="hidden">
   <header class="top"><div class="top-in">
-    <div class="brand"><div class="brand-mark">JCR</div><div class="brand-name">Portal</div></div>
+    <a class="brand" href="#"><div class="brand-mark">JCR</div><div class="brand-name">Portal</div></a>
     <div class="spacer"></div>
     <div class="user"><span class="nome" id="u-nome"></span><div class="avatar" id="u-av"></div></div>
     <button class="ghost" id="btn-sair">Sair</button>
   </div></header>
 
-  <main>
-    <div class="hero">
-      <div>
-        <h1 id="saudacao">Olá</h1>
-        <p>Todas as ferramentas do escritório em um só lugar.</p>
-      </div>
-      <label class="search" aria-label="Buscar ferramenta">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input type="search" id="busca" placeholder="Buscar ferramenta…">
-      </label>
-    </div>
-
-    <div class="featured" id="destaques"></div>
-    <div id="secoes"></div>
-  </main>
+  <main id="view"></main>
   <footer>Portal JCR · os dados de cada ferramenta continuam onde sempre estiveram.</footer>
 </div>
 
@@ -189,77 +199,143 @@ if (!window.supabase) {
 }
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ── Catálogo de ferramentas ──
-const DESTAQUES = [
-  { nome:'Gestão Fiscal', url:'gclik.html', ic:'📊', cor:'#4f8ef7',
-    desc:'Clientes, tarefas, obrigações, agenda, honorários, IRPF e fechamento fiscal.' },
-  { nome:'Notificações Fiscais', url:'notificacoes/', ic:'🔔', cor:'#34d399',
-    desc:'Controle de notificações e prazos, com leitura automática de PDF.' },
-  { nome:'Hub JCR', url:'hub/index.html', ic:'🧭', cor:'#a78bfa',
-    desc:'Painel do escritório: bases, próximos passos e acesso rápido.' },
-];
-
-const SECOES = [
-  { titulo:'Recuperação tributária', itens:[
-    { nome:'Recuperação Tributária', url:'hub/recuperacao_tributaria.html', ic:'⚖️', desc:'12 teses ADM e JUD com manual de procedimentos.' },
-    { nome:'Analisador Multi-Teses', url:'hub/jcr_analisador_multiteses.html', ic:'🧮', desc:'Upload de SPED e análise de todas as teses.' },
-    { nome:'Exclusão PIS/COFINS da própria base', url:'hub/analisador_pis_cofins_base.html', ic:'📉', desc:'Gross up reverso — RE 574.706/PR.' },
-    { nome:'Analisador XML NF-e/NFC-e', url:'hub/analisador_xml_nfe.html', ic:'🧾', desc:'Diagnóstico de créditos tributários.', tag:'IA' },
-  ]},
-  { titulo:'Apuração e tributação', itens:[
-    { nome:'EFD Contribuições', url:'hub/efd_pis_cofins.html', ic:'📑', desc:'Apuração PIS/COFINS — débitos, créditos e retenções.' },
-    { nome:'Apuração ICMS — DF', url:'hub/Apuracao_ICMS_5005_WFB.html', ic:'🏛️', desc:'Lei 5.005/2012 do Distrito Federal.' },
-    { nome:'Base de Tributação', url:'hub/base_de_tributacao.html', ic:'🗂️', desc:'Base legal e regras de tributação.' },
-    { nome:'Radar Tributário', url:'hub/radar-tributario.html', ic:'📡', desc:'Consulta de novidades tributárias por período.', tag:'IA' },
-  ]},
-  { titulo:'Conhecimento e legislação', itens:[
-    { nome:'Base de Conhecimento', url:'hub/gclik_conhecimento.html', ic:'🎓', desc:'Inventário de cursos, anotações e metas de estudo.', tag:'IA' },
-    { nome:'Central de Materiais', url:'hub/jcr-conhecimento-index.html', ic:'📚', desc:'Materiais e documentos do escritório.' },
-    { nome:'Legislação & Reforma', url:'hub/legislacao_reforma.html', ic:'📜', desc:'Reforma IBS/CBS, teses STF/STJ e benefícios estaduais.' },
-  ]},
-  { titulo:'Clientes e comercial', itens:[
-    { nome:'Clientes', url:'hub/clientes.html', ic:'👥', desc:'Ficha por cliente com oportunidades e passivo fiscal.' },
-    { nome:'Comercial', url:'hub/comercial.html', ic:'🎯', desc:'Funil, scripts de WhatsApp e precificação.' },
-    { nome:'Ferramentas extras', url:'hub/ferramentas.html', ic:'🛠️', desc:'Suas ferramentas HTML cadastradas por categoria.' },
-    { nome:'Pomodoro', url:'hub/jcr_pomodoro.html', ic:'⏱️', desc:'Foco e histórico de sessões de trabalho.' },
-  ]},
-  { titulo:'Escritório — documentos internos', interno:true, itens:[
-    { nome:'Proposta de Sociedade', url:'hub/proposta_sociedade_jcr.html', ic:'🤝', desc:'JCR + Wesley.' },
-    { nome:'Organograma detalhado', url:'hub/organograma_detalhado_jcr.html', ic:'🏢', desc:'Estrutura com 20 departamentos e manual.' },
-    { nome:'Processo comercial', url:'hub/organograma_processo_comercial_jcr.html', ic:'🔀', desc:'Organograma do processo comercial.' },
-    { nome:'Mapa estratégico', url:'hub/mapa_escritorio_jcr.html', ic:'🗺️', desc:'Mapa estratégico JCR + Wesley.' },
-    { nome:'Arquitetura do sistema', url:'hub/arquitetura_sistema_jcr.html', ic:'🏗️', desc:'Stack, banco de dados, telas e roadmap.' },
-  ]},
-];
-
+const DEPS = window.JCR_DEPARTAMENTOS || [];
+const RAPIDO = window.JCR_ACESSO_RAPIDO || [];
 const $ = id => document.getElementById(id);
-const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const semAcento = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const semAcento = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+let saudacao = 'Olá';
+let busca = '';
 
-function render(filtro = '') {
-  const f = semAcento(filtro.trim());
-  const bate = i => !f || semAcento(i.nome + ' ' + i.desc).includes(f);
-
-  $('destaques').innerHTML = DESTAQUES.filter(bate).map(d => `
-    <a class="feat" href="${d.url}" style="--c:${d.cor}">
-      <div class="ic">${d.ic}</div><h3>${esc(d.nome)}</h3><p>${esc(d.desc)}</p><div class="go">Abrir →</div>
-    </a>`).join('');
-
-  const html = SECOES.map(s => {
-    const itens = s.itens.filter(bate);
-    if (!itens.length) return '';
-    return `<div class="section">
-      <div class="section-h"><h2>${esc(s.titulo)}</h2><div class="line"></div><span class="count">${itens.length}</span></div>
-      <div class="grid">${itens.map(i => `
-        <a class="card" href="${i.url}">
-          <div class="ic">${i.ic}</div>
-          <div><h4>${esc(i.nome)}${i.tag ? `<span class="tag ia">${i.tag}</span>` : ''}${s.interno ? '<span class="tag int">Interno</span>' : ''}</h4>
-          <p>${esc(i.desc)}</p></div>
-        </a>`).join('')}</div></div>`;
-  }).join('');
-  const nada = !html && !$('destaques').innerHTML;
-  $('secoes').innerHTML = nada ? '<div class="empty">Nenhuma ferramenta encontrada.</div>' : html;
+// ── Linhas reutilizáveis ──
+const POPS = window.JCR_PROCEDIMENTOS || {};
+const documentado = (d, p) => !!(p.procedimento || POPS[d.id + '/' + p.id]);
+function linkProcedimento(d, p) {
+  return p.procedimento || `procedimento.html?dep=${encodeURIComponent(d.id)}&proc=${encodeURIComponent(p.id)}`;
 }
+function rowProcesso(d, p, mostrarDep) {
+  const ok = documentado(d, p);
+  return `<a class="row" href="${esc(linkProcedimento(d, p))}">
+    <span class="nm">${esc(p.nome)}</span>
+    ${mostrarDep ? `<span class="dep-tag">${d.ic} ${esc(d.nome)}</span>` : `<span class="freq">${esc(p.freq || '')}</span>`}
+    <span class="badge ${ok ? 'b-ok' : 'b-pend'}">${ok ? 'Procedimento' : 'A documentar'}</span>
+  </a>`;
+}
+function rowFerramenta(d, f, mostrarDep) {
+  const ativa = f.status === 'ativa' && f.url;
+  const tag = ativa ? '<span class="badge b-ativa">Ativa</span>' : '<span class="badge b-ideia">Ideia</span>';
+  const inner = `<span class="tool-ic">${ativa ? '🔗' : '✨'}</span>
+    <span class="nm">${esc(f.nome)}<span class="ds">${esc(f.desc)}</span></span>
+    ${mostrarDep ? `<span class="dep-tag">${d.ic} ${esc(d.nome)}</span>` : ''}${tag}`;
+  return ativa ? `<a class="row" href="${esc(f.url)}">${inner}</a>` : `<div class="row ideia">${inner}</div>`;
+}
+
+// ── Home: departamentos compactos ──
+function viewHome() {
+  const nProc = DEPS.reduce((a, d) => a + d.processos.length, 0);
+  const nDoc = DEPS.reduce((a, d) => a + d.processos.filter(p => documentado(d, p)).length, 0);
+  const nAtivas = DEPS.reduce((a, d) => a + d.ferramentas.filter(f => f.status === 'ativa').length, 0);
+  const nIdeias = DEPS.reduce((a, d) => a + d.ferramentas.filter(f => f.status !== 'ativa').length, 0);
+
+  return `
+    <div class="head">
+      <div><h1>${esc(saudacao)}</h1><p>Escolha um departamento para ver processos, procedimentos e ferramentas.</p></div>
+      ${campoBusca()}
+    </div>
+    <div class="quick"><span class="chip-label">Acesso rápido</span>
+      ${RAPIDO.map(r => `<a class="chip" href="${esc(r.url)}">${r.ic} ${esc(r.nome)}</a>`).join('')}
+    </div>
+    <div class="stats">
+      <span><b>${DEPS.length}</b> departamentos</span>
+      <span><b>${nProc}</b> processos · <b>${nDoc}</b> documentados</span>
+      <span><b>${nAtivas}</b> ferramentas ativas · <b>${nIdeias}</b> ideias de automação</span>
+    </div>
+    <div class="deps">
+      ${DEPS.map(d => {
+        const doc = d.processos.filter(p => documentado(d, p)).length;
+        const pct = d.processos.length ? Math.round(doc / d.processos.length * 100) : 0;
+        const ativas = d.ferramentas.filter(f => f.status === 'ativa').length;
+        return `<a class="dep" href="#/${d.id}" style="--c:${d.cor}">
+          <div class="ic">${d.ic}</div>
+          <div class="tx"><h3>${esc(d.nome)}</h3>
+            <div class="meta">${d.processos.length} processos · ${ativas} ferramenta${ativas === 1 ? '' : 's'}</div>
+            <div class="bar" title="${doc} de ${d.processos.length} procedimentos documentados"><i style="width:${pct}%"></i></div>
+          </div><span class="arrow">›</span></a>`;
+      }).join('')}
+    </div>`;
+}
+
+// ── Departamento ──
+function viewDep(d) {
+  const doc = d.processos.filter(p => documentado(d, p)).length;
+  const ativas = d.ferramentas.filter(f => f.status === 'ativa');
+  const ideias = d.ferramentas.filter(f => f.status !== 'ativa');
+  return `
+    <div style="margin-bottom:16px"><a class="ghost" href="#">‹ Departamentos</a></div>
+    <div class="dep-head" style="--c:${d.cor}">
+      <div class="ic">${d.ic}</div>
+      <div><h1>${esc(d.nome)}</h1><p>${esc(d.desc)}</p></div>
+    </div>
+    <div class="cols">
+      <section class="panel">
+        <div class="panel-h"><h2>Processos</h2><span class="n">${doc}/${d.processos.length} documentados</span></div>
+        ${d.processos.map(p => rowProcesso(d, p)).join('')}
+      </section>
+      <div style="display:grid;gap:18px">
+        <section class="panel">
+          <div class="panel-h"><h2>Ferramentas</h2><span class="n">${ativas.length}</span></div>
+          ${ativas.length ? ativas.map(f => rowFerramenta(d, f)).join('') : '<div class="row"><span class="ds">Nenhuma ferramenta ainda.</span></div>'}
+        </section>
+        <section class="panel">
+          <div class="panel-h"><h2>Automações a criar</h2><span class="n">${ideias.length}</span></div>
+          ${ideias.length ? ideias.map(f => rowFerramenta(d, f)).join('') : '<div class="row"><span class="ds">Nenhuma ideia cadastrada.</span></div>'}
+        </section>
+      </div>
+    </div>`;
+}
+
+// ── Busca em tudo ──
+function viewBusca() {
+  const f = semAcento(busca.trim());
+  const bate = (...t) => semAcento(t.join(' ')).includes(f);
+  const procs = [], tools = [];
+  DEPS.forEach(d => {
+    d.processos.forEach(p => bate(p.nome, d.nome) && procs.push(rowProcesso(d, p, true)));
+    d.ferramentas.forEach(t => bate(t.nome, t.desc, d.nome) && tools.push(rowFerramenta(d, t, true)));
+  });
+  const vazio = !procs.length && !tools.length;
+  return `
+    <div class="head">
+      <div><h1>Busca</h1><p>${procs.length + tools.length} resultado(s) para “${esc(busca.trim())}”</p></div>
+      ${campoBusca()}
+    </div>
+    ${vazio ? '<div class="empty">Nada encontrado.</div>' : `<div class="cols">
+      <section class="panel"><div class="panel-h"><h2>Processos</h2><span class="n">${procs.length}</span></div>${procs.join('') || '<div class="row"><span class="ds">—</span></div>'}</section>
+      <section class="panel"><div class="panel-h"><h2>Ferramentas</h2><span class="n">${tools.length}</span></div>${tools.join('') || '<div class="row"><span class="ds">—</span></div>'}</section>
+    </div>`}`;
+}
+
+function campoBusca() {
+  return `<label class="search" aria-label="Buscar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input type="search" id="busca" placeholder="Buscar processo ou ferramenta…" value="${esc(busca)}">
+  </label>`;
+}
+
+function render() {
+  const id = location.hash.replace(/^#\/?/, '');
+  const d = DEPS.find(x => x.id === id);
+  if (busca.trim()) $('view').innerHTML = viewBusca();
+  else $('view').innerHTML = d ? viewDep(d) : viewHome();
+  const inp = $('busca');
+  if (inp) {
+    inp.addEventListener('input', e => {
+      busca = e.target.value; render();
+      const n = $('busca'); n.focus(); n.setSelectionRange(n.value.length, n.value.length);
+    });
+  }
+}
+window.addEventListener('hashchange', () => { busca = ''; render(); window.scrollTo(0, 0); });
 
 // ── Navegação pós-login (só para páginas deste mesmo site) ──
 function destinoSeguro() {
@@ -281,7 +357,7 @@ function mostrarPortal(user) {
   const nome = (user.user_metadata && user.user_metadata.nome) || user.email.split('@')[0];
   const nomeFmt = nome.charAt(0).toUpperCase() + nome.slice(1);
   const h = new Date().getHours();
-  $('saudacao').textContent = (h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite') + ', ' + nomeFmt;
+  saudacao = (h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite') + ', ' + nomeFmt;
   $('u-nome').textContent = user.email;
   $('u-av').textContent = nomeFmt[0];
   render();
@@ -326,8 +402,6 @@ $('btn-sair').addEventListener('click', async () => {
   history.replaceState(null, '', location.pathname);
   mostrarLogin();
 });
-
-$('busca').addEventListener('input', e => render(e.target.value));
 
 sb.auth.onAuthStateChange(evento => {
   if (evento === 'PASSWORD_RECOVERY') {

@@ -108,6 +108,7 @@ window.JCR_DEPARTAMENTOS = [
       { id: 'reuniao-resultados', nome: 'Reunião de resultados com o cliente', freq: 'Mensal' },
     ],
     ferramentas: [
+      { nome: 'Conciliação Conta Azul', url: 'conciliacao/', desc: 'Extrato OFX/CSV × contas a pagar/receber: baixa em lote, tarifas, juros e resumo do fechamento.', status: 'ativa' },
       { nome: 'Painel financeiro do cliente', desc: 'Caixa, contas a pagar/receber e indicadores.', status: 'ideia' },
       { nome: 'Agenda de pagamentos com aprovação', desc: 'Cliente aprova os pagamentos do dia pelo celular.', status: 'ideia' },
       { nome: 'Gerador de relatório gerencial', desc: 'DRE gerencial e fluxo de caixa em PDF automático.', status: 'ideia' },
@@ -234,5 +235,6 @@ window.JCR_DEPARTAMENTOS = [
 window.JCR_ACESSO_RAPIDO = [
   { nome: 'Gestão Fiscal', url: 'gclik.html', ic: '📊' },
   { nome: 'Notificações', url: 'notificacoes/', ic: '🔔' },
+  { nome: 'Conciliação', url: 'conciliacao/', ic: '💳' },
   { nome: 'Hub JCR', url: 'hub/index.html', ic: '🧭' },
 ];

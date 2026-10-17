@@ -12,6 +12,9 @@ Site único do escritório, com login, reunindo todas as ferramentas.
 | `assets/procedimentos.js` | **Procedimentos** escritos, por `departamento/processo` |
 | `gclik.html` | Gestão Fiscal: clientes, tarefas, obrigações, agenda, honorários, IRPF, fechamento |
 | `notificacoes/` | Controle de Notificações Fiscais (antigo repositório `controle-fiscal`) |
+| `conciliacao/` | Robô de conciliação bancária com o Conta Azul (BPO Financeiro) — ver `docs/conciliacao-conta-azul.md` |
+| `supabase/` | Edge Function `conta-azul` e migrações do robô de conciliação (projeto `qftusjwnlyjokilcjuzb`) |
+| `tests/` | Testes do motor de conciliação (`node --test tests/*.test.js`) |
 | `hub/` | Ferramentas, conhecimento e documentos do antigo repositório `hub-jcr` |
 | `assets/jcr-guard.js` | Proteção comum: sem login, manda para o portal; mostra o botão "Portal" |
 
@@ -37,6 +40,7 @@ que já existem e as automações a criar.
 |---|---|
 | Gestão Fiscal | Supabase `onecnoicxqjhgolqncjj` (tabelas `gclik_*`, `irpf_clientes`) |
 | Notificações | Supabase `qftusjwnlyjokilcjuzb` (Edge Function `smart-handler`) |
+| Conciliação Conta Azul | Supabase `qftusjwnlyjokilcjuzb` (Edge Function `conta-azul`, tabelas `conta_azul_conexoes` e `conciliacao_log`) — protegida pela `ROBO_KEY` |
 | Clientes, Conhecimento, Ferramentas extras, Pomodoro, Hub | Navegador (`localStorage`) do endereço `jcrjuliana2111-crypto.github.io` |
 
 Os endereços e as chaves do Supabase não mudaram, então os dados continuam os mesmos.

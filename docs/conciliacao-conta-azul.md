@@ -1,0 +1,142 @@
+# Robô de conciliação · Conta Azul
+
+Lê o extrato do banco (OFX ou CSV), encontra a conta a receber/pagar em aberto
+no Conta Azul que corresponde a cada movimento e dá baixa nela pela API.
+
+```
+conciliacao.html ──► Edge Function "conta-azul" (Supabase) ──► API v2 Conta Azul
+   (lê extrato,          (guarda o token OAuth,                (contas a receber/pagar,
+    sugere pares)         busca parcelas, dá baixa)              baixa de parcela)
+```
+
+## Como o robô decide
+
+Um movimento do extrato casa com uma parcela quando:
+
+1. **Tipo** – entrada no banco ↔ conta a receber; saída ↔ conta a pagar.
+2. **Valor** – idêntico, ao centavo, ao valor em aberto da parcela.
+3. **Data** – vencimento até *N* dias do lançamento no banco (padrão 5).
+
+Entre vários candidatos, ganha o de data mais próxima e cujo nome do
+cliente/fornecedor aparece no histórico do extrato. Cada parcela é usada uma
+única vez.
+
+- **Alta**: nome bate (ou é o único candidato possível) e diferença ≤ 3 dias. Já vem marcada.
+- **Média / baixa**: aparece desmarcada para você revisar.
+
+Nada é baixado sem você clicar em **Dar baixa nos selecionados** e confirmar.
+Cada movimento baixado fica registrado em `conciliacao_log`; se você subir o
+mesmo extrato de novo, ele é ignorado (não há baixa dupla).
+
+## Comprovantes de pagamento
+
+Aponte a pasta onde você salva os comprovantes (botão **Escolher pasta**). Nada
+passa por IA — a leitura é feita no seu navegador:
+
+1. **PDFs**: o robô lê o texto do arquivo e procura valores (`320,40`,
+   `1.500,00`) e datas (`02/10/2026`).
+2. **Imagens (JPG/PNG)**: não dá para ler o conteúdo sem IA/OCR, então o robô
+   usa o **nome do arquivo**. Ex.: `2026-10-02 ENEL 320,40.jpg` ou
+   `ENEL 02-10-2026 320.40.png`. O nome dos PDFs também é aproveitado.
+   PDF escaneado (só imagem, sem texto) cai no mesmo caso: precisa do valor no nome.
+3. Formatos reconhecidos (no texto do PDF ou no nome do arquivo):
+
+   | Tipo | Exemplo | Como o robô usa |
+   |---|---|---|
+   | PIX | `FAVORECIDO: ALANA GONCALVES RODRIGUES` · `VALOR R$ 490,00` · `TIPO: PIX ENVIADO` · `FOLHA MULTI AGO 26` | valor + nome do favorecido + descrição igual à do Conta Azul |
+   | Fornecedor | `FORNECEDOR: F F DISTRIBUIDORA DE PRODUTOS` · `VALOR: R$ 964,62` · `VENCIMENTO: V 051026` | valor + nome + vencimento (`V ddmmaa` = 05/10/2026) comparado com o vencimento da parcela |
+
+   O robô junta o que encontra **no nome do arquivo e no texto do PDF**. Ex.:
+   arquivo `FORNECEDOR F F DISTRIBUIDORA R$ 964,62 V 051026.pdf` cujo PDF diz
+   `Data de vencimento: 05/10/2026` e `Data do pagamento: 09/10/2026` — o
+   vencimento vem do `V 051026` e/ou da linha "vencimento"; a data de
+   pagamento vem do texto.
+
+   Regras: o **valor** tem que aparecer no comprovante; se houver `V ddmmaa`,
+   ele precisa bater com o vencimento do lançamento (±3 dias); se houver data
+   de pagamento, ela precisa estar a ±3 dias da data no banco. Entre opções de
+   mesmo valor (ex.: várias folhas de R$ 490,00), ganha a que tem o nome e a
+   descrição batendo. Um comprovante sem data e sem nome/descrição reconhecível
+   só é ligado se for a única opção com aquele valor. Dá para anexar ou remover
+   à mão na coluna *Comprovante*.
+4. Na baixa, o robô **não envia o arquivo nem link**: o comprovante só é
+   identificado, para você anexar à mão no Conta Azul. A observação da baixa
+   recebe "Baixa automática (conciliação bancária): <histórico>", **mantendo o
+   que já estava escrito** na observação do lançamento. A coluna *Resultado*
+   mostra: *comprovante identificado — anexar à mão*, *já tinha anexo* ou
+   *sem comprovante*.
+
+Subpastas também são lidas. No **Chrome/Edge** o navegador lembra a pasta: nas
+próximas vezes basta clicar em *Rodar conciliação* (ele pode pedir para
+confirmar o acesso) e os arquivos novos são lidos na hora. No Firefox/Safari é
+preciso escolher a pasta a cada vez.
+
+Os comprovantes **não saem do seu computador**: o robô só lê e identifica.
+
+**Sobre o anexo nativo do Conta Azul:** a API v2 mostra os anexos de parcelas
+e baixas, mas não há na documentação pública uma rota para *enviar* anexo
+(conferido em out/2026). Por isso o comprovante é anexado à mão. Se o Conta
+Azul liberar essa rota: voltar a enviar o arquivo na tela (`comprovante-upload`
+em `conciliacao/` do Portal JCR) e configurar o secret `CONTA_AZUL_ANEXO_PATH` (ex.:
+`/v1/financeiro/eventos-financeiros/parcelas/{parcela_id}/anexos`) e, se
+precisar, `CONTA_AZUL_ANEXO_CAMPO` (padrão `file`).
+
+## Configuração (uma vez)
+
+### 1. Criar o app no Conta Azul
+
+1. Acesse o [Portal do Desenvolvedor Conta Azul](https://developers.contaazul.com) e crie uma conta.
+2. Crie um aplicativo. Em **URL de redirecionamento** coloque:
+   `https://qftusjwnlyjokilcjuzb.supabase.co/functions/v1/conta-azul`
+3. Anote o `client_id` e o `client_secret`. **Não** coloque esses valores no código nem no GitHub.
+
+### 2. Banco de dados
+
+Rode as migrações (SQL Editor do Supabase ou `supabase db push`), nesta ordem:
+`supabase/migrations/20261009000000_conta_azul_conciliacao.sql` e
+`supabase/migrations/20261009010000_conciliacao_comprovantes.sql`
+
+### 3. Segredos e deploy da função
+
+```bash
+supabase secrets set \
+  CONTA_AZUL_CLIENT_ID=... \
+  CONTA_AZUL_CLIENT_SECRET=... \
+  CONTA_AZUL_REDIRECT_URI=https://qftusjwnlyjokilcjuzb.supabase.co/functions/v1/conta-azul \
+  APP_URL=https://jcrjuliana2111-crypto.github.io/jcr-fiscal/conciliacao/ \
+  ROBO_KEY=uma-senha-forte-so-sua
+
+supabase functions deploy conta-azul --no-verify-jwt
+```
+
+`ROBO_KEY` protege a função: sem ela ninguém consegue disparar baixas, mesmo
+sabendo a URL. Você digita essa senha uma vez na tela do robô (fica salva só
+no seu navegador).
+
+### 4. Conectar
+
+Abra `conciliacao/` do Portal JCR → informe a chave do robô → **Conectar Conta Azul** →
+faça login no Conta Azul e autorize. O token é renovado automaticamente.
+
+## Uso no dia a dia
+
+1. Exporte o extrato do banco em **OFX** (recomendado) ou CSV.
+2. Escolha a conta financeira correspondente no Conta Azul.
+3. **Rodar conciliação** → revise as sugestões → **Dar baixa nos selecionados**.
+4. Veja as abas *Extrato sem lançamento* (tarifas, entradas sem cadastro) e
+   *Lançamentos sem extrato* (o que ainda não caiu no banco). Exporte em CSV se precisar.
+
+## Limitações conhecidas
+
+- Pagamentos com juros/desconto (valor diferente da parcela) e um depósito que
+  quita várias parcelas de uma vez não são casados automaticamente — aparecem
+  em *Extrato sem lançamento* para tratar à mão.
+- Os caminhos da API usados estão em `supabase/functions/conta-azul/index.ts`.
+  Se o Conta Azul mudar a API, ajuste lá; o erro retornado pela API aparece na
+  coluna *Resultado* da tela.
+
+## Testes
+
+```bash
+node --test tests/*.test.js
+```

@@ -10,6 +10,7 @@ Site único do escritório, com login, reunindo todas as ferramentas.
 | `procedimento.html` | Página de procedimento (POP) de cada processo |
 | `assets/departamentos.js` | **Catálogo**: departamentos, processos e ferramentas (ativas e ideias) |
 | `assets/procedimentos.js` | **Procedimentos** escritos, por `departamento/processo` |
+| `entregas/` | **JCR Entregas** (estilo Acessórias): obrigações por cliente e departamento, geração da competência, prazos em dia útil, metas internas, processos, protocolos e portal do cliente — ver `docs/entregas.md` |
 | `gclik.html` | Gestão Fiscal: clientes, tarefas, obrigações, agenda, honorários, IRPF, fechamento |
 | `notificacoes/` | Controle de Notificações Fiscais (antigo repositório `controle-fiscal`) |
 | `conciliacao/` | Robô de conciliação bancária com o Conta Azul (BPO Financeiro) — ver `docs/conciliacao-conta-azul.md` |
@@ -39,6 +40,7 @@ que já existem e as automações a criar.
 | Ferramenta | Onde os dados ficam |
 |---|---|
 | Gestão Fiscal | Supabase `onecnoicxqjhgolqncjj` (tabelas `gclik_*`, `irpf_clientes`) |
+| JCR Entregas | Supabase `onecnoicxqjhgolqncjj` (tabelas `ent_*`, bucket `entregas`, Edge Function `entregas-portal`) — SQL em `supabase/gestao/` |
 | Notificações | Supabase `qftusjwnlyjokilcjuzb` (Edge Function `smart-handler`) |
 | Conciliação Conta Azul | Supabase `qftusjwnlyjokilcjuzb` (Edge Function `conta-azul`, tabelas `conta_azul_conexoes` e `conciliacao_log`) — protegida pela `ROBO_KEY` |
 | Clientes, Conhecimento, Ferramentas extras, Pomodoro, Hub | Navegador (`localStorage`) do endereço `jcrjuliana2111-crypto.github.io` |

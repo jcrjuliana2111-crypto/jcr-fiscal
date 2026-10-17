@@ -47,6 +47,7 @@ window.JCR_DEPARTAMENTOS = [
       { id: 'reforma-tributaria', nome: 'Adequação à Reforma Tributária (IBS/CBS)', freq: 'Projeto' },
     ],
     ferramentas: [
+      { nome: 'JCR Entregas', url: 'entregas/', desc: 'Obrigações por cliente e departamento, prazos em dia útil, metas, protocolo e portal do cliente.', status: 'ativa' },
       { nome: 'Gestão Fiscal', url: 'gclik.html', desc: 'Tarefas, obrigações, agenda e fechamento fiscal.', status: 'ativa' },
       { nome: 'EFD Contribuições', url: 'hub/efd_pis_cofins.html', desc: 'Apuração PIS/COFINS — débitos, créditos e retenções.', status: 'ativa' },
       { nome: 'Apuração ICMS — DF', url: 'hub/Apuracao_ICMS_5005_WFB.html', desc: 'Lei 5.005/2012 do Distrito Federal.', status: 'ativa' },
@@ -233,6 +234,7 @@ window.JCR_DEPARTAMENTOS = [
 ];
 
 window.JCR_ACESSO_RAPIDO = [
+  { nome: 'Entregas', url: 'entregas/', ic: '✅' },
   { nome: 'Gestão Fiscal', url: 'gclik.html', ic: '📊' },
   { nome: 'Notificações', url: 'notificacoes/', ic: '🔔' },
   { nome: 'Conciliação', url: 'conciliacao/', ic: '💳' },

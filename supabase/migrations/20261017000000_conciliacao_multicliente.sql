@@ -27,8 +27,8 @@ alter table public.conciliacao_log
   add column if not exists ajuste    jsonb,                           -- {tipo: juros|multa|desconto, valor}
   add column if not exists desfeito_em timestamptz;
 
--- trava contra baixa dupla passa a ser por cliente; baixa desfeita libera o movimento
-drop index if exists public.conciliacao_log_fitid_ok_uidx;
+-- trava contra baixa dupla por cliente; baixa desfeita (status 'desfeito') libera o movimento.
+-- A trava antiga (conciliacao_log_fitid_ok_uidx) foi mantida: o fitid já leva a conta financeira.
 create unique index if not exists conciliacao_log_cliente_fitid_ok_uidx
   on public.conciliacao_log (cliente, fitid) where status = 'ok';
 create index if not exists conciliacao_log_cliente_created_idx

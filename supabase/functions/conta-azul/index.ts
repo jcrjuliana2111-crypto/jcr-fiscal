@@ -1,10 +1,10 @@
-// Edge Function: ponte entre a página conciliacao.html e a API v2 do Conta Azul.
+// Edge Function: ponte entre a página conciliacao/ (Portal JCR) e a API v2 do Conta Azul.
 //
 // Secrets (supabase secrets set ...):
 //   CONTA_AZUL_CLIENT_ID, CONTA_AZUL_CLIENT_SECRET  – app do Portal do Desenvolvedor
 //   CONTA_AZUL_REDIRECT_URI – URL desta função (…/functions/v1/conta-azul)
 //   CONTA_AZUL_AUTH_URL, CONTA_AZUL_TOKEN_URL       – (opcionais) endereços de login/token
-//   APP_URL                 – URL da página conciliacao.html (volta após o login)
+//   APP_URL                 – URL da página do robô (volta após o login)
 //   ROBO_KEY                – senha que a página envia no header x-robo-key
 // SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já existem em toda Edge Function.
 //
@@ -38,7 +38,7 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-const slug = (s: string) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+const slug = (s: string) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
 
 // ---------- tokens (por cliente) ----------

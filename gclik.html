@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script src="assets/jcr-guard.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JCR — Gestão Fiscal</title>
@@ -991,8 +992,8 @@ table thead th { padding: 10px 12px; }
       <button class="mobile-nav-item" id="mnav-honorarios" onclick="showPage('honorarios');fecharMenuMobile()"><span class="icon">💰</span> Honorários</button>
       <button class="mobile-nav-item" id="mnav-irpf" onclick="showPage('irpf');fecharMenuMobile()" style="display:none"><span class="icon">🧾</span> IRPF</button>
       <button class="mobile-nav-item" id="mnav-fechamento" onclick="showPage('fechamento');fecharMenuMobile()" style="display:none"><span class="icon">📋</span> Fechamento Fiscal</button>
-      <button class="mobile-nav-item" id="mnav-hub-jcr" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/hub-jcr/'" style="display:none"><span class="icon">🔗</span> Hub JCR</button>
-      <button class="mobile-nav-item" id="mnav-notificacoes" onclick="window.open('https://jcrjuliana2111-crypto.github.io/controle-fiscal/','_blank');fecharMenuMobile()"><span class="icon">🔔</span> Notificações</button>
+      <button class="mobile-nav-item" id="mnav-hub-jcr" onclick="window.location.href='hub/'" style="display:none"><span class="icon">🔗</span> Hub JCR</button>
+      <button class="mobile-nav-item" id="mnav-notificacoes" onclick="window.open('notificacoes/','_blank');fecharMenuMobile()"><span class="icon">🔔</span> Notificações</button>
       <button class="mobile-nav-item" id="mnav-templates" onclick="showPage('templates');fecharMenuMobile()"><span class="icon">📋</span> Templates</button>
       <button class="mobile-nav-item" id="mnav-escritorios" onclick="showPage('escritorios');fecharMenuMobile()"><span class="icon">🏛️</span> Escritórios</button>
     </div>
@@ -1053,10 +1054,10 @@ table thead th { padding: 10px 12px; }
       <button class="nav-btn" onclick="showPage('fechamento')" id="nav-fechamento" style="display:none">
         <span>📋</span> Fechamento
       </button>
-      <button class="nav-btn" onclick="window.location.href='https://jcrjuliana2111-crypto.github.io/hub-jcr/'" id="nav-hub-jcr" style="display:none">
+      <button class="nav-btn" onclick="window.location.href='hub/'" id="nav-hub-jcr" style="display:none">
         <span>🔗</span> Hub JCR
       </button>
-      <button class="nav-btn" onclick="window.open('https://jcrjuliana2111-crypto.github.io/controle-fiscal/','_blank')" id="nav-notificacoes">
+      <button class="nav-btn" onclick="window.open('notificacoes/','_blank')" id="nav-notificacoes">
         <span>🔔</span> Notificações
       </button>
       <button class="nav-btn" onclick="showPage('honorarios')" id="nav-honorarios">
@@ -5655,11 +5656,11 @@ function notifRender() {
 }
 
 function notifNova() {
-  window.open('https://jcrjuliana2111-crypto.github.io/controle-fiscal/', '_blank');
+  window.open('notificacoes/', '_blank');
 }
 
 function notifEditar(id) {
-  window.open('https://jcrjuliana2111-crypto.github.io/controle-fiscal/', '_blank');
+  window.open('notificacoes/', '_blank');
 }
 
 async function notifExcluir(id) {

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Portal JCR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="assets/departamentos.js"></script>
+<script src="assets/procedimentos.js"></script>
+<style>
+:root{
+  --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;
+  --border:#2a2f42; --border2:#363d55;
+  --text:#e8eaf2; --text2:#9aa1b8; --text3:#626a85;
+  --accent:#4f8ef7; --accent2:#a78bfa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh}
+body{
+  background:
+    radial-gradient(900px 500px at 10% -10%, rgba(79,142,247,.12), transparent 60%),
+    radial-gradient(700px 500px at 100% 0%, rgba(167,139,250,.09), transparent 60%),
+    var(--bg);
+  background-attachment:fixed;
+}
+button,input{font:inherit;color:inherit}
+a{color:inherit}
+.hidden{display:none!important}
+
+/* ───────── LOGIN ───────── */
+#login{min-height:100vh;display:grid;place-items:center;padding:24px 16px}
+.login-card{width:100%;max-width:400px;background:rgba(19,22,30,.85);border:1px solid var(--border);
+  border-radius:22px;padding:36px 30px;box-shadow:0 30px 80px rgba(0,0,0,.45);backdrop-filter:blur(10px)}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+.brand-mark{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;flex:none;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));font:800 12px Syne,sans-serif;letter-spacing:-.03em;color:#fff;
+  box-shadow:0 8px 24px rgba(79,142,247,.35)}
+.brand-name{font:800 22px Syne,sans-serif;letter-spacing:-.01em}
+.brand-sub{font-size:12.5px;color:var(--text2);margin-top:2px}
+.login-card h1{font:700 19px Syne,sans-serif;margin-bottom:6px}
+.login-card p.lead{font-size:13.5px;color:var(--text2);margin-bottom:22px;line-height:1.5}
+label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin:0 0 6px}
+.field{margin-bottom:16px}
+input[type=email],input[type=password],input[type=search]{width:100%;background:var(--surface2);
+  border:1px solid var(--border2);border-radius:11px;padding:11px 14px;font-size:14px;outline:none;transition:border-color .15s}
+input:focus{border-color:var(--accent)}
+.btn{width:100%;border:0;border-radius:11px;padding:12px 16px;font-weight:700;font-size:14px;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent),#6b7ff7);color:#fff;transition:filter .15s,transform .1s}
+.btn:hover{filter:brightness(1.08)}
+.btn:active{transform:translateY(1px)}
+.btn[disabled]{opacity:.6;cursor:wait}
+.link-btn{background:none;border:0;color:var(--accent);font-size:12.5px;cursor:pointer;padding:0;margin-top:14px}
+.msg{font-size:12.5px;margin:-4px 0 14px;line-height:1.45}
+.msg.err{color:var(--danger)} .msg.ok{color:var(--ok)}
+.login-foot{margin-top:22px;font-size:11.5px;color:var(--text3);text-align:center}
+
+/* ───────── TOPO ───────── */
+.top{position:sticky;top:0;z-index:10;background:rgba(13,15,20,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.top-in{max-width:1180px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:14px}
+.top .brand{margin:0;text-decoration:none;cursor:pointer}
+.top .brand-mark{width:34px;height:34px;border-radius:10px;font-size:10px}
+.top .brand-name{font-size:17px}
+.spacer{flex:1}
+.user{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2)}
+.avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 12px Syne,sans-serif;
+  background:var(--surface3);border:1px solid var(--border2);color:var(--text)}
+.ghost{background:transparent;border:1px solid var(--border2);border-radius:9px;padding:6px 12px;font-size:12.5px;
+  font-weight:600;cursor:pointer;color:var(--text2);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.ghost:hover{color:var(--text);border-color:var(--text3)}
+
+main{max-width:1180px;margin:0 auto;padding:26px 20px 70px}
+
+/* ───────── CABEÇALHO DA HOME ───────── */
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;margin-bottom:22px}
+.head h1{font:800 24px/1.15 Syne,sans-serif;letter-spacing:-.015em}
+.head p{color:var(--text2);font-size:13.5px;margin-top:3px}
+.search{flex:1 1 260px;max-width:360px;margin-left:auto;position:relative}
+.search input{padding-left:38px}
+.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);opacity:.55}
+
+.quick{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;text-decoration:none;
+  background:var(--surface);border:1px solid var(--border2);font-size:13px;font-weight:600;transition:border-color .15s,background .15s}
+.chip:hover{border-color:var(--accent);background:var(--surface2)}
+.chip-label{font-size:11.5px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;align-self:center;margin-right:4px}
+
+.stats{display:flex;flex-wrap:wrap;gap:22px;font-size:12.5px;color:var(--text2);margin-bottom:14px}
+.stats b{color:var(--text);font-weight:700}
+
+/* ───────── DEPARTAMENTOS (compacto) ───────── */
+.deps{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.dep{display:flex;gap:12px;align-items:center;padding:13px 14px;border-radius:14px;text-decoration:none;
+  background:var(--surface);border:1px solid var(--border);position:relative;overflow:hidden;
+  transition:border-color .15s,background .15s,transform .15s}
+.dep::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
+.dep:hover{border-color:var(--border2);background:var(--surface2);transform:translateY(-1px)}
+.dep .ic{flex:none;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:18px;
+  background:color-mix(in srgb,var(--c) 14%,transparent)}
+.dep .tx{min-width:0;flex:1}
+.dep h3{font-size:14px;font-weight:700;line-height:1.25}
+.dep .meta{font-size:11.5px;color:var(--text3);margin-top:3px}
+.bar{height:3px;border-radius:3px;background:var(--surface3);margin-top:7px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--c)}
+.dep .arrow{color:var(--text3);font-size:14px}
+
+/* ───────── VISÃO DO DEPARTAMENTO ───────── */
+.dep-head{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-bottom:22px}
+.dep-head .ic{width:50px;height:50px;border-radius:14px;display:grid;place-items:center;font-size:24px;
+  background:color-mix(in srgb,var(--c) 16%,transparent);border:1px solid color-mix(in srgb,var(--c) 35%,transparent)}
+.dep-head h1{font:800 24px/1.15 Syne,sans-serif}
+.dep-head p{color:var(--text2);font-size:13.5px;margin-top:3px}
+.cols{display:grid;grid-template-columns:1.25fr 1fr;gap:18px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.panel-h{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border)}
+.panel-h h2{font:700 12px Syne,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text2)}
+.panel-h .n{font-size:11.5px;color:var(--text3);margin-left:auto}
+.row{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border);text-decoration:none;transition:background .12s}
+.row:last-child{border-bottom:0}
+a.row:hover{background:var(--surface2)}
+.row .nm{flex:1;min-width:0;font-size:13.5px;font-weight:600}
+.row .ds{display:block;font-size:12px;color:var(--text2);font-weight:400;margin-top:2px}
+.freq{font-size:11px;color:var(--text3);white-space:nowrap}
+.badge{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.b-pend{background:rgba(251,191,36,.12);color:var(--warn)}
+.b-ok{background:rgba(52,211,153,.13);color:var(--ok)}
+.b-ativa{background:rgba(79,142,247,.14);color:var(--accent)}
+.b-ideia{background:rgba(167,139,250,.14);color:var(--accent2)}
+.row.ideia{opacity:.85}
+.row.ideia .nm{font-weight:500}
+.tool-ic{flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:13px;background:var(--surface3)}
+.dep-tag{font-size:11px;color:var(--text3);white-space:nowrap}
+.empty{color:var(--text3);font-size:14px;padding:30px 0;text-align:center}
+footer{max-width:1180px;margin:0 auto;padding:0 20px 40px;color:var(--text3);font-size:12px}
+
+@media (max-width:860px){ .cols{grid-template-columns:1fr} }
+@media (max-width:640px){
+  .user .nome{display:none}
+  .search{max-width:none;margin-left:0}
+  .freq{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ═════════ LOGIN ═════════ -->
+<section id="login" class="hidden">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-mark">JCR</div>
+      <div><div class="brand-name">Portal JCR</div><div class="brand-sub">Consultoria e serviços tributários</div></div>
+    </div>
+
+    <form id="form-login" autocomplete="on">
+      <h1>Entrar</h1>
+      <p class="lead">Acesso restrito à equipe. Use o mesmo e-mail e senha do Gestão Fiscal.</p>
+      <div class="field"><label for="email">E-mail</label><input type="email" id="email" required autocomplete="username"></div>
+      <div class="field"><label for="senha">Senha</label><input type="password" id="senha" required autocomplete="current-password"></div>
+      <div id="msg-login" class="msg hidden"></div>
+      <button class="btn" type="submit" id="btn-login">Entrar</button>
+      <button class="link-btn" type="button" id="btn-esqueci">Esqueci minha senha</button>
+    </form>
+
+    <form id="form-nova" class="hidden">
+      <h1>Nova senha</h1>
+      <p class="lead">Escolha uma nova senha para a sua conta.</p>
+      <div class="field"><label for="nova">Nova senha</label><input type="password" id="nova" minlength="8" required autocomplete="new-password"></div>
+      <div id="msg-nova" class="msg hidden"></div>
+      <button class="btn" type="submit">Salvar senha</button>
+    </form>
+
+    <div class="login-foot">🔒 Conexão protegida · Supabase Auth</div>
+  </div>
+</section>
+
+<!-- ═════════ PORTAL ═════════ -->
+<div id="portal" class="hidden">
+  <header class="top"><div class="top-in">
+    <a class="brand" href="#"><div class="brand-mark">JCR</div><div class="brand-name">Portal</div></a>
+    <div class="spacer"></div>
+    <div class="user"><span class="nome" id="u-nome"></span><div class="avatar" id="u-av"></div></div>
+    <button class="ghost" id="btn-sair">Sair</button>
+  </div></header>
+
+  <main id="view"></main>
+  <footer>Portal JCR · os dados de cada ferramenta continuam onde sempre estiveram.</footer>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://onecnoicxqjhgolqncjj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_paOFHdYEcMr7MZdOFx16Lw_sXt0n0-9';
+if (!window.supabase) {
+  document.getElementById('login').classList.remove('hidden');
+  document.getElementById('form-login').innerHTML =
+    '<h1>Sem conexão</h1><p class="lead">Não foi possível carregar o sistema de login. Verifique sua internet e recarregue a página.</p>';
+  throw new Error('supabase-js não carregou');
+}
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const DEPS = window.JCR_DEPARTAMENTOS || [];
+const RAPIDO = window.JCR_ACESSO_RAPIDO || [];
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const semAcento = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+let saudacao = 'Olá';
+let busca = '';
+
+// ── Linhas reutilizáveis ──
+const POPS = window.JCR_PROCEDIMENTOS || {};
+const documentado = (d, p) => !!(p.procedimento || POPS[d.id + '/' + p.id]);
+function linkProcedimento(d, p) {
+  return p.procedimento || `procedimento.html?dep=${encodeURIComponent(d.id)}&proc=${encodeURIComponent(p.id)}`;
+}
+function rowProcesso(d, p, mostrarDep) {
+  const ok = documentado(d, p);
+  return `<a class="row" href="${esc(linkProcedimento(d, p))}">
+    <span class="nm">${esc(p.nome)}</span>
+    ${mostrarDep ? `<span class="dep-tag">${d.ic} ${esc(d.nome)}</span>` : `<span class="freq">${esc(p.freq || '')}</span>`}
+    <span class="badge ${ok ? 'b-ok' : 'b-pend'}">${ok ? 'Procedimento' : 'A documentar'}</span>
+  </a>`;
+}
+function rowFerramenta(d, f, mostrarDep) {
+  const ativa = f.status === 'ativa' && f.url;
+  const tag = ativa ? '<span class="badge b-ativa">Ativa</span>' : '<span class="badge b-ideia">Ideia</span>';
+  const inner = `<span class="tool-ic">${ativa ? '🔗' : '✨'}</span>
+    <span class="nm">${esc(f.nome)}<span class="ds">${esc(f.desc)}</span></span>
+    ${mostrarDep ? `<span class="dep-tag">${d.ic} ${esc(d.nome)}</span>` : ''}${tag}`;
+  return ativa ? `<a class="row" href="${esc(f.url)}">${inner}</a>` : `<div class="row ideia">${inner}</div>`;
+}
+
+// ── Home: departamentos compactos ──
+function viewHome() {
+  const nProc = DEPS.reduce((a, d) => a + d.processos.length, 0);
+  const nDoc = DEPS.reduce((a, d) => a + d.processos.filter(p => documentado(d, p)).length, 0);
+  const nAtivas = DEPS.reduce((a, d) => a + d.ferramentas.filter(f => f.status === 'ativa').length, 0);
+  const nIdeias = DEPS.reduce((a, d) => a + d.ferramentas.filter(f => f.status !== 'ativa').length, 0);
+
+  return `
+    <div class="head">
+      <div><h1>${esc(saudacao)}</h1><p>Escolha um departamento para ver processos, procedimentos e ferramentas.</p></div>
+      ${campoBusca()}
+    </div>
+    <div class="quick"><span class="chip-label">Acesso rápido</span>
+      ${RAPIDO.map(r => `<a class="chip" href="${esc(r.url)}">${r.ic} ${esc(r.nome)}</a>`).join('')}
+    </div>
+    <div class="stats">
+      <span><b>${DEPS.length}</b> departamentos</span>
+      <span><b>${nProc}</b> processos · <b>${nDoc}</b> documentados</span>
+      <span><b>${nAtivas}</b> ferramentas ativas · <b>${nIdeias}</b> ideias de automação</span>
+    </div>
+    <div class="deps">
+      ${DEPS.map(d => {
+        const doc = d.processos.filter(p => documentado(d, p)).length;
+        const pct = d.processos.length ? Math.round(doc / d.processos.length * 100) : 0;
+        const ativas = d.ferramentas.filter(f => f.status === 'ativa').length;
+        return `<a class="dep" href="#/${d.id}" style="--c:${d.cor}">
+          <div class="ic">${d.ic}</div>
+          <div class="tx"><h3>${esc(d.nome)}</h3>
+            <div class="meta">${d.processos.length} processos · ${ativas} ferramenta${ativas === 1 ? '' : 's'}</div>
+            <div class="bar" title="${doc} de ${d.processos.length} procedimentos documentados"><i style="width:${pct}%"></i></div>
+          </div><span class="arrow">›</span></a>`;
+      }).join('')}
+    </div>`;
+}
+
+// ── Departamento ──
+function viewDep(d) {
+  const doc = d.processos.filter(p => documentado(d, p)).length;
+  const ativas = d.ferramentas.filter(f => f.status === 'ativa');
+  const ideias = d.ferramentas.filter(f => f.status !== 'ativa');
+  return `
+    <div style="margin-bottom:16px"><a class="ghost" href="#">‹ Departamentos</a></div>
+    <div class="dep-head" style="--c:${d.cor}">
+      <div class="ic">${d.ic}</div>
+      <div><h1>${esc(d.nome)}</h1><p>${esc(d.desc)}</p></div>
+    </div>
+    <div class="cols">
+      <section class="panel">
+        <div class="panel-h"><h2>Processos</h2><span class="n">${doc}/${d.processos.length} documentados</span></div>
+        ${d.processos.map(p => rowProcesso(d, p)).join('')}
+      </section>
+      <div style="display:grid;gap:18px">
+        <section class="panel">
+          <div class="panel-h"><h2>Ferramentas</h2><span class="n">${ativas.length}</span></div>
+          ${ativas.length ? ativas.map(f => rowFerramenta(d, f)).join('') : '<div class="row"><span class="ds">Nenhuma ferramenta ainda.</span></div>'}
+        </section>
+        <section class="panel">
+          <div class="panel-h"><h2>Automações a criar</h2><span class="n">${ideias.length}</span></div>
+          ${ideias.length ? ideias.map(f => rowFerramenta(d, f)).join('') : '<div class="row"><span class="ds">Nenhuma ideia cadastrada.</span></div>'}
+        </section>
+      </div>
+    </div>`;
+}
+
+// ── Busca em tudo ──
+function viewBusca() {
+  const f = semAcento(busca.trim());
+  const bate = (...t) => semAcento(t.join(' ')).includes(f);
+  const procs = [], tools = [];
+  DEPS.forEach(d => {
+    d.processos.forEach(p => bate(p.nome, d.nome) && procs.push(rowProcesso(d, p, true)));
+    d.ferramentas.forEach(t => bate(t.nome, t.desc, d.nome) && tools.push(rowFerramenta(d, t, true)));
+  });
+  const vazio = !procs.length && !tools.length;
+  return `
+    <div class="head">
+      <div><h1>Busca</h1><p>${procs.length + tools.length} resultado(s) para “${esc(busca.trim())}”</p></div>
+      ${campoBusca()}
+    </div>
+    ${vazio ? '<div class="empty">Nada encontrado.</div>' : `<div class="cols">
+      <section class="panel"><div class="panel-h"><h2>Processos</h2><span class="n">${procs.length}</span></div>${procs.join('') || '<div class="row"><span class="ds">—</span></div>'}</section>
+      <section class="panel"><div class="panel-h"><h2>Ferramentas</h2><span class="n">${tools.length}</span></div>${tools.join('') || '<div class="row"><span class="ds">—</span></div>'}</section>
+    </div>`}`;
+}
+
+function campoBusca() {
+  return `<label class="search" aria-label="Buscar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input type="search" id="busca" placeholder="Buscar processo ou ferramenta…" value="${esc(busca)}">
+  </label>`;
+}
+
+function render() {
+  const id = location.hash.replace(/^#\/?/, '');
+  const d = DEPS.find(x => x.id === id);
+  if (busca.trim()) $('view').innerHTML = viewBusca();
+  else $('view').innerHTML = d ? viewDep(d) : viewHome();
+  const inp = $('busca');
+  if (inp) {
+    inp.addEventListener('input', e => {
+      busca = e.target.value; render();
+      const n = $('busca'); n.focus(); n.setSelectionRange(n.value.length, n.value.length);
+    });
+  }
+}
+window.addEventListener('hashchange', () => { busca = ''; render(); window.scrollTo(0, 0); });
+
+// ── Navegação pós-login (só para páginas deste mesmo site) ──
+function destinoSeguro() {
+  const next = new URLSearchParams(location.search).get('next');
+  if (!next) return null;
+  try {
+    const u = new URL(next, location.href);
+    const raiz = new URL('./', location.href);
+    if (u.origin === location.origin && u.pathname.startsWith(raiz.pathname)) return u.href;
+  } catch (e) {}
+  return null;
+}
+
+function mostrarLogin() { $('portal').classList.add('hidden'); $('login').classList.remove('hidden'); $('email').focus(); }
+
+function mostrarPortal(user) {
+  const destino = destinoSeguro();
+  if (destino) { location.replace(destino); return; }
+  const nome = (user.user_metadata && user.user_metadata.nome) || user.email.split('@')[0];
+  const nomeFmt = nome.charAt(0).toUpperCase() + nome.slice(1);
+  const h = new Date().getHours();
+  saudacao = (h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite') + ', ' + nomeFmt;
+  $('u-nome').textContent = user.email;
+  $('u-av').textContent = nomeFmt[0];
+  render();
+  $('login').classList.add('hidden');
+  $('portal').classList.remove('hidden');
+}
+
+function aviso(el, texto, tipo) { el.textContent = texto; el.className = 'msg ' + tipo; }
+
+const ERROS = {
+  'Invalid login credentials': 'E-mail ou senha incorretos.',
+  'Email not confirmed': 'Confirme seu e-mail antes de entrar.',
+};
+
+$('form-login').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('btn-login'); btn.disabled = true; btn.textContent = 'Entrando…';
+  const { data, error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('senha').value });
+  btn.disabled = false; btn.textContent = 'Entrar';
+  if (error) return aviso($('msg-login'), ERROS[error.message] || error.message, 'err');
+  mostrarPortal(data.user);
+});
+
+$('btn-esqueci').addEventListener('click', async () => {
+  const email = $('email').value.trim();
+  if (!email) return aviso($('msg-login'), 'Digite seu e-mail acima e clique novamente.', 'err');
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  aviso($('msg-login'), error ? error.message : 'Enviamos um link para redefinir a senha no seu e-mail.', error ? 'err' : 'ok');
+});
+
+$('form-nova').addEventListener('submit', async e => {
+  e.preventDefault();
+  const { data, error } = await sb.auth.updateUser({ password: $('nova').value });
+  if (error) return aviso($('msg-nova'), error.message, 'err');
+  $('form-nova').classList.add('hidden'); $('form-login').classList.remove('hidden');
+  mostrarPortal(data.user);
+});
+
+$('btn-sair').addEventListener('click', async () => {
+  try { sessionStorage.clear(); } catch (e) {}
+  await sb.auth.signOut();
+  history.replaceState(null, '', location.pathname);
+  mostrarLogin();
+});
+
+sb.auth.onAuthStateChange(evento => {
+  if (evento === 'PASSWORD_RECOVERY') {
+    $('portal').classList.add('hidden'); $('login').classList.remove('hidden');
+    $('form-login').classList.add('hidden'); $('form-nova').classList.remove('hidden');
+  }
+});
+
+(async () => {
+  if (location.hash.includes('type=recovery')) return; // tratado no onAuthStateChange
+  const { data: { session } } = await sb.auth.getSession();
+  session ? mostrarPortal(session.user) : mostrarLogin();
+})();
+</script>
+</body>
+</html>

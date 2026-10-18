@@ -160,7 +160,7 @@ window.JCR_DEPARTAMENTOS = [
       { id: 'malha-irpf', nome: 'Malha fina e retificação', freq: 'Sob demanda' },
     ],
     ferramentas: [
-      { nome: 'IRPF no Gestão Fiscal', url: 'gclik.html', desc: 'Controle de clientes e status das declarações.', status: 'ativa' },
+      { nome: 'IRPF — clientes e declarações', url: 'gclik.html?abrir=irpf', desc: 'Todos os clientes de IRPF e o status de cada declaração.', status: 'ativa' },
       { nome: 'Portal de envio de documentos do IRPF', desc: 'Cliente envia informes e recibos por um link.', status: 'ideia' },
     ],
   },
@@ -236,6 +236,7 @@ window.JCR_DEPARTAMENTOS = [
 window.JCR_ACESSO_RAPIDO = [
   { nome: 'Entregas', url: 'entregas/', ic: '✅' },
   { nome: 'Gestão Fiscal', url: 'gclik.html', ic: '📊' },
+  { nome: 'IRPF', url: 'gclik.html?abrir=irpf', ic: '🧑‍💼' },
   { nome: 'Notificações', url: 'notificacoes/', ic: '🔔' },
   { nome: 'Conciliação', url: 'conciliacao/', ic: '💳' },
   { nome: 'Hub JCR', url: 'hub/index.html', ic: '🧭' },

@@ -8,8 +8,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
-<script src="assets/departamentos.js"></script>
-<script src="assets/procedimentos.js"></script>
+<script>
+  // Catálogo e procedimentos mudam com frequência: busca sempre a versão mais nova (sem cache).
+  ['assets/departamentos.js', 'assets/procedimentos.js'].forEach(function (f) {
+    document.write('<script src="' + f + '?v=' + Date.now() + '"><\/script>');
+  });
+</script>
 <style>
 :root{
   --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;

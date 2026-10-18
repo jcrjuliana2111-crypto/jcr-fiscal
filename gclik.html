@@ -2829,6 +2829,7 @@ async function initApp(user) {
       }
     }
     filtrarPorEscritorioAtivo();
+    aplicarMenusEscritorio(id);
     showPage(pagSalva);
   } else if (allEscritorios.length > 0) {
     mostrarTelaEscritorios();
@@ -3684,6 +3685,11 @@ function selecionarEscritorio(id) {
   }
   renderDashboard();
   showPage('dashboard');
+  aplicarMenusEscritorio(id);
+}
+
+// Menus que dependem do escritório (usado ao escolher e ao recarregar a página)
+function aplicarMenusEscritorio(id) {
   // Mostrar Fechamento Fiscal só para Lewis
   var isLewis = (id === 'dd5246b8-5158-4de2-98bb-71b9a802badf');
   var isJCR   = (id === 'ca9fb94f-abd6-4d55-bd3e-76170860d0ef');
@@ -5679,6 +5685,13 @@ async function notifExcluir(id) {
 }
 
 // ══════════════ START ══════════════
+// Atalho do portal: gclik.html?abrir=irpf abre direto o IRPF no escritório JCR
+(function () {
+  if (new URLSearchParams(location.search).get('abrir') !== 'irpf') return;
+  sessionStorage.setItem('escritorioAtivo', 'ca9fb94f-abd6-4d55-bd3e-76170860d0ef');
+  sessionStorage.setItem('paginaAtiva', 'irpf');
+  history.replaceState(null, '', location.pathname);
+})();
 checkSession();
 </script>
 </body>

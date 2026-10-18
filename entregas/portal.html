@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Portal do Cliente · JCR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<!-- Página pública: o cliente entra pelo link com o token dele, sem login. Dados vêm da Edge Function entregas-portal. -->
+<style>
+:root{--bg:#f6f7fb;--surface:#fff;--border:#e3e6ef;--text:#1b1f2e;--text2:#5b6378;--text3:#8a91a6;--accent:#3b6fe0;--ok:#059669;--warn:#b45309}
+@media (prefers-color-scheme:dark){:root{--bg:#0d0f14;--surface:#13161e;--border:#2a2f42;--text:#e8eaf2;--text2:#9aa1b8;--text3:#626a85;--accent:#6b9cff;--ok:#34d399;--warn:#fbbf24}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:15px;min-height:100vh}
+header{background:var(--surface);border-bottom:1px solid var(--border)}
+.in{max-width:860px;margin:0 auto;padding:16px}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#4f8ef7,#a78bfa);color:#fff;font:800 13px Syne,sans-serif}
+h1{font:800 20px Syne,sans-serif}
+.sub{color:var(--text2);font-size:13px}
+.filtros{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 12px}
+.filtros input,.filtros select{flex:1 1 180px;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit}
+.doc{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.doc .t{flex:1;min-width:200px}
+.doc b{font-size:15px}
+.meta{font-size:12.5px;color:var(--text2);margin-top:3px}
+.tag{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--text2);margin-right:4px}
+.btn{border:0;border-radius:10px;padding:9px 14px;font:700 14px 'DM Sans',sans-serif;cursor:pointer;background:var(--accent);color:#fff;text-decoration:none;display:inline-block}
+.btn[disabled]{opacity:.6;cursor:wait}
+.links a{display:block;margin-top:6px;color:var(--accent);font-size:13.5px;word-break:break-all}
+.novo{color:var(--warn);font-weight:700;font-size:12px}
+.vazio{text-align:center;color:var(--text3);padding:50px 10px}
+footer{text-align:center;color:var(--text3);font-size:12px;padding:30px 16px}
+</style>
+</head>
+<body>
+<header><div class="in brand"><div class="mark">JCR</div><div><h1 id="nome">Portal do Cliente</h1><div class="sub" id="cnpj">Documentos enviados pelo escritório</div></div></div></header>
+<div class="in">
+  <div class="filtros"><input type="search" id="busca" placeholder="Buscar documento…"><select id="comp"><option value="">Todas as competências</option></select></div>
+  <div id="lista"><div class="vazio">Carregando…</div></div>
+</div>
+<footer>Ao abrir um documento, a leitura fica registrada no protocolo. Dúvidas? Fale com o escritório.</footer>
+<script>
+const FN = 'https://onecnoicxqjhgolqncjj.supabase.co/functions/v1/entregas-portal';
+const KEY = 'sb_publishable_paOFHdYEcMr7MZdOFx16Lw_sXt0n0-9';
+const token = new URLSearchParams(location.search).get('t');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fComp = c => c ? `${c.slice(5, 7)}/${c.slice(0, 4)}` : '';
+const fData = s => s ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}` : '';
+const brl = v => v == null ? '' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const headers = { apikey: KEY, 'Content-Type': 'application/json' };
+let docs = [];
+
+function render() {
+  const b = document.getElementById('busca').value.toLowerCase(), c = document.getElementById('comp').value;
+  const l = docs.filter(d => (!c || d.competencia === c) && (!b || `${d.nome} ${d.protocolo}`.toLowerCase().includes(b)));
+  document.getElementById('lista').innerHTML = l.map(d => `<div class="doc"><div class="t">
+      <b>${esc(d.nome)}</b> ${d.lido_em ? '' : '<span class="novo">● novo</span>'}
+      <div class="meta"><span class="tag">${esc(d.departamento)}</span>Competência ${fComp(d.competencia)}${d.vencimento ? ` · vence ${fData(d.vencimento)}` : ''}${d.valor ? ` · ${brl(d.valor)}` : ''}</div>
+      <div class="meta">Protocolo ${esc(d.protocolo)} · enviado em ${new Date(d.enviado_em).toLocaleDateString('pt-BR')}</div>
+      ${d.observacoes ? `<div class="meta">${esc(d.observacoes)}</div>` : ''}
+      <div class="links" id="l-${d.id}"></div></div>
+      ${d.arquivos.length ? `<button class="btn" onclick="abrir('${d.id}', this)">Abrir ${d.arquivos.length > 1 ? d.arquivos.length + ' arquivos' : 'arquivo'}</button>` : `<button class="btn" onclick="abrir('${d.id}', this)">Confirmar recebimento</button>`}
+    </div>`).join('') || '<div class="vazio">Nenhum documento por aqui ainda.</div>';
+}
+
+async function abrir(id, btn) {
+  btn.disabled = true;
+  try {
+    const r = await fetch(FN, { method: 'POST', headers, body: JSON.stringify({ t: token, id }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.erro || 'Falha ao abrir');
+    const d = docs.find(x => x.id === id);
+    d.lido_em = d.lido_em || new Date().toISOString();
+    document.getElementById('l-' + id).innerHTML = j.links.length ? j.links.map(a => `<a href="${esc(a.url)}" target="_blank" rel="noopener">⬇ ${esc(a.nome)}</a>`).join('') : '<span class="meta">Recebimento confirmado. Obrigado!</span>';
+    if (j.links.length === 1) window.open(j.links[0].url, '_blank', 'noopener');
+  } catch (e) { alert(e.message); }
+  finally { btn.disabled = false; }
+}
+
+(async function () {
+  if (!token) { document.getElementById('lista').innerHTML = '<div class="vazio">Link incompleto. Use o link enviado pelo escritório.</div>'; return; }
+  try {
+    const r = await fetch(`${FN}?t=${encodeURIComponent(token)}`, { headers });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.erro || 'Não foi possível abrir o portal.');
+    const c = j.cliente || {};
+    document.getElementById('nome').textContent = c.nome_fantasia || c.razao_social || 'Portal do Cliente';
+    document.getElementById('cnpj').textContent = c.cnpj ? `CNPJ ${c.cnpj}` : 'Documentos enviados pelo escritório';
+    docs = j.entregas || [];
+    const comps = [...new Set(docs.map(d => d.competencia))].sort().reverse();
+    document.getElementById('comp').innerHTML += comps.map(x => `<option value="${x}">${fComp(x)}</option>`).join('');
+    document.getElementById('busca').oninput = render;
+    document.getElementById('comp').onchange = render;
+    render();
+  } catch (e) {
+    document.getElementById('lista').innerHTML = `<div class="vazio">${esc(e.message)}</div>`;
+  }
+})();
+</script>
+</body>
+</html>

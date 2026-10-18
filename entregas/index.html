@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/jcr-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>JCR Entregas · Portal JCR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="entregas-core.js"></script>
+<style>
+:root{
+  --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;
+  --border:#2a2f42; --border2:#363d55;
+  --text:#e8eaf2; --text2:#9aa1b8; --text3:#626a85;
+  --accent:#4f8ef7; --accent2:#a78bfa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171; --orange:#fb923c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh;font-size:14px}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+.hidden{display:none!important}
+
+/* ── estrutura ── */
+.app{display:flex;min-height:100vh}
+.side{width:226px;flex:none;background:var(--surface);border-right:1px solid var(--border);padding:16px 12px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:2px}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
+.brand-mark{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent2));font:800 15px Syne,sans-serif;color:#fff}
+.brand-name{font:800 16px Syne,sans-serif}
+.brand-sub{font-size:11px;color:var(--text3)}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;border:0;background:none;cursor:pointer;color:var(--text2);font-weight:600;text-align:left;width:100%}
+.nav:hover{background:var(--surface2);color:var(--text)}
+.nav.on{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--text)}
+.nav .ic{width:20px;text-align:center}
+.nav .cnt{margin-left:auto;font-size:11px;background:var(--danger);color:#fff;border-radius:999px;padding:1px 7px}
+.side .foot{margin-top:auto;font-size:11.5px;color:var(--text3);padding:8px}
+main{flex:1;min-width:0;padding:24px 28px 90px}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:18px}
+.head h1{font:800 22px Syne,sans-serif}
+.head p{color:var(--text2);font-size:13px;margin-top:2px}
+.head .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── componentes ── */
+.btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--accent),#6b7ff7);color:#fff;white-space:nowrap}
+.btn:hover{filter:brightness(1.08)}
+.btn[disabled]{opacity:.55;cursor:wait}
+.btn.sec{background:var(--surface2);border:1px solid var(--border2);color:var(--text)}
+.btn.ok{background:#059669}
+.btn.danger{background:#b91c1c}
+.btn.sm{padding:5px 10px;font-size:12.5px;border-radius:8px}
+.icon-btn{background:none;border:1px solid transparent;border-radius:8px;padding:4px 7px;cursor:pointer;color:var(--text2)}
+.icon-btn:hover{border-color:var(--border2);color:var(--text)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px}
+.card h2{font:700 11.5px Syne,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin-bottom:12px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--accent))}
+.kpi .v{font:800 26px Syne,sans-serif}
+.kpi .l{font-size:12px;color:var(--text2);margin-top:2px}
+label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px}
+input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:8px 11px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input[type=checkbox]{width:auto;accent-color:var(--accent)}
+textarea{min-height:70px;resize:vertical}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.filters>*{flex:1 1 150px;max-width:230px}
+.filters .grow{max-width:none;flex:2 1 220px}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:hover td{background:color-mix(in srgb,var(--surface2) 60%,transparent)}
+.tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.muted{color:var(--text3);font-size:12px}
+.nowrap{white-space:nowrap}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c)}
+.chip{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11.5px;background:var(--surface3);color:var(--text2);margin:1px}
+.bar{height:8px;border-radius:6px;background:var(--surface3);overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+.empty{padding:34px;text-align:center;color:var(--text3)}
+.row-flex{display:flex;align-items:center;gap:10px}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tab{border:1px solid var(--border2);background:var(--surface);border-radius:999px;padding:6px 13px;cursor:pointer;font-weight:600;color:var(--text2);font-size:13px}
+.tab.on{border-color:var(--accent);color:var(--text);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.bulk{display:flex;align-items:center;gap:8px;padding:10px 12px;margin-bottom:10px;border-radius:12px;background:color-mix(in srgb,var(--accent) 12%,var(--surface));border:1px solid var(--accent)}
+
+/* ── modal / gaveta ── */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:620px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.modal.lg{max-width:900px}
+.modal-h{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.modal-h h3{font:700 16px Syne,sans-serif}
+.modal-h .x{margin-left:auto}
+.modal-b{padding:16px 18px;display:grid;gap:12px}
+.modal-f{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--border)}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.help{font-size:11.5px;color:var(--text3);margin-top:4px;line-height:1.4}
+.checklist{display:grid;gap:4px;max-height:340px;overflow:auto;padding:4px;border:1px solid var(--border);border-radius:10px}
+.checklist label{display:flex;gap:8px;align-items:center;font-weight:500;color:var(--text);margin:0;padding:5px 6px;border-radius:7px;cursor:pointer}
+.checklist label:hover{background:var(--surface2)}
+.toast{position:fixed;right:18px;bottom:18px;z-index:99;background:var(--surface3);border:1px solid var(--border2);border-left:4px solid var(--ok);padding:11px 16px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:380px}
+.toast.err{border-left-color:var(--danger)}
+
+/* ── agenda ── */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal .dow{font-size:11px;color:var(--text3);text-align:center;text-transform:uppercase}
+.day{min-height:88px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:6px;cursor:pointer;font-size:12px}
+.day:hover{border-color:var(--accent)}
+.day.out{opacity:.35}
+.day.hol{background:color-mix(in srgb,var(--warn) 7%,var(--surface))}
+.day.today{border-color:var(--accent2)}
+.day .n{font-weight:700}
+.day .hn{font-size:10.5px;color:var(--warn)}
+.day .pill{display:block;margin-top:3px;padding:1px 6px;border-radius:6px;font-size:11px}
+
+/* ── processos ── */
+.proc{display:grid;gap:10px}
+.step{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--border)}
+.step.done .t{text-decoration:line-through;color:var(--text3)}
+
+@media (max-width:900px){
+  .app{flex-direction:column}
+  .side{width:auto;height:auto;position:sticky;top:0;z-index:20;flex-direction:row;overflow-x:auto;padding:8px;gap:4px}
+  .brand,.side .foot{display:none}
+  .nav{width:auto;white-space:nowrap;padding:8px 10px}
+  main{padding:16px 16px 90px}
+  .g2,.f2,.f3{grid-template-columns:1fr}
+  .day{min-height:60px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side" id="side">
+    <div class="brand"><div class="brand-mark">E</div><div><div class="brand-name">JCR Entregas</div><div class="brand-sub">Obrigações e prazos</div></div></div>
+  </aside>
+  <main id="view"><div class="empty">Carregando…</div></main>
+</div>
+<div id="modal-root"></div>
+
+<script>
+const SUPABASE_URL = 'https://onecnoicxqjhgolqncjj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_paOFHdYEcMr7MZdOFx16Lw_sXt0n0-9';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const E = window.Entregas;
+
+const DEPARTAMENTOS = ['Fiscal', 'Contábil', 'Pessoal', 'Societário', 'Financeiro'];
+const REGIMES = ['MEI', 'Simples Nacional', 'Lucro Presumido', 'Lucro Real'];
+const RECORRENCIAS = { mensal: 'Mensal', bimestral: 'Bimestral', trimestral: 'Trimestral', semestral: 'Semestral', anual: 'Anual' };
+const SITUACOES = {
+  atrasada:        { nome: 'Atrasada',             cor: 'var(--danger)' },
+  vence_hoje:      { nome: 'Vence hoje',           cor: 'var(--orange)' },
+  meta_estourada:  { nome: 'Meta interna vencida', cor: 'var(--warn)' },
+  pendente:        { nome: 'Pendente',             cor: 'var(--accent)' },
+  entregue_prazo:  { nome: 'Entregue no prazo',    cor: 'var(--ok)' },
+  entregue_atraso: { nome: 'Entregue com atraso',  cor: '#f472b6' },
+  dispensada:      { nome: 'Dispensada',           cor: 'var(--text3)' },
+};
+const PAGINAS = [
+  { id: 'painel', nome: 'Painel', ic: '📊' },
+  { id: 'entregas', nome: 'Entregas', ic: '✅' },
+  { id: 'agenda', nome: 'Agenda', ic: '📅' },
+  { id: 'clientes', nome: 'Clientes', ic: '🏢' },
+  { id: 'obrigacoes', nome: 'Obrigações', ic: '📚' },
+  { id: 'processos', nome: 'Processos', ic: '🧩' },
+  { id: 'protocolos', nome: 'Protocolos', ic: '📨' },
+  { id: 'config', nome: 'Configurações', ic: '⚙️' },
+];
+
+// ── utilidades ──
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const semAcento = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const brl = v => v == null || v === '' ? '' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtDH = s => s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+function toast(msg, erro) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (erro ? ' err' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), erro ? 6000 : 3000);
+}
+function badge(sit) { const s = SITUACOES[sit]; return `<span class="badge" style="--c:${s.cor}">${s.nome}</span>`; }
+function nomeCli(id) { const c = S.cliPorId.get(id); return c ? (c.nome_fantasia || c.razao_social) : '—'; }
+function opts(lista, sel, vazio) {
+  return (vazio != null ? `<option value="">${esc(vazio)}</option>` : '') +
+    lista.map(o => { const [v, n] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}" ${String(v) === String(sel ?? '') ? 'selected' : ''}>${esc(n)}</option>`; }).join('');
+}
+async function tudo(q) { // contorna o limite de 1000 linhas do Supabase
+  const out = [];
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await q().range(de, de + 999);
+    if (error) throw error;
+    out.push(...data);
+    if (data.length < 1000) return out;
+  }
+}
+function chk(error) { if (error) { toast('Erro: ' + error.message, true); throw error; } }
+
+// ── estado ──
+const S = {
+  user: null, autor: '', clientes: [], cliPorId: new Map(), entCli: new Map(), obrigacoes: [], obPorId: new Map(),
+  vinculos: [], entregas: [], feriados: [], modelos: [], processos: [],
+  pagina: 'painel', comp: E.compAnterior(hojeISO()),
+  filtro: { dep: '', resp: '', sit: '', cli: '', busca: '', comp: '', dia: '' }, sel: new Set(),
+  calMes: hojeISO().slice(0, 7), procTab: 'andamento', protTab: 'nao_lidos',
+};
+const extras = () => S.feriados.map(f => f.data);
+
+async function carregar() {
+  const [cli, ec, ob, vin, ent, fer, mod, proc] = await Promise.all([
+    tudo(() => sb.from('gclik_clientes').select('id, razao_social, nome_fantasia, cnpj, regime, status, responsavel, email, telefone').order('razao_social')),
+    tudo(() => sb.from('ent_clientes').select('*')),
+    tudo(() => sb.from('ent_obrigacoes').select('*').order('departamento').order('nome')),
+    tudo(() => sb.from('ent_cliente_obrigacoes').select('*')),
+    tudo(() => sb.from('ent_entregas').select('*').gte('competencia', E.addMeses(hojeISO().slice(0, 7), -18)).order('vencimento')),
+    tudo(() => sb.from('ent_feriados').select('*').order('data')),
+    tudo(() => sb.from('ent_processos_modelos').select('*').order('nome')),
+    tudo(() => sb.from('ent_processos').select('*').order('inicio', { ascending: false })),
+  ]);
+  S.clientes = cli; S.cliPorId = new Map(cli.map(c => [c.id, c]));
+  S.entCli = new Map(ec.map(c => [c.cliente_id, c]));
+  S.obrigacoes = ob; S.obPorId = new Map(ob.map(o => [o.id, o]));
+  S.vinculos = vin; S.entregas = ent; S.feriados = fer; S.modelos = mod; S.processos = proc;
+}
+
+function responsaveisConhecidos() {
+  const set = new Set([S.autor]);
+  for (const c of S.entCli.values()) Object.values(c.responsaveis || {}).forEach(n => n && set.add(n));
+  S.clientes.forEach(c => c.responsavel && set.add(c.responsavel));
+  S.entregas.forEach(e => e.responsavel && set.add(e.responsavel));
+  return [...set].filter(Boolean).sort();
+}
+function datalistResp() { return `<datalist id="dl-resp">${responsaveisConhecidos().map(n => `<option value="${esc(n)}">`).join('')}</datalist>`; }
+
+// ── navegação ──
+function menu() {
+  const atrasadas = S.entregas.filter(e => E.situacao(e, hojeISO()) === 'atrasada').length;
+  $('side').innerHTML = `<div class="brand"><div class="brand-mark">E</div><div><div class="brand-name">JCR Entregas</div><div class="brand-sub">Obrigações e prazos</div></div></div>` +
+    PAGINAS.map(p => `<button class="nav ${S.pagina === p.id ? 'on' : ''}" onclick="ir('${p.id}')"><span class="ic">${p.ic}</span>${p.nome}${p.id === 'entregas' && atrasadas ? `<span class="cnt">${atrasadas}</span>` : ''}</button>`).join('') +
+    `<div class="foot">${esc(S.autor)}</div>`;
+}
+function ir(p, filtro) {
+  S.pagina = p; S.sel.clear();
+  if (filtro) Object.assign(S.filtro, { dep: '', resp: '', sit: '', cli: '', busca: '', comp: '', dia: '' }, filtro);
+  try { sessionStorage.setItem('ent-pagina', p); } catch (e) {}
+  render();
+  window.scrollTo(0, 0);
+}
+function render() {
+  menu();
+  ({ painel: vPainel, entregas: vEntregas, agenda: vAgenda, clientes: vClientes, obrigacoes: vObrigacoes,
+     processos: vProcessos, protocolos: vProtocolos, config: vConfig })[S.pagina]();
+}
+
+// ════════════ PAINEL ════════════
+function vPainel() {
+  const hoje = hojeISO();
+  const doMes = S.entregas.filter(e => e.competencia === S.comp);
+  const ind = E.indicadores(doMes, hoje);
+  const abertas = S.entregas.filter(e => e.status === 'pendente');
+  const atrasadasTodas = abertas.filter(e => e.vencimento < hoje).length;
+  const prox = abertas.filter(e => e.vencimento >= hoje).sort((a, b) => a.vencimento.localeCompare(b.vencimento)).slice(0, 10);
+  const kpi = (v, l, c, f) => `<div class="kpi" style="--c:${c}" onclick='ir("entregas", ${JSON.stringify(f)})'><div class="v">${v}</div><div class="l">${l}</div></div>`;
+
+  const porGrupo = campo => {
+    const m = new Map();
+    for (const e of doMes) { const k = e[campo] || '(sem responsável)'; if (!m.has(k)) m.set(k, []); m.get(k).push(e); }
+    return [...m.entries()].map(([k, l]) => [k, E.indicadores(l, hoje)]).sort((a, b) => b[1].total - a[1].total);
+  };
+  const linhaGrupo = ([nome, i], campo) => {
+    const p = n => i.total ? (n / i.total) * 100 : 0;
+    return `<tr style="cursor:pointer" onclick='ir("entregas", ${JSON.stringify({ comp: S.comp, [campo]: nome === '(sem responsável)' ? '' : nome })})'>
+      <td>${esc(nome)}</td><td class="nowrap">${i.entregues}/${i.total - i.dispensada}</td>
+      <td style="min-width:140px"><div class="bar"><i style="width:${p(i.entregue_prazo)}%;background:var(--ok)"></i><i style="width:${p(i.entregue_atraso)}%;background:#f472b6"></i><i style="width:${p(i.atrasada)}%;background:var(--danger)"></i></div></td>
+      <td class="nowrap">${i.pontualidade == null ? '—' : i.pontualidade + '%'}</td>
+      <td style="color:${i.atrasada ? 'var(--danger)' : 'var(--text3)'}">${i.atrasada}</td></tr>`;
+  };
+  const tabelaGrupo = (titulo, campo) => `<div class="card"><h2>${titulo}</h2>${doMes.length ? `<div style="overflow-x:auto"><table><thead><tr><th>${campo === 'dep' ? 'Departamento' : 'Responsável'}</th><th>Entregues</th><th>Andamento</th><th>No prazo</th><th>Atrasadas</th></tr></thead><tbody>${porGrupo(campo === 'dep' ? 'departamento' : 'responsavel').map(g => linhaGrupo(g, campo)).join('')}</tbody></table></div>` : '<div class="empty">Sem entregas nesta competência.</div>'}</div>`;
+
+  const semConfig = !S.obrigacoes.length;
+  $('view').innerHTML = `
+    <div class="head"><div><h1>Painel</h1><p>Competência ${E.fmtComp(S.comp)} · hoje é ${E.fmtData(hoje)}</p></div>
+      <div class="acts"><input type="month" value="${S.comp}" onchange="S.comp=this.value;render()" style="width:auto">
+      <button class="btn" onclick="mGerar()">⚡ Gerar entregas</button></div></div>
+    ${semConfig ? `<div class="card" style="margin-bottom:16px;border-color:var(--accent)"><h2>Primeiros passos</h2>
+      <ol style="margin-left:18px;line-height:1.9;color:var(--text2)">
+        <li><a href="#" onclick="ir('obrigacoes');return false">Obrigações</a>: carregue o catálogo padrão (DAS, DCTFWeb, EFD-Reinf, folha, ECD, ECF…) e ajuste os prazos.</li>
+        <li><a href="#" onclick="ir('clientes');return false">Clientes</a>: defina os responsáveis por departamento e marque as obrigações de cada um (há um botão que marca as do regime).</li>
+        <li>Clique em <b>Gerar entregas</b> para criar as entregas da competência, com vencimento em dia útil e meta interna.</li>
+        <li>Ao concluir, anexe o arquivo e publique no portal: o cliente recebe o link e você vê quando ele abriu.</li></ol></div>` : ''}
+    <div class="kpis">
+      ${kpi(ind.total - ind.dispensada, 'Entregas na competência', 'var(--accent)', { comp: S.comp })}
+      ${kpi(ind.entregues, `Concluídas${ind.progresso != null ? ' · ' + ind.progresso + '%' : ''}`, 'var(--ok)', { comp: S.comp, sit: 'entregues' })}
+      ${kpi(ind.pontualidade == null ? '—' : ind.pontualidade + '%', 'Pontualidade', 'var(--accent2)', { comp: S.comp, sit: 'entregues' })}
+      ${kpi(ind.meta_estourada, 'Meta interna vencida', 'var(--warn)', { comp: S.comp, sit: 'meta_estourada' })}
+      ${kpi(ind.vence_hoje, 'Vencem hoje', 'var(--orange)', { sit: 'vence_hoje' })}
+      ${kpi(atrasadasTodas, 'Atrasadas (todas)', 'var(--danger)', { sit: 'atrasada' })}
+    </div>
+    <div class="grid g2">${tabelaGrupo('Por departamento', 'dep')}${tabelaGrupo('Por responsável', 'resp')}</div>
+    <div class="card" style="margin-top:14px"><h2>Próximos vencimentos</h2>
+      ${prox.length ? `<div style="overflow-x:auto"><table><tbody>${prox.map(e => `<tr style="cursor:pointer" onclick="mEntregar('${e.id}')">
+        <td class="nowrap">${E.fmtData(e.vencimento)}</td><td>${esc(nomeCli(e.cliente_id))}</td><td>${esc(e.nome)} <span class="muted">${E.fmtComp(e.competencia)}</span></td>
+        <td class="muted">${esc(e.responsavel || '')}</td><td>${badge(E.situacao(e, hoje))}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Nada pendente pela frente. 🎉</div>'}
+    </div>`;
+}
+
+// ════════════ ENTREGAS ════════════
+function entregasFiltradas() {
+  const f = S.filtro, hoje = hojeISO(), b = semAcento(f.busca);
+  return S.entregas.filter(e => {
+    if (f.comp && e.competencia !== f.comp) return false;
+    if (f.dia && e.vencimento !== f.dia) return false;
+    if (f.dep && e.departamento !== f.dep) return false;
+    if (f.resp && (e.responsavel || '') !== f.resp) return false;
+    if (f.cli && e.cliente_id !== f.cli) return false;
+    if (f.sit) {
+      const s = E.situacao(e, hoje);
+      if (f.sit === 'abertas' ? !['atrasada', 'vence_hoje', 'meta_estourada', 'pendente'].includes(s)
+        : f.sit === 'entregues' ? !s.startsWith('entregue') : s !== f.sit) return false;
+    }
+    if (b && !semAcento(`${nomeCli(e.cliente_id)} ${e.nome} ${e.protocolo} ${e.responsavel || ''}`).includes(b)) return false;
+    return true;
+  }).sort((a, b2) => a.vencimento.localeCompare(b2.vencimento) || nomeCli(a.cliente_id).localeCompare(nomeCli(b2.cliente_id)));
+}
+function setF(k, v) { S.filtro[k] = v; S.sel.clear(); vEntregasTabela(); }
+function vEntregas() {
+  const f = S.filtro;
+  const comps = [...new Set(S.entregas.map(e => e.competencia))].sort().reverse();
+  $('view').innerHTML = `
+    <div class="head"><div><h1>Entregas</h1><p>Clique numa linha para entregar, anexar arquivo e publicar ao cliente.</p></div>
+      <div class="acts"><button class="btn sec" onclick="exportarCSV()">⬇ CSV</button><button class="btn" onclick="mGerar()">⚡ Gerar entregas</button></div></div>
+    <div class="filters">
+      <input class="grow" type="search" placeholder="Buscar cliente, obrigação, protocolo…" value="${esc(f.busca)}" oninput="setF('busca',this.value)">
+      <select onchange="setF('comp',this.value)">${opts(comps.map(c => [c, E.fmtComp(c)]), f.comp, 'Todas as competências')}</select>
+      <select onchange="setF('sit',this.value)">${opts([['abertas', 'Em aberto'], ['entregues', 'Entregues'], ...Object.entries(SITUACOES).map(([k, s]) => [k, s.nome])], f.sit, 'Todas as situações')}</select>
+      <select onchange="setF('dep',this.value)">${opts(DEPARTAMENTOS, f.dep, 'Todos os departamentos')}</select>
+      <select onchange="setF('resp',this.value)">${opts(responsaveisConhecidos(), f.resp, 'Todos os responsáveis')}</select>
+      <select onchange="setF('cli',this.value)">${opts(S.clientes.map(c => [c.id, c.nome_fantasia || c.razao_social]), f.cli, 'Todos os clientes')}</select>
+      ${f.dia ? `<button class="btn sec sm" onclick="setF('dia','')">Vencimento ${E.fmtData(f.dia)} ✕</button>` : ''}
+    </div>
+    <div id="bulk"></div><div id="tabela"></div>`;
+  vEntregasTabela();
+}
+function vEntregasTabela() {
+  const lista = entregasFiltradas(), hoje = hojeISO();
+  $('bulk').innerHTML = S.sel.size ? `<div class="bulk"><b>${S.sel.size} selecionada(s)</b>
+    <button class="btn ok sm" onclick="emLote('entregue')">Marcar entregue</button>
+    <button class="btn sec sm" onclick="emLote('dispensada')">Dispensar</button>
+    <button class="btn sec sm" onclick="emLote('responsavel')">Trocar responsável</button>
+    <button class="btn sec sm" onclick="emLote('pendente')">Reabrir</button>
+    <button class="btn danger sm" onclick="emLote('excluir')">Excluir</button>
+    <button class="icon-btn" style="margin-left:auto" onclick="S.sel.clear();vEntregasTabela()">✕</button></div>` : '';
+  if (!lista.length) { $('tabela').innerHTML = `<div class="tbl"><div class="empty">Nenhuma entrega com esses filtros.${S.entregas.length ? '' : ' Use <b>Gerar entregas</b> para criar as da competência.'}</div></div>`; return; }
+  const todas = lista.every(e => S.sel.has(e.id));
+  $('tabela').innerHTML = `<div class="muted" style="margin-bottom:6px">${lista.length} entrega(s)</div><div class="tbl"><table><thead><tr>
+    <th><input type="checkbox" ${todas ? 'checked' : ''} onchange="selTodas(this.checked)"></th><th>Cliente</th><th>Obrigação</th><th>Comp.</th><th>Meta</th><th>Vencimento</th><th>Responsável</th><th>Situação</th><th></th></tr></thead><tbody>
+    ${lista.slice(0, 600).map(e => {
+      const sit = E.situacao(e, hoje);
+      return `<tr>
+      <td><input type="checkbox" ${S.sel.has(e.id) ? 'checked' : ''} onchange="selUma('${e.id}',this.checked)"></td>
+      <td style="cursor:pointer" onclick="mEntregar('${e.id}')">${esc(nomeCli(e.cliente_id))}</td>
+      <td style="cursor:pointer" onclick="mEntregar('${e.id}')"><b>${esc(e.nome)}</b> <span class="chip">${esc(e.departamento)}</span>${e.arquivos?.length ? ' 📎' : ''}${e.enviado_em ? (e.lido_em ? ' <span title="Lido pelo cliente">👁️</span>' : ' <span title="Publicado, ainda não lido">📨</span>') : ''}</td>
+      <td class="nowrap">${E.fmtComp(e.competencia)}</td>
+      <td class="nowrap muted">${E.fmtData(e.meta)}</td>
+      <td class="nowrap">${E.fmtData(e.vencimento)}</td>
+      <td>${esc(e.responsavel || '—')}</td>
+      <td>${badge(sit)}${e.entregue_em ? `<div class="muted">${fmtDH(e.entregue_em)}</div>` : ''}</td>
+      <td class="nowrap">${e.status === 'pendente' ? `<button class="btn ok sm" onclick="mEntregar('${e.id}')">Entregar</button>` : `<button class="icon-btn" title="Abrir" onclick="mEntregar('${e.id}')">↗</button>`}</td></tr>`;
+    }).join('')}</tbody></table></div>${lista.length > 600 ? '<div class="muted" style="margin-top:6px">Mostrando 600. Refine os filtros.</div>' : ''}`;
+}
+function selUma(id, on) { on ? S.sel.add(id) : S.sel.delete(id); vEntregasTabela(); }
+function selTodas(on) { entregasFiltradas().forEach(e => on ? S.sel.add(e.id) : S.sel.delete(e.id)); vEntregasTabela(); }
+
+async function historico(ids, acao, detalhe) {
+  const rows = ids.map(id => ({ entrega_id: id, acao, detalhe: detalhe || null, autor: S.autor }));
+  if (rows.length) await sb.from('ent_historico').insert(rows);
+}
+async function emLote(acao) {
+  const ids = [...S.sel];
+  if (!ids.length) return;
+  let patch;
+  if (acao === 'excluir') {
+    if (!confirm(`Excluir ${ids.length} entrega(s)? Os arquivos anexados continuam no armazenamento.`)) return;
+    for (let i = 0; i < ids.length; i += 200) chk((await sb.from('ent_entregas').delete().in('id', ids.slice(i, i + 200))).error);
+    S.entregas = S.entregas.filter(e => !S.sel.has(e.id));
+    S.sel.clear(); toast('Excluídas.'); return render();
+  }
+  if (acao === 'responsavel') {
+    const n = prompt('Novo responsável:');
+    if (n == null) return;
+    patch = { responsavel: n.trim() || null };
+  } else if (acao === 'entregue') patch = { status: 'entregue', entregue_em: new Date().toISOString(), entregue_por: S.autor };
+  else if (acao === 'dispensada') patch = { status: 'dispensada' };
+  else patch = { status: 'pendente', entregue_em: null, entregue_por: null };
+  for (let i = 0; i < ids.length; i += 200) chk((await sb.from('ent_entregas').update(patch).in('id', ids.slice(i, i + 200))).error);
+  await historico(ids, acao === 'responsavel' ? 'responsavel' : acao, acao === 'responsavel' ? patch.responsavel : 'Em lote');
+  S.entregas.forEach(e => { if (S.sel.has(e.id)) Object.assign(e, patch); });
+  S.sel.clear(); toast('Atualizado.'); render();
+}
+
+function exportarCSV() {
+  const hoje = hojeISO();
+  const linhas = [['Cliente', 'CNPJ', 'Obrigação', 'Departamento', 'Competência', 'Meta', 'Vencimento', 'Responsável', 'Situação', 'Entregue em', 'Protocolo', 'Publicado', 'Lido']];
+  for (const e of entregasFiltradas()) {
+    const c = S.cliPorId.get(e.cliente_id) || {};
+    linhas.push([nomeCli(e.cliente_id), c.cnpj || '', e.nome, e.departamento, E.fmtComp(e.competencia), E.fmtData(e.meta), E.fmtData(e.vencimento),
+      e.responsavel || '', SITUACOES[E.situacao(e, hoje)].nome, e.entregue_em ? fmtDH(e.entregue_em) : '', e.protocolo, e.enviado_em ? fmtDH(e.enviado_em) : '', e.lido_em ? fmtDH(e.lido_em) : '']);
+  }
+  const csv = '﻿' + linhas.map(l => l.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `entregas-${hoje}.csv`; a.click();
+}
+
+// ── modal genérico ──
+function modal(titulo, corpo, rodape, lg) {
+  $('modal-root').innerHTML = `<div class="ov" onclick="if(event.target===this)fechar()"><div class="modal ${lg ? 'lg' : ''}">
+    <div class="modal-h"><h3>${titulo}</h3><button class="icon-btn x" onclick="fechar()">✕</button></div>
+    <div class="modal-b">${corpo}</div>${rodape ? `<div class="modal-f">${rodape}</div>` : ''}</div></div>`;
+}
+function fechar() { $('modal-root').innerHTML = ''; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') fechar(); });
+
+// ── gerar competência ──
+function mGerar() {
+  modal('Gerar entregas da competência', `
+    <div class="f2"><div><label>Competência</label><input type="month" id="g-comp" value="${S.comp}" onchange="previaGerar()"></div>
+    <div><label>Clientes</label><select id="g-cli" onchange="previaGerar()">${opts(S.clientes.filter(c => c.status !== 'Inativo').map(c => [c.id, c.nome_fantasia || c.razao_social]), '', 'Todos os ativos')}</select></div></div>
+    <div class="help">Cria uma entrega para cada obrigação marcada nos clientes, conforme a recorrência. O vencimento já sai em dia útil (feriados nacionais e os cadastrados em Configurações) e a meta interna é calculada pelos dias úteis de antecedência. Entregas já existentes não são duplicadas.</div>
+    <div id="g-previa"></div>`,
+    `<button class="btn sec" onclick="fechar()">Cancelar</button><button class="btn" id="g-ok" onclick="gerar()">Gerar</button>`);
+  previaGerar();
+}
+function planoGerar() {
+  const comp = $('g-comp').value, cli = $('g-cli').value;
+  if (!comp) return [];
+  const resp = {};
+  for (const [id, c] of S.entCli) resp[id] = c.responsaveis || {};
+  return E.planejarEntregas({
+    comp, clientes: S.clientes, obrigacoes: S.obrigacoes, responsaveis: resp, extras: extras(),
+    vinculos: cli ? S.vinculos.filter(v => v.cliente_id === cli) : S.vinculos,
+    existentes: S.entregas.map(e => `${e.cliente_id}|${e.obrigacao_id}|${e.competencia}`),
+  });
+}
+function previaGerar() {
+  const p = planoGerar();
+  const porDep = {};
+  p.forEach(e => porDep[e.departamento] = (porDep[e.departamento] || 0) + 1);
+  const porOb = {};
+  p.forEach(e => { (porOb[e.nome] = porOb[e.nome] || { n: 0, v: e.vencimento, m: e.meta }).n++; });
+  $('g-previa').innerHTML = !S.vinculos.length ? '<div class="empty">Nenhum cliente tem obrigações marcadas ainda. Vá em <b>Clientes</b>.</div>' :
+    p.length ? `<div><b>${p.length}</b> entrega(s) a criar: ${Object.entries(porDep).map(([d, n]) => `<span class="chip">${esc(d)}: ${n}</span>`).join(' ')}</div>
+      <div class="tbl" style="max-height:260px;overflow:auto"><table><thead><tr><th>Obrigação</th><th>Qtd.</th><th>Meta</th><th>Vencimento</th></tr></thead><tbody>
+      ${Object.entries(porOb).map(([n, o]) => `<tr><td>${esc(n)}</td><td>${o.n}</td><td>${E.fmtData(o.m)}</td><td>${E.fmtData(o.v)}</td></tr>`).join('')}</tbody></table></div>`
+    : '<div class="empty">Nada a gerar: as entregas desta competência já existem ou nenhuma obrigação vence nela.</div>';
+}
+async function gerar() {
+  const p = planoGerar();
+  if (!p.length) return fechar();
+  $('g-ok').disabled = true;
+  try {
+    for (let i = 0; i < p.length; i += 500) {
+      const { data, error } = await sb.from('ent_entregas').upsert(p.slice(i, i + 500), { onConflict: 'cliente_id,obrigacao_id,competencia', ignoreDuplicates: true }).select();
+      chk(error);
+      S.entregas.push(...data);
+    }
+    S.comp = $('g-comp').value;
+    toast(`${p.length} entrega(s) criada(s).`);
+    fechar(); render();
+  } finally { const b = $('g-ok'); if (b) b.disabled = false; }
+}
+
+// ── entregar / detalhes ──
+let arquivosNovos = [];
+async function mEntregar(id) {
+  const e = S.entregas.find(x => x.id === id);
+  if (!e) return;
+  arquivosNovos = [];
+  const cli = S.cliPorId.get(e.cliente_id) || {};
+  const ob = S.obPorId.get(e.obrigacao_id);
+  const pend = e.status !== 'entregue';
+  modal(`${esc(e.nome)} · ${E.fmtComp(e.competencia)}`, `
+    <div class="row-flex" style="flex-wrap:wrap"><b>${esc(nomeCli(e.cliente_id))}</b><span class="muted">${esc(cli.cnpj || '')} · ${esc(cli.regime || '')}</span>
+      <span style="margin-left:auto">${badge(E.situacao(e, hojeISO()))}</span></div>
+    <div class="f3"><div><label>Meta interna</label><input type="date" id="d-meta" value="${e.meta || ''}"></div>
+      <div><label>Vencimento</label><input type="date" id="d-venc" value="${e.vencimento}"></div>
+      <div><label>Responsável</label><input id="d-resp" list="dl-resp" value="${esc(e.responsavel || '')}">${datalistResp()}</div></div>
+    <div class="f2"><div><label>Data da entrega</label><input type="date" id="d-data" value="${(e.entregue_em ? new Date(e.entregue_em) : new Date()).toLocaleDateString('sv-SE')}"></div>
+      <div><label>Valor da guia (opcional)</label><input id="d-valor" inputmode="decimal" placeholder="0,00" value="${e.valor != null ? String(e.valor).replace('.', ',') : ''}"></div></div>
+    <div><label>Arquivos (guia, recibo, declaração…)</label>
+      <div id="d-arqs">${(e.arquivos || []).map((a, i) => `<div class="row-flex"><span>📎 ${esc(a.nome)}</span><button class="icon-btn" onclick="baixarArq('${e.id}',${i})">abrir</button><button class="icon-btn" onclick="removerArq('${e.id}',${i})">remover</button></div>`).join('') || '<span class="muted">Nenhum arquivo.</span>'}</div>
+      <input type="file" multiple onchange="arquivosNovos=[...this.files]" style="margin-top:6px"></div>
+    <div><label>Observações</label><textarea id="d-obs">${esc(e.observacoes || '')}</textarea></div>
+    ${ob && ob.envia_cliente === false ? '' : `<label style="display:flex;gap:8px;align-items:center;color:var(--text)"><input type="checkbox" id="d-pub" ${e.enviado_em || pend ? 'checked' : ''}> Publicar no portal do cliente (gera protocolo ${esc(e.protocolo)})</label>`}
+    ${e.enviado_em ? `<div class="help">Publicado em ${fmtDH(e.enviado_em)} · ${e.lido_em ? `<b style="color:var(--ok)">lido pelo cliente em ${fmtDH(e.lido_em)}</b>` : 'ainda não aberto pelo cliente'}
+      · <a href="#" onclick="avisarCliente('${e.id}');return false">avisar cliente</a></div>` : ''}
+    <details><summary class="muted" style="cursor:pointer">Histórico</summary><div id="d-hist" class="muted">Carregando…</div></details>`,
+    `${e.status !== 'pendente' ? `<button class="btn sec" style="margin-right:auto" onclick="salvarEntrega('${e.id}','pendente')">Reabrir</button>` : `<button class="btn sec" style="margin-right:auto" onclick="salvarEntrega('${e.id}','dispensada')">Dispensar</button>`}
+     <button class="btn sec" onclick="salvarEntrega('${e.id}', null)">Salvar</button>
+     ${pend ? `<button class="btn ok" id="d-ok" onclick="salvarEntrega('${e.id}','entregue')">✔ Concluir entrega</button>` : ''}`);
+  const { data } = await sb.from('ent_historico').select('*').eq('entrega_id', id).order('created_at', { ascending: false });
+  const h = $('d-hist');
+  if (h) h.innerHTML = (data || []).map(x => `<div>${fmtDH(x.created_at)} · <b>${esc(x.acao)}</b> ${esc(x.detalhe || '')} <span>${esc(x.autor || '')}</span></div>`).join('') || 'Sem registros.';
+}
+async function subirArquivos(e) {
+  const novos = [];
+  for (const f of arquivosNovos) {
+    const nome = f.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.\- ]+/g, '_');
+    const path = `${S.user.id}/${e.id}/${Date.now()}-${nome}`;
+    const { error } = await sb.storage.from('entregas').upload(path, f, { contentType: f.type || 'application/octet-stream' });
+    chk(error);
+    novos.push({ path, nome: f.name, tamanho: f.size });
+  }
+  return novos;
+}
+async function salvarEntrega(id, status) {
+  const e = S.entregas.find(x => x.id === id);
+  const btn = $('d-ok'); if (btn) btn.disabled = true;
+  try {
+    const novos = await subirArquivos(e);
+    const valor = $('d-valor').value.trim();
+    const pub = $('d-pub') ? $('d-pub').checked : false;
+    const patch = {
+      meta: $('d-meta').value || null, vencimento: $('d-venc').value || e.vencimento, responsavel: $('d-resp').value.trim() || null,
+      observacoes: $('d-obs').value.trim() || null, valor: valor ? Number(valor.replace(/\./g, '').replace(',', '.')) : null,
+      arquivos: [...(e.arquivos || []), ...novos],
+    };
+    const finalStatus = status || e.status;
+    if (status) patch.status = status;
+    if (status === 'entregue') {
+      const d = $('d-data').value || hojeISO();
+      patch.entregue_em = d === hojeISO() ? new Date().toISOString() : `${d}T12:00:00-03:00`;
+      patch.entregue_por = S.autor;
+    }
+    if (status === 'pendente') { patch.entregue_em = null; patch.entregue_por = null; }
+    const publicarAgora = pub && finalStatus === 'entregue' && !e.enviado_em;
+    if (publicarAgora) { patch.enviado_em = new Date().toISOString(); patch.lido_em = null; }
+    if (!pub && e.enviado_em) patch.enviado_em = null;
+    const { data, error } = await sb.from('ent_entregas').update(patch).eq('id', id).select().single();
+    chk(error);
+    Object.assign(e, data);
+    const acoes = [];
+    if (status) acoes.push([status, status === 'entregue' ? `em ${E.fmtData($('d-data').value)}` : '']);
+    if (novos.length) acoes.push(['arquivo', novos.map(n => n.nome).join(', ')]);
+    if (publicarAgora) acoes.push(['publicado', `protocolo ${e.protocolo}`]);
+    if (!acoes.length) acoes.push(['editado', '']);
+    for (const [a, d] of acoes) await historico([id], a, d);
+    toast(status === 'entregue' ? 'Entrega concluída.' : 'Salvo.');
+    fechar(); render();
+    if (publicarAgora) avisarCliente(id);
+  } finally { if (btn) btn.disabled = false; }
+}
+async function baixarArq(id, i) {
+  const a = S.entregas.find(x => x.id === id).arquivos[i];
+  const { data, error } = await sb.storage.from('entregas').createSignedUrl(a.path, 600);
+  chk(error);
+  window.open(data.signedUrl, '_blank');
+}
+async function removerArq(id, i) {
+  const e = S.entregas.find(x => x.id === id);
+  const a = e.arquivos[i];
+  if (!confirm(`Remover ${a.nome}?`)) return;
+  await sb.storage.from('entregas').remove([a.path]);
+  const arquivos = e.arquivos.filter((_, j) => j !== i);
+  chk((await sb.from('ent_entregas').update({ arquivos }).eq('id', id)).error);
+  e.arquivos = arquivos;
+  await historico([id], 'arquivo removido', a.nome);
+  mEntregar(id);
+}
+
+// ── portal do cliente ──
+async function garantirEntCli(clienteId) {
+  if (S.entCli.has(clienteId)) return S.entCli.get(clienteId);
+  const { data, error } = await sb.from('ent_clientes').upsert({ cliente_id: clienteId }, { onConflict: 'cliente_id' }).select().single();
+  chk(error);
+  S.entCli.set(clienteId, data);
+  return data;
+}
+function linkPortal(token) { return new URL(`portal.html?t=${token}`, location.href).href; }
+async function avisarCliente(id) {
+  const e = S.entregas.find(x => x.id === id);
+  const ec = await garantirEntCli(e.cliente_id);
+  const cli = S.cliPorId.get(e.cliente_id) || {};
+  const link = linkPortal(ec.portal_token);
+  const texto = `Olá${ec.contato_nome ? ', ' + ec.contato_nome : ''}! Disponibilizamos *${e.nome}* (competência ${E.fmtComp(e.competencia)})` +
+    `${e.valor ? `, valor ${brl(e.valor)}` : ''}${e.vencimento ? `, vencimento ${E.fmtData(e.vencimento)}` : ''}.\n` +
+    `Acesse pelo portal: ${link}\nProtocolo: ${e.protocolo}`;
+  const fone = (ec.whatsapp || cli.telefone || '').replace(/\D/g, '');
+  const email = ec.contato_email || cli.email || '';
+  modal('Avisar o cliente', `
+    <div class="help">O cliente abre o documento pelo portal e a leitura fica registrada no protocolo.</div>
+    <textarea id="av-txt" style="min-height:130px">${esc(texto)}</textarea>
+    <div class="row-flex" style="flex-wrap:wrap">
+      <a class="btn ok" target="_blank" href="https://wa.me/${fone ? (fone.length <= 11 ? '55' + fone : fone) : ''}?text=${encodeURIComponent(texto)}" onclick="this.href=this.href.split('?')[0]+'?text='+encodeURIComponent($('av-txt').value)">WhatsApp${fone ? '' : ' (escolher contato)'}</a>
+      <a class="btn sec" href="mailto:${esc(email)}?subject=${encodeURIComponent(`${e.nome} ${E.fmtComp(e.competencia)} — protocolo ${e.protocolo}`)}&body=${encodeURIComponent(texto)}" onclick="this.href=this.href.split('&body=')[0]+'&body='+encodeURIComponent($('av-txt').value)">E-mail${email ? '' : ' (sem e-mail)'}</a>
+      <button class="btn sec" onclick="navigator.clipboard.writeText($('av-txt').value).then(()=>toast('Copiado.'))">Copiar texto</button></div>`,
+    `<button class="btn sec" onclick="fechar()">Fechar</button>`);
+}
+
+// ════════════ AGENDA ════════════
+function vAgenda() {
+  const [ano, mes] = S.calMes.split('-').map(Number);
+  const hoje = hojeISO();
+  const primeiro = `${S.calMes}-01`;
+  const dow = new Date(ano, mes - 1, 1).getDay();
+  let d = E.addDias(primeiro, -dow);
+  const porDia = {};
+  S.entregas.forEach(e => (porDia[e.vencimento] = porDia[e.vencimento] || []).push(e));
+  const fer = { ...E.feriadosNacionais(ano) };
+  S.feriados.forEach(f => fer[f.data] = f.nome);
+  let cells = '';
+  for (let i = 0; i < 42; i++) {
+    const l = porDia[d] || [];
+    const ab = l.filter(e => e.status === 'pendente').length, ok = l.length - ab;
+    cells += `<div class="day ${d.slice(0, 7) !== S.calMes ? 'out' : ''} ${fer[d] ? 'hol' : ''} ${d === hoje ? 'today' : ''}" onclick="ir('entregas',{dia:'${d}'})">
+      <div class="n">${+d.slice(8)}</div>${fer[d] ? `<div class="hn">${esc(fer[d])}</div>` : ''}
+      ${ab ? `<span class="pill" style="background:color-mix(in srgb,${d < hoje ? 'var(--danger)' : 'var(--accent)'} 22%,transparent)">${ab} em aberto</span>` : ''}
+      ${ok ? `<span class="pill" style="background:color-mix(in srgb,var(--ok) 18%,transparent)">${ok} concluída(s)</span>` : ''}</div>`;
+    d = E.addDias(d, 1);
+    if (i >= 34 && d.slice(0, 7) !== S.calMes) break;
+  }
+  const nomeMes = new Date(ano, mes - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  $('view').innerHTML = `<div class="head"><div><h1>Agenda</h1><p>Vencimentos por dia. Clique num dia para ver as entregas.</p></div>
+    <div class="acts"><button class="btn sec" onclick="S.calMes=E.addMeses(S.calMes,-1);vAgenda()">‹</button>
+    <button class="btn sec" style="min-width:170px">${nomeMes[0].toUpperCase() + nomeMes.slice(1)}</button>
+    <button class="btn sec" onclick="S.calMes=E.addMeses(S.calMes,1);vAgenda()">›</button></div></div>
+    <div class="cal">${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(x => `<div class="dow">${x}</div>`).join('')}${cells}</div>`;
+}
+
+// ════════════ CLIENTES ════════════
+let buscaCli = '';
+function vClientes() {
+  const nOb = {}; S.vinculos.forEach(v => nOb[v.cliente_id] = (nOb[v.cliente_id] || 0) + 1);
+  const hoje = hojeISO();
+  const atr = {}; S.entregas.forEach(e => { if (E.situacao(e, hoje) === 'atrasada') atr[e.cliente_id] = (atr[e.cliente_id] || 0) + 1; });
+  const b = semAcento(buscaCli);
+  const lista = S.clientes.filter(c => !b || semAcento(`${c.razao_social} ${c.nome_fantasia} ${c.cnpj}`).includes(b));
+  $('view').innerHTML = `<div class="head"><div><h1>Clientes</h1><p>Os clientes vêm do Gestão Fiscal. Aqui ficam responsáveis, obrigações e o acesso ao portal.</p></div>
+    <div class="acts"><a class="btn sec" href="../gclik.html" style="text-decoration:none">+ Cadastrar no Gestão Fiscal</a></div></div>
+    <div class="filters"><input class="grow" type="search" placeholder="Buscar…" value="${esc(buscaCli)}" oninput="buscaCli=this.value;vClientes();this.focus();this.setSelectionRange(this.value.length,this.value.length)"></div>
+    <div class="tbl"><table><thead><tr><th>Cliente</th><th>Regime</th><th>Responsáveis</th><th>Obrigações</th><th>Atrasadas</th><th>Portal</th><th></th></tr></thead><tbody>
+    ${lista.map(c => { const ec = S.entCli.get(c.id); const r = ec?.responsaveis || {};
+      return `<tr style="cursor:pointer${c.status === 'Inativo' ? ';opacity:.5' : ''}" onclick="mCliente('${c.id}')">
+      <td><b>${esc(c.nome_fantasia || c.razao_social)}</b><div class="muted">${esc(c.cnpj || '')}${c.status === 'Inativo' ? ' · inativo' : ''}</div></td>
+      <td>${esc(c.regime || '—')}</td>
+      <td>${Object.entries(r).filter(([, n]) => n).map(([d, n]) => `<span class="chip">${esc(d)}: ${esc(n)}</span>`).join('') || '<span class="muted">—</span>'}</td>
+      <td>${nOb[c.id] || '<span style="color:var(--warn)">nenhuma</span>'}</td>
+      <td style="color:${atr[c.id] ? 'var(--danger)' : 'var(--text3)'}">${atr[c.id] || 0}</td>
+      <td>${ec && ec.portal_ativo ? '🟢' : '⚪'}</td><td>↗</td></tr>`; }).join('')}
+    </tbody></table>${lista.length ? '' : '<div class="empty">Nenhum cliente.</div>'}</div>`;
+}
+async function mCliente(id) {
+  const c = S.cliPorId.get(id);
+  const ec = S.entCli.get(id) || { responsaveis: {}, portal_ativo: true };
+  const meus = new Map(S.vinculos.filter(v => v.cliente_id === id).map(v => [v.obrigacao_id, v]));
+  modal(esc(c.nome_fantasia || c.razao_social), `
+    <div class="muted">${esc(c.razao_social)} · ${esc(c.cnpj || 'sem CNPJ')} · <b>${esc(c.regime || 'regime não informado')}</b></div>
+    <div class="card"><h2>Responsáveis por departamento</h2><div class="f3">
+      ${DEPARTAMENTOS.map(d => `<div><label>${d}</label><input list="dl-resp" data-dep="${d}" class="c-resp" value="${esc(ec.responsaveis?.[d] || '')}"></div>`).join('')}</div>${datalistResp()}</div>
+    <div class="card"><h2>Contato e portal</h2><div class="f3">
+      <div><label>Contato</label><input id="c-cnome" value="${esc(ec.contato_nome || '')}"></div>
+      <div><label>E-mail</label><input id="c-cmail" value="${esc(ec.contato_email || c.email || '')}"></div>
+      <div><label>WhatsApp</label><input id="c-czap" value="${esc(ec.whatsapp || c.telefone || '')}"></div></div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px;color:var(--text)"><input type="checkbox" id="c-portal" ${ec.portal_ativo ? 'checked' : ''}> Portal do cliente ativo</label>
+      ${ec.portal_token ? `<div class="row-flex" style="margin-top:8px;flex-wrap:wrap"><input readonly value="${esc(linkPortal(ec.portal_token))}" style="flex:1;min-width:200px">
+        <button class="btn sec sm" onclick="navigator.clipboard.writeText('${linkPortal(ec.portal_token)}').then(()=>toast('Link copiado.'))">Copiar</button>
+        <button class="btn sec sm" onclick="novoToken('${id}')">Gerar novo link</button></div>` : '<div class="help">O link do portal é criado ao salvar.</div>'}</div>
+    <div class="card"><h2>Obrigações do cliente</h2>
+      <div class="row-flex" style="margin-bottom:8px;flex-wrap:wrap"><button class="btn sec sm" onclick="marcarDoRegime('${esc(c.regime || '')}')">Marcar as do regime ${esc(c.regime || '')}</button>
+      <button class="btn sec sm" onclick="document.querySelectorAll('.c-ob').forEach(x=>x.checked=false)">Desmarcar todas</button></div>
+      ${S.obrigacoes.length ? `<div class="checklist">${S.obrigacoes.map(o => `<label><input type="checkbox" class="c-ob" value="${o.id}" data-reg='${esc(JSON.stringify(o.regimes || []))}' ${meus.has(o.id) ? 'checked' : ''}>
+        ${esc(o.nome)} <span class="chip">${esc(o.departamento)}</span><span class="muted">${RECORRENCIAS[o.recorrencia] || o.recorrencia}${o.ativo ? '' : ' · inativa'}</span>
+        <input class="c-ob-resp" data-ob="${o.id}" list="dl-resp" placeholder="responsável (opcional)" value="${esc(meus.get(o.id)?.responsavel || '')}" style="margin-left:auto;max-width:170px;padding:3px 8px" onclick="event.preventDefault()"></label>`).join('')}</div>`
+      : '<div class="empty">Cadastre o catálogo em <a href="#" onclick="fechar();ir(\'obrigacoes\');return false">Obrigações</a>.</div>'}</div>`,
+    `<button class="btn sec" onclick="fechar()">Cancelar</button><button class="btn" id="c-ok" onclick="salvarCliente('${id}')">Salvar</button>`, true);
+}
+function marcarDoRegime(regime) {
+  document.querySelectorAll('.c-ob').forEach(x => { const r = JSON.parse(x.dataset.reg); if (!r.length || r.includes(regime)) x.checked = true; });
+}
+async function novoToken(id) {
+  if (!confirm('Gerar um novo link? O link anterior para de funcionar.')) return;
+  const { data, error } = await sb.from('ent_clientes').update({ portal_token: crypto.randomUUID() }).eq('cliente_id', id).select().single();
+  chk(error);
+  S.entCli.set(id, data);
+  mCliente(id);
+}
+async function salvarCliente(id) {
+  $('c-ok').disabled = true;
+  try {
+    const responsaveis = {};
+    document.querySelectorAll('.c-resp').forEach(x => { if (x.value.trim()) responsaveis[x.dataset.dep] = x.value.trim(); });
+    const { data, error } = await sb.from('ent_clientes').upsert({
+      cliente_id: id, responsaveis, contato_nome: $('c-cnome').value.trim() || null, contato_email: $('c-cmail').value.trim() || null,
+      whatsapp: $('c-czap').value.trim() || null, portal_ativo: $('c-portal').checked, updated_at: new Date().toISOString(),
+    }, { onConflict: 'cliente_id' }).select().single();
+    chk(error);
+    S.entCli.set(id, data);
+    const marcadas = [...document.querySelectorAll('.c-ob')].filter(x => x.checked).map(x => x.value);
+    const respOb = {}; document.querySelectorAll('.c-ob-resp').forEach(x => respOb[x.dataset.ob] = x.value.trim() || null);
+    const antes = S.vinculos.filter(v => v.cliente_id === id).map(v => v.obrigacao_id);
+    const remover = antes.filter(o => !marcadas.includes(o));
+    if (remover.length) chk((await sb.from('ent_cliente_obrigacoes').delete().eq('cliente_id', id).in('obrigacao_id', remover)).error);
+    if (marcadas.length) chk((await sb.from('ent_cliente_obrigacoes').upsert(marcadas.map(o => ({ cliente_id: id, obrigacao_id: o, responsavel: respOb[o] })), { onConflict: 'cliente_id,obrigacao_id' })).error);
+    S.vinculos = S.vinculos.filter(v => v.cliente_id !== id).concat(marcadas.map(o => ({ cliente_id: id, obrigacao_id: o, responsavel: respOb[o] })));
+    toast('Cliente salvo.');
+    fechar(); render();
+  } finally { const b = $('c-ok'); if (b) b.disabled = false; }
+}
+
+// ════════════ OBRIGAÇÕES ════════════
+const CATALOGO_PADRAO = [
+  // nome, departamento, esfera, recorrencia, dia, tipo_dia, ajuste, competencia_meses, mes_vencimento, meta_dias, regimes, obs
+  ['DAS-MEI', 'Fiscal', 'Federal', 'mensal', 20, 'corridos', 'prorroga', 1, null, 3, ['MEI'], ''],
+  ['DASN-SIMEI', 'Fiscal', 'Federal', 'anual', 31, 'corridos', 'antecipa', 1, 5, 10, ['MEI'], 'Declaração anual do MEI'],
+  ['PGDAS-D / DAS', 'Fiscal', 'Federal', 'mensal', 20, 'corridos', 'prorroga', 1, null, 3, ['Simples Nacional'], ''],
+  ['DEFIS', 'Fiscal', 'Federal', 'anual', 31, 'corridos', 'antecipa', 1, 3, 10, ['Simples Nacional'], ''],
+  ['DCTFWeb', 'Fiscal', 'Federal', 'mensal', 15, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real'], ''],
+  ['EFD-Reinf', 'Fiscal', 'Federal', 'mensal', 15, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real'], ''],
+  ['EFD Contribuições', 'Fiscal', 'Federal', 'mensal', 10, 'uteis', 'antecipa', 2, null, 2, ['Lucro Presumido', 'Lucro Real'], '10º dia útil do 2º mês'],
+  ['DARF PIS/COFINS', 'Fiscal', 'Federal', 'mensal', 25, 'corridos', 'antecipa', 1, null, 2, ['Lucro Presumido', 'Lucro Real'], ''],
+  ['IRPJ/CSLL trimestral', 'Fiscal', 'Federal', 'trimestral', 0, 'corridos', 'antecipa', 1, null, 3, ['Lucro Presumido', 'Lucro Real'], 'Último dia útil do mês seguinte ao trimestre'],
+  ['EFD ICMS/IPI (SPED Fiscal)', 'Fiscal', 'Estadual', 'mensal', 20, 'corridos', 'antecipa', 1, null, 2, ['Lucro Presumido', 'Lucro Real'], 'Ajuste o dia conforme o estado'],
+  ['ICMS — apuração e guia', 'Fiscal', 'Estadual', 'mensal', 10, 'corridos', 'antecipa', 1, null, 2, ['Lucro Presumido', 'Lucro Real'], 'Ajuste o dia conforme o estado'],
+  ['ISS — apuração e guia', 'Fiscal', 'Municipal', 'mensal', 10, 'corridos', 'antecipa', 1, null, 2, ['Lucro Presumido', 'Lucro Real'], 'Ajuste o dia conforme o município'],
+  ['Balancete mensal', 'Contábil', 'Interna', 'mensal', 25, 'corridos', 'antecipa', 1, null, 0, ['Lucro Presumido', 'Lucro Real'], ''],
+  ['ECD', 'Contábil', 'Federal', 'anual', 0, 'corridos', 'antecipa', 1, 6, 15, ['Lucro Presumido', 'Lucro Real'], 'Último dia útil de junho'],
+  ['ECF', 'Contábil', 'Federal', 'anual', 0, 'corridos', 'antecipa', 1, 7, 15, ['Lucro Presumido', 'Lucro Real'], 'Último dia útil de julho'],
+  ['Folha de pagamento e pró-labore', 'Pessoal', 'Interna', 'mensal', 5, 'uteis', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real'], '5º dia útil'],
+  ['eSocial — fechamento (S-1299)', 'Pessoal', 'Federal', 'mensal', 15, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real'], ''],
+  ['FGTS Digital', 'Pessoal', 'Federal', 'mensal', 20, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real'], ''],
+  ['DARF Previdenciário (DCTFWeb)', 'Pessoal', 'Federal', 'mensal', 20, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real'], ''],
+  ['Honorários do escritório', 'Financeiro', 'Interna', 'mensal', 10, 'corridos', 'mantem', 1, null, 0, [], 'Cobrança mensal'],
+];
+let depOb = '';
+function descPrazo(o) {
+  const dia = !+o.dia_vencimento ? 'último dia útil' : o.tipo_dia === 'uteis' ? `${o.dia_vencimento}º dia útil` : `dia ${o.dia_vencimento}`;
+  const quando = o.recorrencia === 'anual' && o.mes_vencimento ? `de ${new Date(2000, o.mes_vencimento - 1, 1).toLocaleDateString('pt-BR', { month: 'long' })} do ano seguinte`
+    : o.competencia_meses == 0 ? 'do mês da competência' : o.competencia_meses == 1 ? 'do mês seguinte' : `${o.competencia_meses} meses após`;
+  const aj = o.tipo_dia === 'uteis' || !+o.dia_vencimento ? '' : { antecipa: ' · antecipa', prorroga: ' · prorroga', mantem: '' }[o.ajuste];
+  return `${dia} ${quando}${aj}`;
+}
+function vObrigacoes() {
+  const nCli = {}; S.vinculos.forEach(v => nCli[v.obrigacao_id] = (nCli[v.obrigacao_id] || 0) + 1);
+  const lista = S.obrigacoes.filter(o => !depOb || o.departamento === depOb);
+  $('view').innerHTML = `<div class="head"><div><h1>Obrigações</h1><p>Catálogo de entregas recorrentes: prazo legal, meta interna e regimes.</p></div>
+    <div class="acts">${S.obrigacoes.length ? '' : '<button class="btn sec" id="seed" onclick="carregarPadrao()">Carregar catálogo padrão</button>'}<button class="btn" onclick="mObrigacao()">+ Nova obrigação</button></div></div>
+    <div class="tabs">${['', ...DEPARTAMENTOS].map(d => `<button class="tab ${depOb === d ? 'on' : ''}" onclick="depOb='${d}';vObrigacoes()">${d || 'Todas'}</button>`).join('')}</div>
+    <div class="tbl"><table><thead><tr><th>Obrigação</th><th>Depto.</th><th>Recorrência</th><th>Vencimento</th><th>Meta</th><th>Regimes</th><th>Clientes</th><th></th></tr></thead><tbody>
+    ${lista.map(o => `<tr style="${o.ativo ? '' : 'opacity:.5'}"><td style="cursor:pointer" onclick="mObrigacao('${o.id}')"><b>${esc(o.nome)}</b><div class="muted">${esc(o.esfera)}${o.observacoes ? ' · ' + esc(o.observacoes) : ''}</div></td>
+      <td>${esc(o.departamento)}</td><td>${RECORRENCIAS[o.recorrencia] || esc(o.recorrencia)}</td><td>${descPrazo(o)}</td>
+      <td class="nowrap">${o.meta_dias ? o.meta_dias + ' dia(s) útil(eis) antes' : '—'}</td>
+      <td>${(o.regimes || []).map(r => `<span class="chip">${esc(r)}</span>`).join('') || '<span class="muted">todos</span>'}</td>
+      <td>${nCli[o.id] || 0}</td>
+      <td class="nowrap"><button class="btn sec sm" onclick="aplicarObrigacao('${o.id}')" title="Marcar em todos os clientes ativos dos regimes">Aplicar aos clientes</button></td></tr>`).join('')}
+    </tbody></table>${lista.length ? '' : '<div class="empty">Nenhuma obrigação. Comece pelo catálogo padrão e ajuste.</div>'}</div>`;
+}
+async function carregarPadrao() {
+  $('seed').disabled = true;
+  const rows = CATALOGO_PADRAO.map(([nome, departamento, esfera, recorrencia, dia_vencimento, tipo_dia, ajuste, competencia_meses, mes_vencimento, meta_dias, regimes, observacoes]) =>
+    ({ nome, departamento, esfera, recorrencia, dia_vencimento, tipo_dia, ajuste, competencia_meses, mes_vencimento, meta_dias, regimes, observacoes: observacoes || null, envia_cliente: esfera !== 'Interna' }));
+  const { data, error } = await sb.from('ent_obrigacoes').insert(rows).select();
+  chk(error);
+  S.obrigacoes = data; S.obPorId = new Map(data.map(o => [o.id, o]));
+  toast(`${data.length} obrigações cadastradas. Revise os prazos estaduais e municipais.`);
+  vObrigacoes();
+}
+function mObrigacao(id) {
+  const o = S.obrigacoes.find(x => x.id === id) || { departamento: 'Fiscal', esfera: 'Federal', recorrencia: 'mensal', dia_vencimento: 20, tipo_dia: 'corridos', ajuste: 'antecipa', competencia_meses: 1, meta_dias: 2, regimes: [], multa: true, envia_cliente: true, ativo: true };
+  modal(id ? 'Editar obrigação' : 'Nova obrigação', `
+    <div class="f2"><div><label>Nome</label><input id="o-nome" value="${esc(o.nome || '')}"></div>
+      <div class="f2"><div><label>Departamento</label><select id="o-dep">${opts(DEPARTAMENTOS, o.departamento)}</select></div>
+      <div><label>Esfera</label><select id="o-esf">${opts(['Federal', 'Estadual', 'Municipal', 'Interna'], o.esfera)}</select></div></div></div>
+    <div class="f3"><div><label>Recorrência</label><select id="o-rec" onchange="$('o-mes-w').classList.toggle('hidden',this.value!=='anual')">${opts(Object.entries(RECORRENCIAS), o.recorrencia)}</select></div>
+      <div><label>Tipo de dia</label><select id="o-tipo">${opts([['corridos', 'Dia do mês'], ['uteis', 'N-ésimo dia útil']], o.tipo_dia)}</select></div>
+      <div><label>Dia</label><input id="o-dia" type="number" min="0" max="31" value="${o.dia_vencimento}"><div class="help">0 = último dia útil do mês</div></div></div>
+    <div class="f3"><div><label>Se cair em dia não útil</label><select id="o-aj">${opts([['antecipa', 'Antecipa'], ['prorroga', 'Prorroga'], ['mantem', 'Mantém']], o.ajuste)}</select></div>
+      <div><label>Vence quantos meses após a competência</label><input id="o-cm" type="number" min="0" max="12" value="${o.competencia_meses}"></div>
+      <div id="o-mes-w" class="${o.recorrencia === 'anual' ? '' : 'hidden'}"><label>Mês do vencimento (ano seguinte)</label><select id="o-mes">${opts([...Array(12)].map((_, i) => [i + 1, new Date(2000, i, 1).toLocaleDateString('pt-BR', { month: 'long' })]), o.mes_vencimento, '—')}</select></div></div>
+    <div class="f2"><div><label>Meta interna (dias úteis antes do vencimento)</label><input id="o-meta" type="number" min="0" max="30" value="${o.meta_dias}"></div>
+      <div><label>Regimes (nenhum marcado = todos)</label><div class="row-flex" style="flex-wrap:wrap">${REGIMES.map(r => `<label style="display:flex;gap:5px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" class="o-reg" value="${r}" ${(o.regimes || []).includes(r) ? 'checked' : ''}>${r}</label>`).join('')}</div></div></div>
+    <div class="row-flex" style="flex-wrap:wrap;gap:18px">
+      <label style="display:flex;gap:6px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" id="o-multa" ${o.multa ? 'checked' : ''}> Gera multa se atrasar</label>
+      <label style="display:flex;gap:6px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" id="o-envia" ${o.envia_cliente ? 'checked' : ''}> Publicar ao cliente ao concluir</label>
+      <label style="display:flex;gap:6px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" id="o-ativo" ${o.ativo ? 'checked' : ''}> Ativa</label></div>
+    <div><label>Observações</label><input id="o-obs" value="${esc(o.observacoes || '')}"></div>
+    <div class="help" id="o-prev"></div>`,
+    `${id ? `<button class="btn danger" style="margin-right:auto" onclick="excluirObrigacao('${id}')">Excluir</button>` : ''}<button class="btn sec" onclick="fechar()">Cancelar</button><button class="btn" onclick="salvarObrigacao('${id || ''}')">Salvar</button>`);
+  const prev = () => {
+    const ob = lerObrigacao(), comp = E.compAnterior(hojeISO());
+    const c = ob.recorrencia === 'mensal' ? comp : [...Array(12)].map((_, i) => E.addMeses(comp, i)).find(x => E.geraNaCompetencia(ob, x));
+    if (c) { const v = E.vencimento(ob, c, extras()); $('o-prev').innerHTML = `Exemplo: competência <b>${E.fmtComp(c)}</b> → vencimento <b>${E.fmtData(v)}</b>, meta <b>${E.fmtData(E.meta(ob, v, extras()))}</b>.`; }
+  };
+  document.querySelectorAll('.modal input, .modal select').forEach(x => x.addEventListener('change', prev));
+  prev();
+}
+function lerObrigacao() {
+  return {
+    nome: $('o-nome').value.trim(), departamento: $('o-dep').value, esfera: $('o-esf').value, recorrencia: $('o-rec').value,
+    tipo_dia: $('o-tipo').value, dia_vencimento: +$('o-dia').value || 0, ajuste: $('o-aj').value, competencia_meses: +$('o-cm').value || 0,
+    mes_vencimento: $('o-rec').value === 'anual' ? (+$('o-mes').value || null) : null, meta_dias: +$('o-meta').value || 0,
+    regimes: [...document.querySelectorAll('.o-reg:checked')].map(x => x.value), multa: $('o-multa').checked,
+    envia_cliente: $('o-envia').checked, ativo: $('o-ativo').checked, observacoes: $('o-obs').value.trim() || null,
+  };
+}
+async function salvarObrigacao(id) {
+  const ob = lerObrigacao();
+  if (!ob.nome) return toast('Informe o nome.', true);
+  const q = id ? sb.from('ent_obrigacoes').update(ob).eq('id', id) : sb.from('ent_obrigacoes').insert(ob);
+  const { data, error } = await q.select().single();
+  chk(error);
+  S.obrigacoes = S.obrigacoes.filter(o => o.id !== data.id).concat(data).sort((a, b) => a.departamento.localeCompare(b.departamento) || a.nome.localeCompare(b.nome));
+  S.obPorId.set(data.id, data);
+  toast('Obrigação salva. Entregas já geradas não mudam; as próximas seguem a nova regra.');
+  fechar(); vObrigacoes();
+}
+async function excluirObrigacao(id) {
+  if (!confirm('Excluir a obrigação? Ela sai de todos os clientes. As entregas já geradas continuam.')) return;
+  chk((await sb.from('ent_obrigacoes').delete().eq('id', id)).error);
+  S.obrigacoes = S.obrigacoes.filter(o => o.id !== id); S.obPorId.delete(id);
+  S.vinculos = S.vinculos.filter(v => v.obrigacao_id !== id);
+  fechar(); vObrigacoes();
+}
+async function aplicarObrigacao(id) {
+  const o = S.obPorId.get(id);
+  const alvo = S.clientes.filter(c => c.status !== 'Inativo' && E.aplicaAoRegime(o, c.regime));
+  const ja = new Set(S.vinculos.filter(v => v.obrigacao_id === id).map(v => v.cliente_id));
+  const novos = alvo.filter(c => !ja.has(c.id));
+  if (!novos.length) return toast('Todos os clientes desses regimes já têm esta obrigação.');
+  if (!confirm(`Marcar "${o.nome}" em ${novos.length} cliente(s) ativo(s)${o.regimes?.length ? ' de ' + o.regimes.join(', ') : ''}?`)) return;
+  const rows = novos.map(c => ({ cliente_id: c.id, obrigacao_id: id }));
+  chk((await sb.from('ent_cliente_obrigacoes').upsert(rows, { onConflict: 'cliente_id,obrigacao_id', ignoreDuplicates: true })).error);
+  S.vinculos.push(...rows);
+  toast(`Aplicada a ${novos.length} cliente(s).`);
+  vObrigacoes();
+}
+
+// ════════════ PROCESSOS ════════════
+const MODELOS_PADRAO = [
+  ['Abertura de empresa', 'Societário', ['Coletar documentos dos sócios|0', 'Consulta de viabilidade|2', 'Registro na Junta Comercial / DBE|7', 'Inscrição municipal e alvará|12', 'Inscrição estadual|15', 'Enquadramento tributário|17', 'Cadastrar obrigações no JCR Entregas|18']],
+  ['Alteração contratual', 'Societário', ['Levantar alterações e documentos|0', 'Elaborar minuta|3', 'Coletar assinaturas|6', 'Registro na Junta Comercial|10', 'Atualizar CNPJ, IE e IM|15']],
+  ['Baixa de empresa', 'Societário', ['Levantar pendências fiscais|0', 'Distrato e assinaturas|5', 'Baixa na Junta / Receita|12', 'Baixa estadual e municipal|20', 'Encerrar obrigações no JCR Entregas|21']],
+  ['Admissão de funcionário', 'Pessoal', ['Receber documentos do funcionário|0', 'Exame admissional|2', 'Envio eSocial (S-2200)|2', 'Contrato e ficha de registro|3', 'Entregar documentos ao cliente|4']],
+  ['Rescisão de contrato', 'Pessoal', ['Receber aviso / comunicado|0', 'Cálculo rescisório|2', 'Envio eSocial (S-2299)|4', 'Guia de FGTS rescisório|4', 'Termo de rescisão assinado|7']],
+  ['Entrada de novo cliente', 'Societário', ['Contrato de honorários assinado|0', 'Coletar acessos e certificado digital|2', 'Termo de transferência do contador anterior|5', 'Conferir pendências fiscais|7', 'Cadastrar responsáveis e obrigações|8']],
+];
+function vProcessos() {
+  const lista = S.processos.filter(p => p.status === S.procTab);
+  const hoje = hojeISO();
+  $('view').innerHTML = `<div class="head"><div><h1>Processos</h1><p>Abertura, alteração, admissão, rescisão… com checklist e prazo de cada passo.</p></div>
+    <div class="acts"><button class="btn sec" onclick="mModelos()">Modelos</button><button class="btn" onclick="mNovoProcesso()">+ Novo processo</button></div></div>
+    <div class="tabs">${[['andamento', 'Em andamento'], ['concluido', 'Concluídos'], ['cancelado', 'Cancelados']].map(([k, n]) => `<button class="tab ${S.procTab === k ? 'on' : ''}" onclick="S.procTab='${k}';vProcessos()">${n} (${S.processos.filter(p => p.status === k).length})</button>`).join('')}</div>
+    <div class="grid g2">${lista.map(p => {
+      const passos = p.passos || [], feitos = passos.filter(s => s.feito).length;
+      const prox = passos.find(s => !s.feito);
+      const atrasado = prox && prox.prazo && prox.prazo < hoje;
+      return `<div class="card proc"><div class="row-flex"><div><b>${esc(p.nome)}</b><div class="muted">${esc(p.cliente_id ? nomeCli(p.cliente_id) : 'Sem cliente')} · ${esc(p.departamento)}${p.responsavel ? ' · ' + esc(p.responsavel) : ''}</div></div>
+        <button class="icon-btn" style="margin-left:auto" onclick="mProcesso('${p.id}')">↗</button></div>
+        <div class="bar"><i style="width:${passos.length ? (feitos / passos.length) * 100 : 0}%;background:var(--ok)"></i></div>
+        <div class="muted">${feitos}/${passos.length} passos${prox ? ` · próximo: <span style="color:${atrasado ? 'var(--danger)' : 'inherit'}">${esc(prox.titulo)} (${E.fmtData(prox.prazo)})</span>` : ''}</div></div>`;
+    }).join('') || '<div class="card empty">Nenhum processo aqui.</div>'}</div>`;
+}
+async function garantirModelos() {
+  if (S.modelos.length) return;
+  const rows = MODELOS_PADRAO.map(([nome, departamento, passos]) => ({ nome, departamento, passos: passos.map(s => { const [titulo, d] = s.split('|'); return { titulo, prazo_dias: +d }; }) }));
+  const { data, error } = await sb.from('ent_processos_modelos').insert(rows).select();
+  chk(error);
+  S.modelos = data;
+}
+async function mNovoProcesso() {
+  await garantirModelos();
+  modal('Novo processo', `
+    <div class="f2"><div><label>Modelo</label><select id="p-mod">${opts(S.modelos.map(m => [m.id, `${m.nome} (${m.departamento})`]), '')}</select></div>
+      <div><label>Cliente</label><select id="p-cli">${opts(S.clientes.map(c => [c.id, c.nome_fantasia || c.razao_social]), '', 'Sem cliente (ex.: empresa em abertura)')}</select></div></div>
+    <div class="f2"><div><label>Início</label><input type="date" id="p-ini" value="${hojeISO()}"></div>
+      <div><label>Responsável</label><input id="p-resp" list="dl-resp" value="${esc(S.autor)}">${datalistResp()}</div></div>
+    <div><label>Nome (opcional)</label><input id="p-nome" placeholder="Ex.: Abertura — Padaria Pão Quente"></div>`,
+    `<button class="btn sec" onclick="fechar()">Cancelar</button><button class="btn" onclick="criarProcesso()">Criar</button>`);
+}
+async function criarProcesso() {
+  const m = S.modelos.find(x => x.id === $('p-mod').value);
+  const ini = $('p-ini').value || hojeISO();
+  const cli = $('p-cli').value || null;
+  const passos = E.montarPassos(m.passos, ini, extras());
+  const row = { modelo_id: m.id, cliente_id: cli, nome: $('p-nome').value.trim() || `${m.nome}${cli ? ' — ' + nomeCli(cli) : ''}`, departamento: m.departamento,
+    responsavel: $('p-resp').value.trim() || null, inicio: ini, prazo: passos.length ? passos[passos.length - 1].prazo : ini, passos };
+  const { data, error } = await sb.from('ent_processos').insert(row).select().single();
+  chk(error);
+  S.processos.unshift(data);
+  S.procTab = 'andamento';
+  fechar(); vProcessos(); mProcesso(data.id);
+}
+function mProcesso(id) {
+  const p = S.processos.find(x => x.id === id);
+  const hoje = hojeISO();
+  modal(esc(p.nome), `
+    <div class="muted">${esc(p.cliente_id ? nomeCli(p.cliente_id) : 'Sem cliente')} · ${esc(p.departamento)} · início ${E.fmtData(p.inicio)} · previsão ${E.fmtData(p.prazo)}</div>
+    <div>${(p.passos || []).map((s, i) => `<div class="step ${s.feito ? 'done' : ''}"><input type="checkbox" ${s.feito ? 'checked' : ''} onchange="marcarPasso('${id}',${i},this.checked)">
+      <span class="t">${esc(s.titulo)}</span><span class="muted" style="margin-left:auto;color:${!s.feito && s.prazo < hoje ? 'var(--danger)' : ''}">${s.feito ? 'feito ' + fmtDH(s.feito_em) : E.fmtData(s.prazo)}</span></div>`).join('')}</div>
+    <div class="row-flex"><input id="p-novo" placeholder="Adicionar passo…"><button class="btn sec sm" onclick="addPasso('${id}')">Adicionar</button></div>
+    <div><label>Observações</label><textarea id="p-obs" onchange="salvarProc('${id}',{observacoes:this.value})">${esc(p.observacoes || '')}</textarea></div>`,
+    `<button class="btn danger" style="margin-right:auto" onclick="excluirProc('${id}')">Excluir</button>
+     ${p.status !== 'cancelado' ? `<button class="btn sec" onclick="salvarProc('${id}',{status:'cancelado'},true)">Cancelar processo</button>` : ''}
+     ${p.status !== 'andamento' ? `<button class="btn sec" onclick="salvarProc('${id}',{status:'andamento'},true)">Reabrir</button>` : `<button class="btn ok" onclick="salvarProc('${id}',{status:'concluido'},true)">Concluir</button>`}`);
+}
+async function salvarProc(id, patch, fecharDepois) {
+  const { data, error } = await sb.from('ent_processos').update(patch).eq('id', id).select().single();
+  chk(error);
+  Object.assign(S.processos.find(x => x.id === id), data);
+  if (fecharDepois) { fechar(); vProcessos(); }
+}
+async function marcarPasso(id, i, feito) {
+  const p = S.processos.find(x => x.id === id);
+  const passos = p.passos.map((s, j) => j === i ? { ...s, feito, feito_em: feito ? new Date().toISOString() : null } : s);
+  const patch = { passos };
+  if (passos.every(s => s.feito) && p.status === 'andamento' && confirm('Todos os passos feitos. Concluir o processo?')) patch.status = 'concluido';
+  await salvarProc(id, patch);
+  vProcessos();
+  if (patch.status) fechar(); else mProcesso(id);
+}
+async function addPasso(id) {
+  const t = $('p-novo').value.trim();
+  if (!t) return;
+  const p = S.processos.find(x => x.id === id);
+  await salvarProc(id, { passos: [...p.passos, { titulo: t, prazo: hojeISO(), feito: false, feito_em: null }] });
+  mProcesso(id); vProcessos();
+}
+async function excluirProc(id) {
+  if (!confirm('Excluir este processo?')) return;
+  chk((await sb.from('ent_processos').delete().eq('id', id)).error);
+  S.processos = S.processos.filter(p => p.id !== id);
+  fechar(); vProcessos();
+}
+async function mModelos() {
+  await garantirModelos();
+  modal('Modelos de processo', `<div class="help">Um passo por linha, no formato <code>Título | dias úteis após o início</code>.</div>
+    ${S.modelos.map(m => `<div class="card"><div class="f2"><input class="m-nome" data-id="${m.id}" value="${esc(m.nome)}"><select class="m-dep" data-id="${m.id}">${opts(DEPARTAMENTOS, m.departamento)}</select></div>
+      <textarea class="m-passos" data-id="${m.id}" style="margin-top:8px;min-height:110px">${esc((m.passos || []).map(s => `${s.titulo} | ${s.prazo_dias || 0}`).join('\n'))}</textarea></div>`).join('')}
+    <div class="card"><h2>Novo modelo</h2><div class="f2"><input class="m-nome" data-id="" placeholder="Nome"><select class="m-dep" data-id="">${opts(DEPARTAMENTOS, 'Societário')}</select></div>
+      <textarea class="m-passos" data-id="" style="margin-top:8px" placeholder="Primeiro passo | 0&#10;Segundo passo | 3"></textarea></div>`,
+    `<button class="btn sec" onclick="fechar()">Fechar</button><button class="btn" onclick="salvarModelos()">Salvar modelos</button>`, true);
+}
+async function salvarModelos() {
+  const nomes = [...document.querySelectorAll('.m-nome')];
+  for (const n of nomes) {
+    const id = n.dataset.id, nome = n.value.trim();
+    const dep = document.querySelector(`.m-dep[data-id="${id}"]`).value;
+    const passos = document.querySelector(`.m-passos[data-id="${id}"]`).value.split('\n').map(l => l.trim()).filter(Boolean)
+      .map(l => { const [t, d] = l.split('|'); return { titulo: t.trim(), prazo_dias: +(d || 0) || 0 }; });
+    if (!nome) continue;
+    if (id) chk((await sb.from('ent_processos_modelos').update({ nome, departamento: dep, passos }).eq('id', id)).error);
+    else if (passos.length) chk((await sb.from('ent_processos_modelos').insert({ nome, departamento: dep, passos })).error);
+  }
+  S.modelos = await tudo(() => sb.from('ent_processos_modelos').select('*').order('nome'));
+  toast('Modelos salvos.');
+  fechar();
+}
+
+// ════════════ PROTOCOLOS ════════════
+function vProtocolos() {
+  const env = S.entregas.filter(e => e.enviado_em).sort((a, b) => b.enviado_em.localeCompare(a.enviado_em));
+  const lista = env.filter(e => S.protTab === 'todos' || (S.protTab === 'nao_lidos' ? !e.lido_em : !!e.lido_em));
+  $('view').innerHTML = `<div class="head"><div><h1>Protocolos</h1><p>Documentos publicados no portal do cliente e a confirmação de leitura.</p></div></div>
+    <div class="tabs">${[['nao_lidos', 'Não lidos'], ['lidos', 'Lidos'], ['todos', 'Todos']].map(([k, n]) => `<button class="tab ${S.protTab === k ? 'on' : ''}" onclick="S.protTab='${k}';vProtocolos()">${n} (${env.filter(e => k === 'todos' || (k === 'nao_lidos' ? !e.lido_em : !!e.lido_em)).length})</button>`).join('')}</div>
+    <div class="tbl"><table><thead><tr><th>Protocolo</th><th>Cliente</th><th>Documento</th><th>Vencimento</th><th>Publicado</th><th>Leitura</th><th></th></tr></thead><tbody>
+    ${lista.map(e => `<tr><td class="nowrap"><code>${esc(e.protocolo)}</code></td><td>${esc(nomeCli(e.cliente_id))}</td>
+      <td style="cursor:pointer" onclick="mEntregar('${e.id}')">${esc(e.nome)} <span class="muted">${E.fmtComp(e.competencia)}</span>${e.arquivos?.length ? ' 📎' : ''}</td>
+      <td class="nowrap">${E.fmtData(e.vencimento)}</td><td class="nowrap">${fmtDH(e.enviado_em)}</td>
+      <td class="nowrap">${e.lido_em ? `<span class="badge" style="--c:var(--ok)">Lido ${fmtDH(e.lido_em)}</span>` : '<span class="badge" style="--c:var(--warn)">Não lido</span>'}</td>
+      <td><button class="btn sec sm" onclick="avisarCliente('${e.id}')">Avisar</button></td></tr>`).join('')}
+    </tbody></table>${lista.length ? '' : '<div class="empty">Nada aqui.</div>'}</div>`;
+}
+
+// ════════════ CONFIGURAÇÕES ════════════
+function vConfig() {
+  const ano = +hojeISO().slice(0, 4);
+  const nac = Object.entries({ ...E.feriadosNacionais(ano), ...E.feriadosNacionais(ano + 1) }).sort();
+  $('view').innerHTML = `<div class="head"><div><h1>Configurações</h1><p>Feriados e dias sem expediente usados no cálculo dos prazos.</p></div></div>
+    <div class="grid g2"><div class="card"><h2>Feriados estaduais e municipais</h2>
+      <div class="row-flex" style="margin-bottom:10px"><input type="date" id="f-data" style="max-width:170px"><input id="f-nome" placeholder="Ex.: Aniversário de Brasília"><button class="btn sm" onclick="addFeriado()">Adicionar</button></div>
+      ${S.feriados.map(f => `<div class="row-flex step"><span class="nowrap">${E.fmtData(f.data)}</span><span>${esc(f.nome)}</span><button class="icon-btn" style="margin-left:auto" onclick="delFeriado('${f.id}')">✕</button></div>`).join('') || '<div class="muted">Nenhum cadastrado.</div>'}
+      <div class="help">Depois de cadastrar um feriado, gere as entregas normalmente: as próximas já consideram a data. Entregas já geradas não mudam.</div></div>
+    <div class="card"><h2>Nacionais (automáticos) ${ano}–${ano + 1}</h2>${nac.map(([d, n]) => `<div class="row-flex step"><span class="nowrap">${E.fmtData(d)}</span><span class="muted">${esc(n)}</span></div>`).join('')}
+      <div class="help">Carnaval e Corpus Christi entram como dias sem expediente bancário.</div></div></div>`;
+}
+async function addFeriado() {
+  const data = $('f-data').value, nome = $('f-nome').value.trim();
+  if (!data || !nome) return toast('Informe data e nome.', true);
+  const { data: r, error } = await sb.from('ent_feriados').upsert({ data, nome }, { onConflict: 'user_id,data' }).select().single();
+  chk(error);
+  S.feriados = S.feriados.filter(f => f.data !== data).concat(r).sort((a, b) => a.data.localeCompare(b.data));
+  vConfig();
+}
+async function delFeriado(id) {
+  chk((await sb.from('ent_feriados').delete().eq('id', id)).error);
+  S.feriados = S.feriados.filter(f => f.id !== id);
+  vConfig();
+}
+
+// ════════════ INÍCIO ════════════
+(async function () {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { location.replace('../index.html?next=' + encodeURIComponent(location.href)); return; }
+  S.user = session.user;
+  S.autor = (session.user.email || '').split('@')[0];
+  try { await carregar(); }
+  catch (e) {
+    $('view').innerHTML = `<div class="card empty">Não foi possível carregar os dados: ${esc(e.message)}</div>`;
+    return;
+  }
+  try { const p = sessionStorage.getItem('ent-pagina'); if (p && PAGINAS.some(x => x.id === p)) S.pagina = p; } catch (e) {}
+  render();
+})();
+</script>
+</body>
+</html>

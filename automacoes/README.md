@@ -9,15 +9,15 @@ Nenhum arquivo daqui guarda senha ou chave: as credenciais ficam só dentro do n
 ## Alerta diário de prazos — `n8n/alerta-prazos.json`
 
 Todo dia útil às 7h (horário de Brasília) envia um e-mail com o que vence hoje,
-o que vence nos próximos 7 dias e o que está atrasado: tarefas e obrigações do
-Gestão Fiscal, entregas do JCR Entregas e honorários a receber.
+o que vence nos próximos 7 dias e o que está atrasado: entregas pendentes do
+**JCR Entregas** (fonte única das obrigações) e honorários a receber do Gestão Fiscal.
 
 ```
 Todo dia útil às 7h → Configuração → Buscar prazos (Supabase) → Montar e-mail → Enviar e-mail (Gmail)
 ```
 
 - Os dados vêm da função `alerta_prazos(dias)` do Supabase
-  (`supabase/gestao/20261018090000_alerta_prazos.sql`). Ela é só de leitura e só
+  (`supabase/gestao/20261020090000_alerta_prazos_entregas.sql`). Ela é só de leitura e só
   pode ser chamada com a chave **service role**: a chave pública do site não tem acesso.
 - O código do nó "Montar e-mail" fica também em `n8n/alerta-prazos.code.js`, para
   facilitar a leitura e a revisão.

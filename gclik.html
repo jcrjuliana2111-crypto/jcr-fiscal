@@ -2803,7 +2803,7 @@ async function initApp(user) {
   document.getElementById('mobile-user-name').textContent = name;
   document.getElementById('mobile-user-avatar').textContent = name[0].toUpperCase();
   setGreeting();
-  await Promise.all([loadEscritorios(), loadClientes(), loadTarefas(), loadObrigacoes(), loadTemplates(), loadIRPF(), loadHonorarios()]);
+  await Promise.all([loadEscritorios(), loadClientes(), loadTarefas(), loadObrigacoes(), loadTemplates(), loadIRPF(), loadHonorarios(), loadRegimes()]);
   renderDashboard();
   renderCalendar();
 
@@ -2843,6 +2843,24 @@ function setGreeting() {
   const g = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   const hoje = new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long' });
   document.getElementById('dash-greeting').textContent = `${g}! Hoje é ${hoje}.`;
+}
+
+// ══════════════ REGIMES ══════════════
+// Lista de regimes cadastrada no JCR Entregas (tabela ent_regimes). Se não carregar, fica a lista fixa do formulário.
+async function loadRegimes() {
+  try {
+    const { data, error } = await sb.from('ent_regimes').select('nome').eq('ativo', true).order('ordem').order('nome');
+    if (error || !data || !data.length) return;
+    const sel = document.getElementById('cli-regime');
+    sel.innerHTML = data.map(r => `<option>${escapeRegime(r.nome)}</option>`).join('');
+  } catch (e) { console.warn('Regimes não carregados:', e); }
+}
+function escapeRegime(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+// Garante que o regime atual do cliente aparece na lista, mesmo se não estiver cadastrado ou ativo
+function setRegimeCliente(v) {
+  const sel = document.getElementById('cli-regime');
+  if (![...sel.options].some(o => o.value === v)) sel.insertAdjacentHTML('beforeend', `<option>${escapeRegime(v)}</option>`);
+  sel.value = v;
 }
 
 // ══════════════ NAVIGATION ══════════════
@@ -2994,7 +3012,7 @@ function openModalCliente(id) {
       document.getElementById('cli-fantasia').value = c.nome_fantasia||'';
       document.getElementById('cli-cnpj').value = c.cnpj||'';
       document.getElementById('cli-ie').value = c.ie||'';
-      document.getElementById('cli-regime').value = c.regime||'Lucro Real';
+      setRegimeCliente(c.regime||'Lucro Real');
       document.getElementById('cli-status').value = c.status||'Ativo';
       document.getElementById('cli-responsavel').value = c.responsavel||'';
       document.getElementById('cli-tipo-empresa').value = c.tipo_empresa||'';

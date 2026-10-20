@@ -12,6 +12,7 @@ Endereço: `https://jcrjuliana2111-crypto.github.io/jcr-fiscal/entregas/`
 | **Agenda** | Calendário com os vencimentos do mês e os feriados. |
 | **Clientes** | Vêm do Gestão Fiscal (`gclik_clientes`). Aqui ficam responsáveis por departamento, contato, link do portal e quais obrigações cada cliente tem. |
 | **Obrigações** | Catálogo com prazo legal, regra de dia útil, meta interna e regimes. Há um catálogo padrão para começar e o botão "Aplicar aos clientes". |
+| **Regimes** | Cadastro dos regimes tributários (tabela `ent_regimes`). Em cada regime, "Obrigações do regime" marca quais obrigações valem para ele e pode já marcá-las nos clientes ativos do regime. Renomear atualiza clientes e obrigações. A mesma lista aparece no cadastro de clientes do Gestão Fiscal. |
 | **Processos** | Abertura, alteração, baixa, admissão, rescisão e entrada de cliente, com checklist e prazo de cada passo. Modelos editáveis. |
 | **Protocolos** | Documentos publicados no portal e a confirmação de leitura do cliente. |
 | **Configurações** | Feriados estaduais e municipais (os nacionais são automáticos). |
@@ -41,7 +42,7 @@ Testes: `node --test tests/*.test.js`.
 
 ## Banco e portal
 
-- SQL: `supabase/gestao/20261017120000_entregas.sql` (já aplicado no projeto `onecnoicxqjhgolqncjj`).
+- SQL: `supabase/gestao/20261017120000_entregas.sql` e `20261020120000_regimes.sql` (já aplicado no projeto `onecnoicxqjhgolqncjj`).
   Tabelas `ent_*` com RLS por `user_id`, como as `gclik_*`.
 - Arquivos: bucket privado `entregas`, pasta `<user_id>/<entrega_id>/`.
 - Portal do cliente: `entregas/portal.html?t=<token>`, sem login. Os dados vêm da Edge Function

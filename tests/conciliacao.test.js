@@ -301,3 +301,8 @@ test('conferirDDA separa lançado, provável, divergente e falta', () => {
     F: ['lancado', 'a'], ENEL: ['provavel', 'b'], ALUGUEIS: ['divergente', 'c'], GRAFICA: ['falta', null], CONTABILIDADE: ['falta', null]
   });
 });
+
+test('parseDDA: valor colado na linha digitável na mesma linha da tabela', () => {
+  const r = C.parseDDA(['CONTABILIDADE XYZ LTDA  99.888.777/0001-66  05/10/2026  20/10/2026  350,00  ' + linhaDigitavel('2026-10-20', 350)]);
+  assert.deepStrictEqual(r.map(b => [b.beneficiario, b.vencimento, b.valor, b.linha.length]), [['CONTABILIDADE XYZ LTDA', '2026-10-20', 350, 47]]);
+});

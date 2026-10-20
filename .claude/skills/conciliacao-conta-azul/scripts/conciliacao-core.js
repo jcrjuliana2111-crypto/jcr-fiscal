@@ -415,17 +415,18 @@
   const RE_VALOR = /(?<![\d,.])\d{1,3}(?:\.\d{3})*,\d{2}(?![\d,])/g;
   const RE_DATA = /(?<![\d/])(\d{2})\/(\d{2})\/(\d{4}|\d{2})(?![\d/])/g;
   const RE_DOC = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2}/g;
-  const RE_LINHA = /(?:\d[\d. ]{42,60}\d)/g;
+  const RE_LINHA = /(?<![\d,.])\d[\d. ]{42,60}\d(?!\d)/g;
   const ROTULOS = /\b(benefici[aá]rio|cedente|sacador|pagador|cnpj|cpf|vencimento|venc|valor|documento|n[ºo°]|emiss[aã]o|data|linha digit[aá]vel|c[oó]digo de barras|situa[cç][aã]o|status|agendado|pendente|em aberto)\b:?/gi;
 
   function extrairCampos(txt) {
     const linhas = [];
+    let resto = String(txt);
     for (const m of String(txt).matchAll(RE_LINHA)) {
       const dg = m[0].replace(/\D/g, '');
-      if (dg.length === 47 || dg.length === 44) linhas.push(dg);
+      if (dg.length !== 47 && dg.length !== 44) continue; // só tira do texto o que for linha digitável de verdade
+      linhas.push(dg);
+      resto = resto.replace(m[0], ' ');
     }
-    let resto = String(txt);
-    for (const m of String(txt).matchAll(RE_LINHA)) resto = resto.replace(m[0], ' ');
     const documento = (resto.match(RE_DOC) || [])[0] || '';
     resto = resto.replace(RE_DOC, ' ');
     const valores = [...resto.matchAll(RE_VALOR)].map(m => parseValorBR(m[0])).filter(v => v > 0);

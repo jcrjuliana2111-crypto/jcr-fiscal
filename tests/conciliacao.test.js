@@ -237,3 +237,72 @@ test('cópia do motor na skill está igual à do robô', () => {
   assert.strictEqual(ler('.claude/skills/conciliacao-conta-azul/scripts/conciliacao-core.js'), ler('conciliacao/conciliacao-core.js'),
     'Copie conciliacao/conciliacao-core.js para .claude/skills/conciliacao-conta-azul/scripts/');
 });
+
+// ---------- DDA ----------
+function linhaDigitavel(venc, valor) {
+  const dias = Math.round((new Date(venc + 'T00:00:00Z') - Date.UTC(2025, 1, 22)) / 86400000);
+  const f5 = String(1000 + dias).padStart(4, '0') + String(Math.round(valor * 100)).padStart(10, '0');
+  return `23793.38128 60000.000003 00000.000400 1 ${f5}`;
+}
+
+test('dadosLinhaDigitavel decodifica vencimento (fator novo) e valor', () => {
+  assert.deepStrictEqual(C.dadosLinhaDigitavel(linhaDigitavel('2026-10-05', 964.62)), { valor: 964.62, vencimento: '2026-10-05' });
+  assert.strictEqual(C.dadosLinhaDigitavel('83640000001 1 23450048100 5 00000000000 3 00000000000 0'), null); // convênio
+});
+
+test('parseDDA: relatório em tabela', () => {
+  const linhas = [
+    'Relatório DDA - Boletos  Período: 01/10/2026 a 31/10/2026',
+    'Beneficiário  CNPJ  Emissão  Vencimento  Valor (R$)',
+    'F F DISTRIBUIDORA DE PRODUTOS LTDA  12.345.678/0001-90  20/09/2026  05/10/2026  964,62',
+    'ENEL DISTRIBUICAO SAO PAULO  61.695.227/0001-93  25/09/2026  10/10/2026  1.320,40',
+    'ALUGUEIS IMOVEIS SA  11.222.333/0001-44  01/10/2026  15/10/2026  2.500,00',
+    'Total  3 boletos  4.785,02'
+  ];
+  const r = C.parseDDA(linhas);
+  assert.strictEqual(r.length, 3);
+  assert.deepStrictEqual(r.map(b => [b.beneficiario, b.vencimento, b.valor, b.documento]), [
+    ['F F DISTRIBUIDORA DE PRODUTOS LTDA', '2026-10-05', 964.62, '12.345.678/0001-90'],
+    ['ENEL DISTRIBUICAO SAO PAULO', '2026-10-10', 1320.4, '61.695.227/0001-93'],
+    ['ALUGUEIS IMOVEIS SA', '2026-10-15', 2500, '11.222.333/0001-44']
+  ]);
+});
+
+test('parseDDA: relatório em blocos com linha digitável', () => {
+  const texto = [
+    'Beneficiário: F F DISTRIBUIDORA DE PRODUTOS LTDA', 'CNPJ: 12.345.678/0001-90',
+    'Vencimento: 05/10/2026', 'Valor: R$ 964,62', 'Linha digitável: ' + linhaDigitavel('2026-10-05', 964.62),
+    'Beneficiário: CONTABILIDADE XYZ', 'CNPJ: 99.888.777/0001-66',
+    'Linha digitável: ' + linhaDigitavel('2026-10-20', 350)
+  ].join('\n');
+  const r = C.parseDDA(texto);
+  assert.deepStrictEqual(r.map(b => [b.beneficiario, b.vencimento, b.valor]), [
+    ['F F DISTRIBUIDORA DE PRODUTOS LTDA', '2026-10-05', 964.62],
+    ['CONTABILIDADE XYZ', '2026-10-20', 350]
+  ]);
+});
+
+test('conferirDDA separa lançado, provável, divergente e falta', () => {
+  const boletos = C.parseDDA([
+    'F F DISTRIBUIDORA DE PRODUTOS LTDA  05/10/2026  964,62',
+    'ENEL DISTRIBUICAO SAO PAULO  10/10/2026  1.320,40',
+    'ALUGUEIS IMOVEIS SA  15/10/2026  2.500,00',
+    'GRAFICA RAPIDA ME  18/10/2026  410,00',
+    'CONTABILIDADE XYZ  20/10/2026  350,00'
+  ]);
+  const parcelas = [
+    { id: 'a', tipo: 'pagar', vencimento: '2026-10-05', valor: 0, total: 964.62, nome: 'F F Distribuidora', status: 'RECEBIDO' }, // já pago
+    { id: 'b', tipo: 'pagar', vencimento: '2026-10-11', valor: 1320.4, total: 1320.4, nome: 'Energia', descricao: 'Conta de luz' },
+    { id: 'c', tipo: 'pagar', vencimento: '2026-10-15', valor: 2400, total: 2400, nome: 'Alugueis Imoveis', descricao: 'Aluguel' },
+    { id: 'd', tipo: 'receber', vencimento: '2026-10-18', valor: 410, total: 410, nome: 'Grafica Rapida' } // a receber não conta
+  ];
+  const r = Object.fromEntries(C.conferirDDA(boletos, parcelas).map(x => [x.boleto.beneficiario.split(' ')[0], [x.situacao, x.parcela && x.parcela.id]]));
+  assert.deepStrictEqual(r, {
+    F: ['lancado', 'a'], ENEL: ['provavel', 'b'], ALUGUEIS: ['divergente', 'c'], GRAFICA: ['falta', null], CONTABILIDADE: ['falta', null]
+  });
+});
+
+test('parseDDA: valor colado na linha digitável na mesma linha da tabela', () => {
+  const r = C.parseDDA(['CONTABILIDADE XYZ LTDA  99.888.777/0001-66  05/10/2026  20/10/2026  350,00  ' + linhaDigitavel('2026-10-20', 350)]);
+  assert.deepStrictEqual(r.map(b => [b.beneficiario, b.vencimento, b.valor, b.linha.length]), [['CONTABILIDADE XYZ LTDA', '2026-10-20', 350, 47]]);
+});

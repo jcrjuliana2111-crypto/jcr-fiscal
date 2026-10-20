@@ -153,6 +153,17 @@ tela e configurar `CONTA_AZUL_ANEXO_PATH` (e `CONTA_AZUL_ANEXO_CAMPO`).
 - **Sem comprovante**: localizar o arquivo, salvar no padrão e anexar à mão.
 - **Exportar CSV** gera o relatório de tudo (sugestões, pendências, comprovantes).
 
+## DDA — boletos sem lançamento
+
+Bloco **3 · DDA** da tela: a pessoa envia o PDF do DDA → **Conferir DDA**. O robô
+(sem IA) lê beneficiário, CNPJ, vencimento e valor (linha digitável quando
+houver), busca as contas a pagar do cliente **incluindo as pagas** (ação
+`parcelas` com `tipos: ['pagar'], todos: true`) e classifica cada boleto em
+**Lançado / Provável / Divergente / Falta lançar** (regras em
+`references/regras.md`, seção DDA; código em `parseDDA`/`conferirDDA`).
+Se um modelo de relatório não for lido, peça um PDF de exemplo e acrescente um
+teste com as linhas reais em `tests/conciliacao.test.js`.
+
 ## Tarefas comuns e como ajudar
 
 **"Esse comprovante não foi reconhecido"** → rode o verificador na pasta e

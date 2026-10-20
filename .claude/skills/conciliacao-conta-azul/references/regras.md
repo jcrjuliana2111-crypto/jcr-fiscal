@@ -57,3 +57,23 @@ Fontes: texto do PDF (até 3 páginas) + nome do arquivo, juntos.
    comprovante com `V 051026` vai para a de 05/10.
 3. Boleto pago com atraso (venc. 05/10, pago 09/10): vencimento vem do
    `V 051026` / "Data de vencimento", pagamento do texto — liga certo.
+
+## DDA (`parseDDA` + `conferirDDA`)
+
+Leitura: o PDF vira linhas (itens na mesma altura). Modo **blocos** quando há 2+
+linhas começando com "Beneficiário"/"Cedente"; senão modo **tabela** (linha com
+data + valor, ou com linha digitável; nome numa linha anterior é aproveitado).
+Vencimento: rotulado "Venc…" > linha digitável > data mais tarde da linha.
+Linha digitável de 47 dígitos (ou código de barras de 44) que não começa com 8:
+fator de vencimento (base 22/02/2025 = 1000) e valor.
+
+Conferência contra contas a pagar (todas, inclusive pagas; valor = `total`):
+
+| Situação | Regra |
+|---|---|
+| lancado | valor igual + vencimento ≤ 3 dias + nome ≥ 50% |
+| provavel | valor igual + vencimento ≤ 3 dias, nome < 50% |
+| divergente | nome ≥ 50% e (valor igual com vencimento ≤ 31 dias, ou vencimento ≤ 3 dias com valor até 15% diferente) |
+| falta | nenhum dos anteriores |
+
+Cada parcela atende no máximo um boleto (maior pontuação ganha).

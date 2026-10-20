@@ -158,7 +158,33 @@
     <div id="msgRodar" class="msg"></div>
   </div>
 
-  <!-- 3. RESULTADO -->
+  <!-- DDA -->
+  <div class="card">
+    <h2>3 · DDA — boletos sem lançamento</h2>
+    <div class="row">
+      <label>Relatório de DDA do banco (PDF)
+        <input type="file" id="ddaArquivo" accept=".pdf">
+      </label>
+      <button class="btn btn-primary" id="btnDda" onclick="conferirDDA()">▶ Conferir DDA</button>
+    </div>
+    <p class="muted" style="margin-top:10px">O robô lê o PDF no seu navegador (sem IA), pega beneficiário, vencimento e valor de cada boleto — pela linha digitável, quando houver — e procura nas <b>contas a pagar</b> do cliente (em aberto e pagas).
+      <b>Lançado</b>: valor igual e vencimento até 3 dias, mesmo fornecedor · <b>Provável</b>: valor e vencimento batem, nome diferente · <b>Divergente</b>: mesmo fornecedor com valor ou vencimento diferente · <b>Falta lançar</b>: nada parecido no Conta Azul.</p>
+    <div id="msgDda" class="msg"></div>
+    <div id="ddaResultado" style="display:none;margin-top:16px">
+      <div class="stats" id="ddaStats"></div>
+      <div class="tabs">
+        <div class="tab active" data-dda="falta" onclick="filtroDda('falta')">Falta lançar</div>
+        <div class="tab" data-dda="divergente" onclick="filtroDda('divergente')">Divergentes</div>
+        <div class="tab" data-dda="provavel" onclick="filtroDda('provavel')">Prováveis</div>
+        <div class="tab" data-dda="lancado" onclick="filtroDda('lancado')">Lançados</div>
+        <div class="tab" data-dda="todos" onclick="filtroDda('todos')">Todos</div>
+        <div style="margin-left:auto"><button class="btn btn-outline" onclick="exportarDDA()">↓ Exportar CSV</button></div>
+      </div>
+      <div class="table-wrap" id="ddaTabela"></div>
+    </div>
+  </div>
+
+  <!-- 4. RESULTADO -->
   <div class="tabs" style="margin-bottom:12px">
     <div class="tab" data-tab="historico" onclick="trocarAba('historico')">🕘 Histórico do cliente</div>
   </div>
@@ -418,6 +444,106 @@ async function textoPdf(file) {
     t += (await (await pdf.getPage(i)).getTextContent()).items.map(x => x.str).join(' ') + '\n';
   }
   return t;
+}
+
+// Linhas de texto do PDF: junta os pedaços que estão na mesma altura da página,
+// da esquerda para a direita (preserva as linhas da tabela do relatório).
+async function linhasPdf(file) {
+  await carregarPdfJs();
+  const pdf = await window.pdfjsLib.getDocument({ data: await file.arrayBuffer(), verbosity: 0 }).promise;
+  const out = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const itens = (await (await pdf.getPage(i)).getTextContent()).items.filter(x => x.str && x.str.trim());
+    const grupos = [];
+    for (const it of itens) {
+      const y = it.transform[5], x = it.transform[4];
+      let g = grupos.find(g => Math.abs(g.y - y) <= 2.5);
+      if (!g) grupos.push(g = { y, itens: [] });
+      g.itens.push({ x, str: it.str });
+    }
+    grupos.sort((a, b) => b.y - a.y);
+    for (const g of grupos) out.push(g.itens.sort((a, b) => a.x - b.x).map(t => t.str.trim()).join('  '));
+  }
+  return out;
+}
+
+// ---------- DDA ----------
+let ddaResultado = [], ddaFiltro = 'falta';
+const DDA_TXT = { lancado: 'Lançado', provavel: 'Provável', divergente: 'Divergente', falta: 'Falta lançar' };
+const DDA_PILL = { lancado: 'ok', provavel: 'media', divergente: 'media', falta: 'erro' };
+
+async function conferirDDA() {
+  const f = $('ddaArquivo').files[0];
+  if (!f) return msg('msgDda', 'erro', 'Escolha o PDF do DDA.');
+  $('btnDda').disabled = true;
+  try {
+    msg('msgDda', 'info', 'Lendo o PDF…');
+    const linhas = await linhasPdf(f);
+    const boletos = Conciliacao.parseDDA(linhas);
+    if (!boletos.length) {
+      throw new Error(linhas.join('').trim()
+        ? 'Não encontrei boletos neste PDF (procuro vencimento + valor ou linha digitável). Se for outro modelo de relatório, envie um exemplo para ajustarmos o leitor.'
+        : 'Este PDF não tem texto (parece escaneado/imagem). Baixe o relatório do DDA em PDF “de texto” no banco, ou em Excel/CSV.');
+    }
+    const datas = boletos.map(b => b.vencimento).sort();
+    const de = somarDias(datas[0], -31), ate = somarDias(datas[datas.length - 1], 31);
+    msg('msgDda', 'info', `${boletos.length} boleto(s) lidos. Buscando contas a pagar no Conta Azul (${fmtData(de)} a ${fmtData(ate)})…`);
+    const parcelas = await api('parcelas', { de, ate, tipos: ['pagar'], todos: true });
+    ddaResultado = Conciliacao.conferirDDA(boletos, parcelas, { janelaDias: 3 });
+    const n = s => ddaResultado.filter(x => x.situacao === s).length;
+    msg('msgDda', n('falta') ? 'erro' : 'ok', `${boletos.length} boleto(s) no DDA: ${n('falta')} sem lançamento, ${n('divergente')} divergente(s), ${n('provavel')} provável(is), ${n('lancado')} lançado(s).`);
+    $('ddaResultado').style.display = '';
+    filtroDda(n('falta') ? 'falta' : 'todos');
+  } catch (e) {
+    msg('msgDda', 'erro', esc(e.message));
+  } finally {
+    $('btnDda').disabled = false;
+  }
+}
+
+function filtroDda(f) {
+  ddaFiltro = f;
+  document.querySelectorAll('[data-dda]').forEach(t => t.classList.toggle('active', t.dataset.dda === f));
+  renderDDA();
+}
+
+function renderDDA() {
+  const soma = s => ddaResultado.filter(x => x.situacao === s).reduce((t, x) => t + x.boleto.valor, 0);
+  const qtd = s => ddaResultado.filter(x => x.situacao === s).length;
+  $('ddaStats').innerHTML = [
+    ['Boletos no DDA', ddaResultado.length, ''],
+    ['Falta lançar', `${qtd('falta')} · ${brl(soma('falta'))}`, 'color:var(--danger)'],
+    ['Divergentes', qtd('divergente'), 'color:var(--warn)'],
+    ['Prováveis', qtd('provavel'), 'color:var(--warn)'],
+    ['Lançados', qtd('lancado'), 'color:var(--success)']
+  ].map(([l, v, st]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value" style="${st};font-size:20px">${v}</div></div>`).join('');
+  const lista = ddaResultado.filter(x => ddaFiltro === 'todos' || x.situacao === ddaFiltro)
+    .sort((a, b) => a.boleto.vencimento.localeCompare(b.boleto.vencimento));
+  if (!lista.length) { $('ddaTabela').innerHTML = '<div class="empty">Nada nesta lista.</div>'; return; }
+  $('ddaTabela').innerHTML = `<table><thead><tr><th>Vencimento</th><th>Beneficiário (DDA)</th><th>Valor</th><th>Situação</th><th>No Conta Azul</th></tr></thead><tbody>` +
+    lista.map(x => {
+      const b = x.boleto, p = x.parcela;
+      const ca = p ? `${esc(p.nome || '—')}<div class="muted">${esc(p.descricao || '')} · venc. ${fmtData(p.vencimento)} · ${brl(p.total ?? p.valor)} · ${p.status === 'RECEBIDO' ? 'pago' : 'em aberto'}</div>` : '<span class="muted">—</span>';
+      return `<tr><td class="mono">${fmtData(b.vencimento)}</td>
+        <td>${esc(b.beneficiario || '—')}${b.documento ? `<div class="muted">${esc(b.documento)}</div>` : ''}${b.linha ? `<div class="muted mono" style="font-size:11px">${esc(b.linha)}</div>` : ''}</td>
+        <td><span class="mono">${brl(b.valor)}</span></td>
+        <td><span class="pill ${DDA_PILL[x.situacao]}">${DDA_TXT[x.situacao]}</span></td>
+        <td>${ca}</td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+
+function exportarDDA() {
+  const linhas = [['situacao', 'vencimento', 'beneficiario', 'cnpj_cpf', 'valor', 'linha_digitavel', 'conta_azul_contato', 'conta_azul_descricao', 'conta_azul_vencimento', 'conta_azul_valor', 'conta_azul_status']];
+  for (const x of ddaResultado) {
+    const b = x.boleto, p = x.parcela || {};
+    linhas.push([DDA_TXT[x.situacao], b.vencimento, b.beneficiario, b.documento, String(b.valor).replace('.', ','), b.linha,
+      p.nome || '', p.descricao || '', p.vencimento || '', p.id ? String(p.total ?? p.valor).replace('.', ',') : '', p.status || '']);
+  }
+  const csv = linhas.map(l => l.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `dda_${(nomeCliente() || 'cliente').replace(/[^\w]+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
 }
 
 async function lerComprovantes(files) {

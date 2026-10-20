@@ -81,6 +81,27 @@ em `conciliacao/` do Portal JCR) e configurar o secret `CONTA_AZUL_ANEXO_PATH` (
 `/v1/financeiro/eventos-financeiros/parcelas/{parcela_id}/anexos`) e, se
 precisar, `CONTA_AZUL_ANEXO_CAMPO` (padrão `file`).
 
+## DDA — boletos sem lançamento
+
+No bloco **3 · DDA** da tela, envie o PDF do relatório de DDA do banco e clique
+em **▶ Conferir DDA**. O robô lê o PDF no navegador (sem IA), pega de cada
+boleto o beneficiário, o CNPJ/CPF, o vencimento e o valor — pela **linha
+digitável** quando ela aparece (fator de vencimento na base nova, desde
+22/02/2025) — e procura nas **contas a pagar** do cliente, em aberto **e pagas**:
+
+| Situação | Quando |
+|---|---|
+| Lançado | valor igual, vencimento até 3 dias e mesmo fornecedor |
+| Provável | valor e vencimento batem, mas o nome é diferente — conferir |
+| Divergente | mesmo fornecedor com valor diferente (até 15%) ou vencimento até 31 dias de diferença |
+| Falta lançar | nada parecido no Conta Azul |
+
+Lê relatórios em **tabela** (um boleto por linha) e em **blocos**
+("Beneficiário: … / Vencimento: … / Valor: …"). PDF escaneado (imagem) não tem
+texto: baixe o relatório "de texto" no banco. Se o modelo do seu banco não for
+reconhecido, envie um exemplo para ajustar o leitor. **Exportar CSV** gera a
+lista completa.
+
 ## Configuração (uma vez)
 
 ### 1. Criar o app no Conta Azul

@@ -90,14 +90,17 @@ async function ca(cliente: string, path: string, init: RequestInit = {}) {
 const itensDe = (r: any) => r?.itens ?? r?.items ?? (Array.isArray(r) ? r : []);
 
 // ---------- consultas ----------
-async function listarParcelas(cliente: string, tipo: 'receber' | 'pagar', de: string, ate: string) {
+// todos=true: inclui as já pagas/renegociadas/perdidas (usado na conferência do DDA)
+const STATUS_ABERTOS = ['EM_ABERTO', 'ATRASADO', 'RECEBIDO_PARCIAL'];
+const STATUS_TODOS = [...STATUS_ABERTOS, 'RECEBIDO', 'RENEGOCIADO', 'PERDIDO'];
+async function listarParcelas(cliente: string, tipo: 'receber' | 'pagar', de: string, ate: string, todos = false) {
   const out: unknown[] = [];
   for (let pagina = 1; pagina <= 50; pagina++) {
     const q = new URLSearchParams({
       pagina: String(pagina), tamanho_pagina: '100',
       data_vencimento_de: de, data_vencimento_ate: ate,
     });
-    for (const s of ['EM_ABERTO', 'ATRASADO', 'RECEBIDO_PARCIAL']) q.append('status', s);
+    for (const s of todos ? STATUS_TODOS : STATUS_ABERTOS) q.append('status', s);
     const itens = itensDe(await ca(cliente, `/v1/financeiro/eventos-financeiros/contas-a-${tipo}/buscar?${q}`));
     for (const i of itens) {
       out.push({
@@ -105,6 +108,7 @@ async function listarParcelas(cliente: string, tipo: 'receber' | 'pagar', de: st
         tipo,
         vencimento: String(i.data_vencimento ?? i.vencimento ?? '').slice(0, 10),
         valor: Number(i.nao_pago ?? i.valor_em_aberto ?? i.total ?? i.valor ?? 0),
+        total: Number(i.total ?? i.valor ?? i.nao_pago ?? 0),
         nome: i.cliente?.nome ?? i.fornecedor?.nome ?? i.contato?.nome ?? '',
         descricao: i.descricao ?? '',
         status: i.status,
@@ -366,11 +370,10 @@ Deno.serve(async (req) => {
       case 'contas-financeiras':
         return json(await contasFinanceiras(cliente));
       case 'parcelas': {
-        const [receber, pagar] = await Promise.all([
-          listarParcelas(cliente, 'receber', p.de, p.ate),
-          listarParcelas(cliente, 'pagar', p.de, p.ate),
-        ]);
-        return json([...receber, ...pagar]);
+        const tipos = (Array.isArray(p.tipos) && p.tipos.length ? p.tipos : ['receber', 'pagar'])
+          .filter((t: string) => t === 'receber' || t === 'pagar') as ('receber' | 'pagar')[];
+        const listas = await Promise.all(tipos.map((t) => listarParcelas(cliente, t, p.de, p.ate, !!p.todos)));
+        return json(listas.flat());
       }
       case 'conciliados': {
         const { data } = await db.from('conciliacao_log').select('fitid').eq('cliente', cliente).eq('status', 'ok').in('fitid', p.fitids ?? []);

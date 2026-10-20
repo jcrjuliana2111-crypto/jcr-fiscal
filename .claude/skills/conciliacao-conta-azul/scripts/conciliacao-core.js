@@ -392,8 +392,135 @@
     return L.join('\n');
   }
 
+  // --- DDA (boletos registrados contra o CNPJ) ---
+  // Linha digitável (47 dígitos) ou código de barras (44) de boleto bancário:
+  // traz o fator de vencimento e o valor. Desde 22/02/2025 o fator recomeçou em
+  // 1000 (base nova); boletos de convênio/concessionária (começam com 8) não têm isso.
+  function dadosLinhaDigitavel(numeros) {
+    const d = String(numeros || '').replace(/\D/g, '');
+    let fator, valor;
+    if (d.length === 47 && d[0] !== '8') { fator = d.slice(33, 37); valor = d.slice(37, 47); }
+    else if (d.length === 44 && d[0] !== '8') { fator = d.slice(5, 9); valor = d.slice(9, 19); }
+    else return null;
+    const out = { valor: Number(valor) / 100, vencimento: '' };
+    const f = Number(fator);
+    if (f >= 1000) {
+      const base = new Date(Date.UTC(2025, 1, 22));
+      base.setUTCDate(base.getUTCDate() + f - 1000);
+      out.vencimento = base.toISOString().slice(0, 10);
+    }
+    return out;
+  }
+
+  const RE_VALOR = /(?<![\d,.])\d{1,3}(?:\.\d{3})*,\d{2}(?![\d,])/g;
+  const RE_DATA = /(?<![\d/])(\d{2})\/(\d{2})\/(\d{4}|\d{2})(?![\d/])/g;
+  const RE_DOC = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2}/g;
+  const RE_LINHA = /(?:\d[\d. ]{42,60}\d)/g;
+  const ROTULOS = /\b(benefici[aá]rio|cedente|sacador|pagador|cnpj|cpf|vencimento|venc|valor|documento|n[ºo°]|emiss[aã]o|data|linha digit[aá]vel|c[oó]digo de barras|situa[cç][aã]o|status|agendado|pendente|em aberto)\b:?/gi;
+
+  function extrairCampos(txt) {
+    const linhas = [];
+    for (const m of String(txt).matchAll(RE_LINHA)) {
+      const dg = m[0].replace(/\D/g, '');
+      if (dg.length === 47 || dg.length === 44) linhas.push(dg);
+    }
+    let resto = String(txt);
+    for (const m of String(txt).matchAll(RE_LINHA)) resto = resto.replace(m[0], ' ');
+    const documento = (resto.match(RE_DOC) || [])[0] || '';
+    resto = resto.replace(RE_DOC, ' ');
+    const valores = [...resto.matchAll(RE_VALOR)].map(m => parseValorBR(m[0])).filter(v => v > 0);
+    const datas = [...resto.matchAll(RE_DATA)].map(m => parseData(`${m[1]}/${m[2]}/${m[3]}`));
+    const vencRotulo = resto.match(/venc[^\d\n]{0,20}(\d{2}\/\d{2}\/(?:\d{4}|\d{2}))/i);
+    const nome = resto.replace(RE_VALOR, ' ').replace(RE_DATA, ' ').replace(/R\$/g, ' ').replace(ROTULOS, ' ')
+      .replace(/[|;:]/g, ' ').replace(/\b\d+\b/g, ' ').replace(/\s+/g, ' ').trim();
+    return { linhas, documento, valores, datas, vencRotulo: vencRotulo ? parseData(vencRotulo[1]) : '', nome };
+  }
+
+  function montarBoleto(c, i) {
+    const ld = c.linhas.map(dadosLinhaDigitavel).find(Boolean);
+    // vencimento: rotulado > linha digitável > a data mais tarde da linha (emissão vem antes)
+    const vencimento = c.vencRotulo || (ld && ld.vencimento) || [...c.datas].sort().pop() || '';
+    const valores = [...new Set([...(ld && ld.valor > 0 ? [ld.valor] : []), ...c.valores].map(v => Math.round(v * 100)))];
+    if (!vencimento || !valores.length) return null;
+    return {
+      id: c.linhas[0] || `dda${i}|${vencimento}|${valores[0]}`,
+      beneficiario: c.nome.slice(0, 120), documento: c.documento,
+      vencimento, valor: valores[0] / 100, valores, linha: c.linhas[0] || ''
+    };
+  }
+
+  // Lê o relatório de DDA a partir das linhas de texto do PDF (cada linha = itens
+  // na mesma altura). Funciona com relatório em tabela (um boleto por linha) e em
+  // blocos ("Beneficiário: … / Vencimento: … / Valor: …").
+  function parseDDA(linhas) {
+    linhas = (Array.isArray(linhas) ? linhas : String(linhas).split(/\r?\n/)).map(l => String(l).trim()).filter(Boolean);
+    const inicioBloco = /^(benefici[aá]rio|cedente)\b\s*:?/i;
+    const out = [];
+    if (linhas.filter(l => inicioBloco.test(l)).length >= 2) {
+      let bloco = null;
+      const fechar = () => { if (bloco) { const b = montarBoleto(extrairCampos(bloco.join('\n')), out.length); if (b) out.push(b); } };
+      for (const l of linhas) {
+        if (inicioBloco.test(l)) { fechar(); bloco = [l]; } else if (bloco) bloco.push(l);
+      }
+      fechar();
+    } else {
+      let pendente = ''; // nome que ficou numa linha anterior sem valores
+      for (const l of linhas) {
+        const c = extrairCampos(l);
+        const temBoleto = (c.valores.length && c.datas.length) || c.linhas.length;
+        if (!temBoleto) {
+          pendente = /total|p[aá]gina|saldo|relat[oó]rio|per[ií]odo|benefici[aá]rio\s+venc/i.test(l) ? '' : c.nome;
+          continue;
+        }
+        if (c.nome.replace(/[^a-z]/gi, '').length < 3 && pendente) c.nome = pendente;
+        pendente = '';
+        const b = montarBoleto(c, out.length);
+        if (b) out.push(b);
+      }
+    }
+    // mesmo boleto repetido (ex.: cabeçalho e detalhe)
+    const vistos = new Set();
+    return out.filter(b => { const k = b.linha || `${b.vencimento}|${b.valor}|${b.beneficiario}`; if (vistos.has(k)) return false; vistos.add(k); return true; });
+  }
+
+  // Confere cada boleto do DDA com as contas a pagar (todas, em aberto e pagas).
+  // situacao: lancado (valor + vencimento ±janela + nome) | provavel (valor +
+  // vencimento, nome não bate) | divergente (mesmo fornecedor, valor ou
+  // vencimento diferente) | falta (nada parecido no Conta Azul).
+  function conferirDDA(boletos, parcelas, opts) {
+    const janela = (opts && opts.janelaDias) != null ? opts.janelaDias : 3;
+    const pagar = parcelas.filter(p => p.tipo === 'pagar');
+    const nomeSim = (b, p) => Math.max(similaridadeNome(b.beneficiario, p.nome), similaridadeNome(p.nome, b.beneficiario),
+      similaridadeNome(b.beneficiario, p.descricao) * 0.8);
+    const valorP = p => Math.round(Number(p.total != null ? p.total : p.valor) * 100);
+    const cand = [];
+    for (const b of boletos) {
+      for (const p of pagar) {
+        const dias = diasEntre(b.vencimento, p.vencimento);
+        const nome = nomeSim(b, p);
+        const mesmoValor = b.valores.includes(valorP(p));
+        let situacao = null;
+        if (mesmoValor && dias <= janela) situacao = nome >= 0.5 ? 'lancado' : 'provavel';
+        else if (nome >= 0.5 && ((mesmoValor && dias <= 31) ||
+          (dias <= janela && Math.abs(valorP(p) - b.valores[0]) <= b.valores[0] * 0.15))) situacao = 'divergente';
+        if (!situacao) continue;
+        const peso = { lancado: 300, provavel: 200, divergente: 100 }[situacao];
+        cand.push({ b, p, situacao, dias, nome, score: peso + 20 * nome - dias });
+      }
+    }
+    cand.sort((x, y) => y.score - x.score);
+    const usadosB = new Set(), usadosP = new Set(), res = {};
+    for (const c of cand) {
+      if (usadosB.has(c.b.id) || usadosP.has(c.p.id)) continue;
+      usadosB.add(c.b.id); usadosP.add(c.p.id);
+      res[c.b.id] = { situacao: c.situacao, parcela: c.p, dias: c.dias, similaridade: Math.round(c.nome * 100) / 100 };
+    }
+    return boletos.map(b => ({ boleto: b, ...(res[b.id] || { situacao: 'falta', parcela: null }) }));
+  }
+
   const api = { parseValorBR, parseData, parseOFX, parseCSV, parseExtrato, similaridadeNome, conciliar, dadosComprovante, casarComprovantes,
-    nomeNoExtrato, nomeBate, ajusteDe, montarPar, reforcarComComprovantes, resumoFechamento };
+    nomeNoExtrato, nomeBate, ajusteDe, montarPar, reforcarComComprovantes, resumoFechamento,
+    dadosLinhaDigitavel, parseDDA, conferirDDA };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Conciliacao = api;
 })(this);

@@ -149,7 +149,9 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const E = window.Entregas;
 
 const DEPARTAMENTOS = ['Fiscal', 'Contábil', 'Pessoal', 'Societário', 'Financeiro'];
-const REGIMES = ['MEI', 'Simples Nacional', 'Lucro Presumido', 'Lucro Real'];
+// Regimes vêm da tabela ent_regimes (tela Regimes); esta lista só vale se ela estiver vazia.
+const REGIMES_PADRAO = ['MEI', 'Simples Nacional', 'Lucro Presumido', 'Lucro Real'];
+let REGIMES = REGIMES_PADRAO;
 const RECORRENCIAS = { mensal: 'Mensal', bimestral: 'Bimestral', trimestral: 'Trimestral', semestral: 'Semestral', anual: 'Anual' };
 const SITUACOES = {
   atrasada:        { nome: 'Atrasada',             cor: 'var(--danger)' },
@@ -166,6 +168,7 @@ const PAGINAS = [
   { id: 'agenda', nome: 'Agenda', ic: '📅' },
   { id: 'clientes', nome: 'Clientes', ic: '🏢' },
   { id: 'obrigacoes', nome: 'Obrigações', ic: '📚' },
+  { id: 'regimes', nome: 'Regimes', ic: '🏛️' },
   { id: 'processos', nome: 'Processos', ic: '🧩' },
   { id: 'protocolos', nome: 'Protocolos', ic: '📨' },
   { id: 'config', nome: 'Configurações', ic: '⚙️' },
@@ -205,7 +208,7 @@ function chk(error) { if (error) { toast('Erro: ' + error.message, true); throw 
 // ── estado ──
 const S = {
   user: null, autor: '', clientes: [], cliPorId: new Map(), entCli: new Map(), obrigacoes: [], obPorId: new Map(),
-  vinculos: [], entregas: [], feriados: [], modelos: [], processos: [],
+  vinculos: [], entregas: [], feriados: [], modelos: [], processos: [], regimes: [],
   pagina: 'painel', comp: E.compAnterior(hojeISO()),
   filtro: { dep: '', resp: '', sit: '', cli: '', busca: '', comp: '', dia: '' }, sel: new Set(),
   calMes: hojeISO().slice(0, 7), procTab: 'andamento', protTab: 'nao_lidos',
@@ -213,7 +216,7 @@ const S = {
 const extras = () => S.feriados.map(f => f.data);
 
 async function carregar() {
-  const [cli, ec, ob, vin, ent, fer, mod, proc] = await Promise.all([
+  const [cli, ec, ob, vin, ent, fer, mod, proc, reg] = await Promise.all([
     tudo(() => sb.from('gclik_clientes').select('id, razao_social, nome_fantasia, cnpj, regime, status, responsavel, email, telefone').order('razao_social')),
     tudo(() => sb.from('ent_clientes').select('*')),
     tudo(() => sb.from('ent_obrigacoes').select('*').order('departamento').order('nome')),
@@ -222,11 +225,17 @@ async function carregar() {
     tudo(() => sb.from('ent_feriados').select('*').order('data')),
     tudo(() => sb.from('ent_processos_modelos').select('*').order('nome')),
     tudo(() => sb.from('ent_processos').select('*').order('inicio', { ascending: false })),
+    tudo(() => sb.from('ent_regimes').select('*').order('ordem').order('nome')),
   ]);
   S.clientes = cli; S.cliPorId = new Map(cli.map(c => [c.id, c]));
   S.entCli = new Map(ec.map(c => [c.cliente_id, c]));
   S.obrigacoes = ob; S.obPorId = new Map(ob.map(o => [o.id, o]));
   S.vinculos = vin; S.entregas = ent; S.feriados = fer; S.modelos = mod; S.processos = proc;
+  S.regimes = reg; atualizarRegimes();
+}
+function atualizarRegimes() {
+  const ativos = S.regimes.filter(r => r.ativo).map(r => r.nome);
+  REGIMES = ativos.length ? ativos : REGIMES_PADRAO;
 }
 
 function responsaveisConhecidos() {
@@ -254,7 +263,7 @@ function ir(p, filtro) {
 }
 function render() {
   menu();
-  ({ painel: vPainel, entregas: vEntregas, agenda: vAgenda, clientes: vClientes, obrigacoes: vObrigacoes,
+  ({ painel: vPainel, entregas: vEntregas, agenda: vAgenda, clientes: vClientes, obrigacoes: vObrigacoes, regimes: vRegimes,
      processos: vProcessos, protocolos: vProtocolos, config: vConfig })[S.pagina]();
 }
 
@@ -974,6 +983,143 @@ function vProtocolos() {
       <td class="nowrap">${e.lido_em ? `<span class="badge" style="--c:var(--ok)">Lido ${fmtDH(e.lido_em)}</span>` : '<span class="badge" style="--c:var(--warn)">Não lido</span>'}</td>
       <td><button class="btn sec sm" onclick="avisarCliente('${e.id}')">Avisar</button></td></tr>`).join('')}
     </tbody></table>${lista.length ? '' : '<div class="empty">Nada aqui.</div>'}</div>`;
+}
+
+// ════════════ REGIMES ════════════
+// O vínculo é pelo nome: gclik_clientes.regime e ent_obrigacoes.regimes guardam o nome do regime.
+const clientesDoRegime = nome => S.clientes.filter(c => c.regime === nome && c.status !== 'Inativo');
+const obrigacoesDoRegime = nome => S.obrigacoes.filter(o => (o.regimes || []).includes(nome));
+function vRegimes() {
+  const todos = S.obrigacoes.filter(o => !(o.regimes || []).length);
+  const cadastrados = new Set(S.regimes.map(r => r.nome));
+  const soltos = [...new Set(S.clientes.map(c => c.regime).filter(r => r && !cadastrados.has(r)))];
+  $('view').innerHTML = `<div class="head"><div><h1>Regimes tributários</h1><p>Cadastre os regimes e escolha quais obrigações valem para cada um.</p></div>
+    <div class="acts"><button class="btn" onclick="mRegime()">+ Novo regime</button></div></div>
+    ${soltos.length ? `<div class="card" style="margin-bottom:14px;border-color:var(--warn)"><b>Regimes usados em clientes e ainda não cadastrados:</b>
+      ${soltos.map(r => `<span class="chip">${esc(r)}</span>`).join(' ')}
+      <button class="btn sec sm" style="margin-left:8px" onclick="cadastrarSoltos()">Cadastrar</button></div>` : ''}
+    <div class="tbl"><table><thead><tr><th>Regime</th><th>Clientes ativos</th><th>Obrigações</th><th></th></tr></thead><tbody>
+    ${S.regimes.map(r => `<tr style="${r.ativo ? '' : 'opacity:.5'}">
+      <td style="cursor:pointer" onclick="mRegime('${r.id}')"><b>${esc(r.nome)}</b>${r.ativo ? '' : ' <span class="chip">inativo</span>'}<div class="muted">${esc(r.descricao || '')}</div></td>
+      <td>${clientesDoRegime(r.nome).length}</td>
+      <td>${obrigacoesDoRegime(r.nome).length}${todos.length ? `<span class="muted"> + ${todos.length} de todos</span>` : ''}</td>
+      <td class="nowrap"><button class="btn sm" onclick="mRegimeObrigacoes('${r.id}')">Obrigações do regime</button>
+        <button class="btn sec sm" onclick="mRegime('${r.id}')">Editar</button></td></tr>`).join('')}
+    </tbody></table>${S.regimes.length ? '' : '<div class="empty">Nenhum regime cadastrado.</div>'}</div>
+    <div class="help" style="margin-top:10px">Obrigações sem nenhum regime marcado valem para todos os regimes. O regime de cada cliente é escolhido no cadastro do cliente, no Gestão Fiscal.</div>`;
+}
+async function cadastrarSoltos() {
+  const cad = new Set(S.regimes.map(r => r.nome));
+  const novos = [...new Set(S.clientes.map(c => c.regime).filter(r => r && !cad.has(r)))];
+  const base = Math.max(0, ...S.regimes.map(r => r.ordem || 0));
+  const { data, error } = await sb.from('ent_regimes').insert(novos.map((nome, i) => ({ nome, ordem: base + i + 1 }))).select();
+  chk(error);
+  S.regimes = S.regimes.concat(data); atualizarRegimes();
+  toast(`${data.length} regime(s) cadastrado(s).`); vRegimes();
+}
+function mRegime(id) {
+  const r = S.regimes.find(x => x.id === id) || { nome: '', descricao: '', ordem: Math.max(0, ...S.regimes.map(x => x.ordem || 0)) + 1, ativo: true };
+  const usoCli = id ? clientesDoRegime(r.nome).length + S.clientes.filter(c => c.regime === r.nome && c.status === 'Inativo').length : 0;
+  const usoOb = id ? obrigacoesDoRegime(r.nome).length : 0;
+  modal(id ? 'Editar regime' : 'Novo regime', `
+    <div class="f2"><div><label>Nome</label><input id="r-nome" value="${esc(r.nome)}" placeholder="Ex.: Simples Nacional — Anexo III"></div>
+      <div><label>Ordem na lista</label><input id="r-ordem" type="number" min="0" value="${r.ordem}"></div></div>
+    <div><label>Descrição</label><input id="r-desc" value="${esc(r.descricao || '')}"></div>
+    <label style="display:flex;gap:6px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" id="r-ativo" ${r.ativo ? 'checked' : ''}> Ativo (aparece nas listas de regime)</label>
+    ${id ? `<div class="help">Usado em ${usoCli} cliente(s) e ${usoOb} obrigação(ões). Ao renomear, os clientes e as obrigações passam para o novo nome.</div>` : ''}`,
+    `${id ? `<button class="btn danger" style="margin-right:auto" onclick="excluirRegime('${id}')">Excluir</button>` : ''}<button class="btn sec" onclick="fechar()">Cancelar</button><button class="btn" id="r-ok" onclick="salvarRegime('${id || ''}')">Salvar</button>`);
+}
+async function salvarRegime(id) {
+  const nome = $('r-nome').value.trim();
+  if (!nome) return toast('Informe o nome.', true);
+  const antigo = S.regimes.find(x => x.id === id);
+  const nomeAntigo = antigo ? antigo.nome : null; // guardado antes de salvar
+  if (S.regimes.some(x => x.nome.toLowerCase() === nome.toLowerCase() && x.id !== id)) return toast('Já existe um regime com esse nome.', true);
+  const row = { nome, descricao: $('r-desc').value.trim() || null, ordem: +$('r-ordem').value || 0, ativo: $('r-ativo').checked };
+  const renomeia = !!nomeAntigo && nomeAntigo !== nome;
+  if (renomeia) {
+    const nCli = S.clientes.filter(c => c.regime === nomeAntigo).length, nOb = obrigacoesDoRegime(nomeAntigo).length;
+    if ((nCli || nOb) && !confirm(`Renomear "${nomeAntigo}" para "${nome}"?\n\n${nCli} cliente(s) e ${nOb} obrigação(ões) passam para o novo nome.`)) return;
+  }
+  $('r-ok').disabled = true;
+  try {
+    const q = id ? sb.from('ent_regimes').update(row).eq('id', id) : sb.from('ent_regimes').insert(row);
+    const { data, error } = await q.select().single();
+    chk(error);
+    if (renomeia) {
+      for (const o of obrigacoesDoRegime(nomeAntigo)) {
+        const regimes = o.regimes.map(x => x === nomeAntigo ? nome : x);
+        chk((await sb.from('ent_obrigacoes').update({ regimes }).eq('id', o.id)).error);
+        o.regimes = regimes;
+      }
+      chk((await sb.from('gclik_clientes').update({ regime: nome }).eq('regime', nomeAntigo)).error);
+      S.clientes.forEach(c => { if (c.regime === nomeAntigo) c.regime = nome; });
+    }
+    S.regimes = S.regimes.filter(x => x.id !== data.id).concat(data).sort((a, b) => (a.ordem - b.ordem) || a.nome.localeCompare(b.nome));
+    atualizarRegimes();
+    toast('Regime salvo.'); fechar(); vRegimes();
+  } finally { const b = $('r-ok'); if (b) b.disabled = false; }
+}
+async function excluirRegime(id) {
+  const r = S.regimes.find(x => x.id === id);
+  const nCli = S.clientes.filter(c => c.regime === r.nome).length, nOb = obrigacoesDoRegime(r.nome).length;
+  if (nCli || nOb) return toast(`"${r.nome}" está em ${nCli} cliente(s) e ${nOb} obrigação(ões). Desmarque "Ativo" em vez de excluir, ou mude esses cadastros antes.`, true);
+  if (!confirm(`Excluir o regime "${r.nome}"?`)) return;
+  chk((await sb.from('ent_regimes').delete().eq('id', id)).error);
+  S.regimes = S.regimes.filter(x => x.id !== id); atualizarRegimes();
+  fechar(); vRegimes();
+}
+function mRegimeObrigacoes(id) {
+  const r = S.regimes.find(x => x.id === id);
+  const grupos = DEPARTAMENTOS.map(d => [d, S.obrigacoes.filter(o => o.departamento === d)]).filter(([, l]) => l.length);
+  const outros = S.obrigacoes.filter(o => !DEPARTAMENTOS.includes(o.departamento));
+  if (outros.length) grupos.push(['Outros', outros]);
+  const linha = o => {
+    const todos = !(o.regimes || []).length;
+    return `<label style="display:flex;gap:8px;align-items:flex-start;margin:0 0 6px;color:var(--text);${o.ativo ? '' : 'opacity:.55'}">
+      <input type="checkbox" class="ro-ob" value="${o.id}" ${todos || o.regimes.includes(r.nome) ? 'checked' : ''} ${todos ? 'disabled' : ''} style="margin-top:3px">
+      <span><b>${esc(o.nome)}</b> <span class="muted">${esc(descPrazo(o))}${todos ? ' · vale para todos os regimes' : ''}${o.ativo ? '' : ' · inativa'}</span></span></label>`;
+  };
+  modal(`Obrigações do regime ${esc(r.nome)}`, `
+    <div class="help" style="margin-top:0">Marque as obrigações que valem para <b>${esc(r.nome)}</b>. ${clientesDoRegime(r.nome).length} cliente(s) ativo(s) neste regime.</div>
+    ${grupos.map(([d, l]) => `<div style="margin-top:12px"><div class="muted" style="font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.06em;margin-bottom:6px">${esc(d)}</div>${l.map(linha).join('')}</div>`).join('') || '<div class="empty">Nenhuma obrigação cadastrada.</div>'}
+    <label style="display:flex;gap:6px;align-items:center;margin:14px 0 0;color:var(--text)"><input type="checkbox" id="ro-aplicar" checked> Marcar as obrigações novas nos clientes ativos deste regime</label>
+    <div class="help">Desmarcar tira a obrigação do regime, mas não dos clientes que já a têm: para isso, desmarque na ficha do cliente.</div>`,
+    `<button class="btn sec" onclick="fechar()">Cancelar</button><button class="btn" id="ro-ok" onclick="salvarRegimeObrigacoes('${id}')">Salvar</button>`, true);
+}
+async function salvarRegimeObrigacoes(id) {
+  const r = S.regimes.find(x => x.id === id);
+  const marcadas = new Set([...document.querySelectorAll('.ro-ob:not(:disabled)')].filter(x => x.checked).map(x => x.value));
+  const mudar = [], ficariamSem = [];
+  for (const o of S.obrigacoes) {
+    if (!(o.regimes || []).length) continue; // vale para todos: não mexe
+    const tem = o.regimes.includes(r.nome), quer = marcadas.has(o.id);
+    if (tem === quer) continue;
+    const regimes = quer ? o.regimes.concat(r.nome) : o.regimes.filter(x => x !== r.nome);
+    if (!regimes.length) { ficariamSem.push(o.nome); continue; }
+    mudar.push([o, regimes, quer]);
+  }
+  if (ficariamSem.length) toast(`Não desmarquei: ${ficariamSem.join(', ')}. Sem nenhum regime, a obrigação passaria a valer para todos. Edite-a em Obrigações.`, true);
+  $('ro-ok').disabled = true;
+  try {
+    for (const [o, regimes] of mudar) {
+      chk((await sb.from('ent_obrigacoes').update({ regimes }).eq('id', o.id)).error);
+      o.regimes = regimes;
+    }
+    let vinculados = 0;
+    if ($('ro-aplicar').checked) {
+      const novas = mudar.filter(([, , quer]) => quer).map(([o]) => o.id);
+      const ja = new Set(S.vinculos.map(v => v.cliente_id + '|' + v.obrigacao_id));
+      const rows = [];
+      for (const c of clientesDoRegime(r.nome)) for (const ob of novas) if (!ja.has(c.id + '|' + ob)) rows.push({ cliente_id: c.id, obrigacao_id: ob });
+      if (rows.length) {
+        chk((await sb.from('ent_cliente_obrigacoes').upsert(rows, { onConflict: 'cliente_id,obrigacao_id', ignoreDuplicates: true })).error);
+        S.vinculos.push(...rows); vinculados = rows.length;
+      }
+    }
+    toast(`${mudar.length} obrigação(ões) atualizada(s)${vinculados ? `, ${vinculados} marcação(ões) em clientes` : ''}.`);
+    fechar(); vRegimes();
+  } finally { const b = $('ro-ok'); if (b) b.disabled = false; }
 }
 
 // ════════════ CONFIGURAÇÕES ════════════

@@ -65,7 +65,7 @@ const card = (n, rotulo, cor) => `
 const html = `
 <div style="font-family:Arial,Helvetica,sans-serif;max-width:680px;margin:0 auto;color:#111">
   <h1 style="font-size:20px;margin:0 0 4px">Prazos do dia — ${data(r.data)}</h1>
-  <p style="color:#666;margin:0 0 18px;font-size:14px">Tarefas, obrigações, entregas e honorários a receber.</p>
+  <p style="color:#666;margin:0 0 18px;font-size:14px">Entregas do JCR Entregas e honorários a receber.</p>
   <table cellspacing="8" cellpadding="0" style="width:100%"><tr>
     ${card(t.hoje, 'vencem hoje', '#d97706')}
     ${card(t.proximos, `próximos ${r.dias} dias`, '#2563eb')}

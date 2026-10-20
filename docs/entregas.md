@@ -10,8 +10,9 @@ Endereço: `https://jcrjuliana2111-crypto.github.io/jcr-fiscal/entregas/`
 | **Painel** | Competência escolhida: total, concluídas, pontualidade (% entregue no prazo), metas internas vencidas, vencendo hoje e atrasadas. Quadro por departamento e por responsável. |
 | **Entregas** | Lista com filtros (competência, situação, departamento, responsável, cliente, busca). Concluir com data, valor da guia, arquivos e observação; ações em lote; exportar CSV. |
 | **Agenda** | Calendário com os vencimentos do mês e os feriados. |
-| **Clientes** | Vêm do Gestão Fiscal (`gclik_clientes`). Aqui ficam responsáveis por departamento, contato, link do portal e quais obrigações cada cliente tem. |
+| **Clientes** | Vêm do Gestão Fiscal (`gclik_clientes`). Aqui ficam o regime (o mesmo campo do Gestão Fiscal), responsáveis por departamento, contato, link do portal e quais obrigações cada cliente tem. |
 | **Obrigações** | Catálogo com prazo legal, regra de dia útil, meta interna e regimes. Há um catálogo padrão para começar e o botão "Aplicar aos clientes". |
+| **Regimes** | Cadastro dos regimes (MEI, Simples, Presumido, Real, Imune/Isenta, Produtor Rural, Pessoa Física, Empregador Doméstico e os que você criar). Em cada um, marque as obrigações dele; **Aplicar aos clientes** marca todas nos clientes do regime. Renomear acompanha nos clientes e nas obrigações. |
 | **Processos** | Abertura, alteração, baixa, admissão, rescisão e entrada de cliente, com checklist e prazo de cada passo. Modelos editáveis. |
 | **Protocolos** | Documentos publicados no portal e a confirmação de leitura do cliente. |
 | **Configurações** | Feriados estaduais e municipais (os nacionais são automáticos). |
@@ -41,7 +42,7 @@ Testes: `node --test tests/*.test.js`.
 
 ## Banco e portal
 
-- SQL: `supabase/gestao/20261017120000_entregas.sql` (já aplicado no projeto `onecnoicxqjhgolqncjj`).
+- SQL: `supabase/gestao/20261017120000_entregas.sql` e `20261020120000_entregas_regimes.sql` (já aplicados no projeto `onecnoicxqjhgolqncjj`).
   Tabelas `ent_*` com RLS por `user_id`, como as `gclik_*`.
 - Arquivos: bucket privado `entregas`, pasta `<user_id>/<entrega_id>/`.
 - Portal do cliente: `entregas/portal.html?t=<token>`, sem login. Os dados vêm da Edge Function

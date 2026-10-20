@@ -149,7 +149,17 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const E = window.Entregas;
 
 const DEPARTAMENTOS = ['Fiscal', 'Contábil', 'Pessoal', 'Societário', 'Financeiro'];
-const REGIMES = ['MEI', 'Simples Nacional', 'Lucro Presumido', 'Lucro Real'];
+const REGIMES_PADRAO = [
+  ['MEI', 'Microempreendedor individual'], ['Simples Nacional', ''], ['Lucro Presumido', ''], ['Lucro Real', ''],
+  ['Imune / Isenta', 'Associações, entidades sem fins lucrativos'], ['Produtor Rural', ''],
+  ['Pessoa Física', 'IRPF, carnê-leão, ganho de capital'], ['Empregador Doméstico', 'eSocial doméstico'],
+];
+// Nomes dos regimes cadastrados, mais os que já aparecem nos clientes e ainda não foram cadastrados.
+function regimes() {
+  const nomes = S.regimes.map(r => r.nome);
+  S.clientes.forEach(c => c.regime && !nomes.includes(c.regime) && nomes.push(c.regime));
+  return nomes;
+}
 const RECORRENCIAS = { mensal: 'Mensal', bimestral: 'Bimestral', trimestral: 'Trimestral', semestral: 'Semestral', anual: 'Anual' };
 const SITUACOES = {
   atrasada:        { nome: 'Atrasada',             cor: 'var(--danger)' },
@@ -166,6 +176,7 @@ const PAGINAS = [
   { id: 'agenda', nome: 'Agenda', ic: '📅' },
   { id: 'clientes', nome: 'Clientes', ic: '🏢' },
   { id: 'obrigacoes', nome: 'Obrigações', ic: '📚' },
+  { id: 'regimes', nome: 'Regimes', ic: '🏷️' },
   { id: 'processos', nome: 'Processos', ic: '🧩' },
   { id: 'protocolos', nome: 'Protocolos', ic: '📨' },
   { id: 'config', nome: 'Configurações', ic: '⚙️' },
@@ -205,7 +216,7 @@ function chk(error) { if (error) { toast('Erro: ' + error.message, true); throw 
 // ── estado ──
 const S = {
   user: null, autor: '', clientes: [], cliPorId: new Map(), entCli: new Map(), obrigacoes: [], obPorId: new Map(),
-  vinculos: [], entregas: [], feriados: [], modelos: [], processos: [],
+  vinculos: [], regimes: [], entregas: [], feriados: [], modelos: [], processos: [],
   pagina: 'painel', comp: E.compAnterior(hojeISO()),
   filtro: { dep: '', resp: '', sit: '', cli: '', busca: '', comp: '', dia: '' }, sel: new Set(),
   calMes: hojeISO().slice(0, 7), procTab: 'andamento', protTab: 'nao_lidos',
@@ -213,7 +224,7 @@ const S = {
 const extras = () => S.feriados.map(f => f.data);
 
 async function carregar() {
-  const [cli, ec, ob, vin, ent, fer, mod, proc] = await Promise.all([
+  const [cli, ec, ob, vin, ent, fer, mod, proc, reg] = await Promise.all([
     tudo(() => sb.from('gclik_clientes').select('id, razao_social, nome_fantasia, cnpj, regime, status, responsavel, email, telefone').order('razao_social')),
     tudo(() => sb.from('ent_clientes').select('*')),
     tudo(() => sb.from('ent_obrigacoes').select('*').order('departamento').order('nome')),
@@ -222,11 +233,12 @@ async function carregar() {
     tudo(() => sb.from('ent_feriados').select('*').order('data')),
     tudo(() => sb.from('ent_processos_modelos').select('*').order('nome')),
     tudo(() => sb.from('ent_processos').select('*').order('inicio', { ascending: false })),
+    tudo(() => sb.from('ent_regimes').select('*').order('ordem').order('nome')),
   ]);
   S.clientes = cli; S.cliPorId = new Map(cli.map(c => [c.id, c]));
   S.entCli = new Map(ec.map(c => [c.cliente_id, c]));
   S.obrigacoes = ob; S.obPorId = new Map(ob.map(o => [o.id, o]));
-  S.vinculos = vin; S.entregas = ent; S.feriados = fer; S.modelos = mod; S.processos = proc;
+  S.vinculos = vin; S.entregas = ent; S.feriados = fer; S.modelos = mod; S.processos = proc; S.regimes = reg;
 }
 
 function responsaveisConhecidos() {
@@ -255,7 +267,7 @@ function ir(p, filtro) {
 function render() {
   menu();
   ({ painel: vPainel, entregas: vEntregas, agenda: vAgenda, clientes: vClientes, obrigacoes: vObrigacoes,
-     processos: vProcessos, protocolos: vProtocolos, config: vConfig })[S.pagina]();
+     processos: vProcessos, protocolos: vProtocolos, config: vConfig, regimes: vRegimes })[S.pagina]();
 }
 
 // ════════════ PAINEL ════════════
@@ -291,7 +303,8 @@ function vPainel() {
     ${semConfig ? `<div class="card" style="margin-bottom:16px;border-color:var(--accent)"><h2>Primeiros passos</h2>
       <ol style="margin-left:18px;line-height:1.9;color:var(--text2)">
         <li><a href="#" onclick="ir('obrigacoes');return false">Obrigações</a>: carregue o catálogo padrão (DAS, DCTFWeb, EFD-Reinf, folha, ECD, ECF…) e ajuste os prazos.</li>
-        <li><a href="#" onclick="ir('clientes');return false">Clientes</a>: defina os responsáveis por departamento e marque as obrigações de cada um (há um botão que marca as do regime).</li>
+        <li><a href="#" onclick="ir('regimes');return false">Regimes</a>: confira os regimes e quais obrigações cada um tem; use <b>Aplicar aos clientes</b> para marcar todas de uma vez.</li>
+        <li><a href="#" onclick="ir('clientes');return false">Clientes</a>: confira o regime de cada um, defina os responsáveis por departamento e ajuste as obrigações.</li>
         <li>Clique em <b>Gerar entregas</b> para criar as entregas da competência, com vencimento em dia útil e meta interna.</li>
         <li>Ao concluir, anexe o arquivo e publique no portal: o cliente recebe o link e você vê quando ele abriu.</li></ol></div>` : ''}
     <div class="kpis">
@@ -634,21 +647,22 @@ function vAgenda() {
 }
 
 // ════════════ CLIENTES ════════════
-let buscaCli = '';
+let buscaCli = '', regCli = '';
 function vClientes() {
   const nOb = {}; S.vinculos.forEach(v => nOb[v.cliente_id] = (nOb[v.cliente_id] || 0) + 1);
   const hoje = hojeISO();
   const atr = {}; S.entregas.forEach(e => { if (E.situacao(e, hoje) === 'atrasada') atr[e.cliente_id] = (atr[e.cliente_id] || 0) + 1; });
   const b = semAcento(buscaCli);
-  const lista = S.clientes.filter(c => !b || semAcento(`${c.razao_social} ${c.nome_fantasia} ${c.cnpj}`).includes(b));
+  const lista = S.clientes.filter(c => (!regCli || (regCli === '-' ? !c.regime : c.regime === regCli)) && (!b || semAcento(`${c.razao_social} ${c.nome_fantasia} ${c.cnpj}`).includes(b)));
   $('view').innerHTML = `<div class="head"><div><h1>Clientes</h1><p>Os clientes vêm do Gestão Fiscal. Aqui ficam responsáveis, obrigações e o acesso ao portal.</p></div>
     <div class="acts"><a class="btn sec" href="../gclik.html" style="text-decoration:none">+ Cadastrar no Gestão Fiscal</a></div></div>
-    <div class="filters"><input class="grow" type="search" placeholder="Buscar…" value="${esc(buscaCli)}" oninput="buscaCli=this.value;vClientes();this.focus();this.setSelectionRange(this.value.length,this.value.length)"></div>
+    <div class="filters"><input class="grow" type="search" placeholder="Buscar…" value="${esc(buscaCli)}" oninput="buscaCli=this.value;vClientes();this.focus();this.setSelectionRange(this.value.length,this.value.length)">
+      <select onchange="regCli=this.value;vClientes()">${opts([...regimes(), ['-', 'Sem regime']], regCli, 'Todos os regimes')}</select></div>
     <div class="tbl"><table><thead><tr><th>Cliente</th><th>Regime</th><th>Responsáveis</th><th>Obrigações</th><th>Atrasadas</th><th>Portal</th><th></th></tr></thead><tbody>
     ${lista.map(c => { const ec = S.entCli.get(c.id); const r = ec?.responsaveis || {};
       return `<tr style="cursor:pointer${c.status === 'Inativo' ? ';opacity:.5' : ''}" onclick="mCliente('${c.id}')">
       <td><b>${esc(c.nome_fantasia || c.razao_social)}</b><div class="muted">${esc(c.cnpj || '')}${c.status === 'Inativo' ? ' · inativo' : ''}</div></td>
-      <td>${esc(c.regime || '—')}</td>
+      <td>${c.regime ? esc(c.regime) : '<span style="color:var(--warn)">sem regime</span>'}</td>
       <td>${Object.entries(r).filter(([, n]) => n).map(([d, n]) => `<span class="chip">${esc(d)}: ${esc(n)}</span>`).join('') || '<span class="muted">—</span>'}</td>
       <td>${nOb[c.id] || '<span style="color:var(--warn)">nenhuma</span>'}</td>
       <td style="color:${atr[c.id] ? 'var(--danger)' : 'var(--text3)'}">${atr[c.id] || 0}</td>
@@ -660,7 +674,8 @@ async function mCliente(id) {
   const ec = S.entCli.get(id) || { responsaveis: {}, portal_ativo: true };
   const meus = new Map(S.vinculos.filter(v => v.cliente_id === id).map(v => [v.obrigacao_id, v]));
   modal(esc(c.nome_fantasia || c.razao_social), `
-    <div class="muted">${esc(c.razao_social)} · ${esc(c.cnpj || 'sem CNPJ')} · <b>${esc(c.regime || 'regime não informado')}</b></div>
+    <div class="f2"><div class="muted" style="align-self:center">${esc(c.razao_social)} · ${esc(c.cnpj || 'sem CNPJ')}</div>
+      <div><label>Regime tributário</label><select id="c-reg">${opts(regimes(), c.regime, 'Não informado')}</select></div></div>
     <div class="card"><h2>Responsáveis por departamento</h2><div class="f3">
       ${DEPARTAMENTOS.map(d => `<div><label>${d}</label><input list="dl-resp" data-dep="${d}" class="c-resp" value="${esc(ec.responsaveis?.[d] || '')}"></div>`).join('')}</div>${datalistResp()}</div>
     <div class="card"><h2>Contato e portal</h2><div class="f3">
@@ -672,7 +687,7 @@ async function mCliente(id) {
         <button class="btn sec sm" onclick="navigator.clipboard.writeText('${linkPortal(ec.portal_token)}').then(()=>toast('Link copiado.'))">Copiar</button>
         <button class="btn sec sm" onclick="novoToken('${id}')">Gerar novo link</button></div>` : '<div class="help">O link do portal é criado ao salvar.</div>'}</div>
     <div class="card"><h2>Obrigações do cliente</h2>
-      <div class="row-flex" style="margin-bottom:8px;flex-wrap:wrap"><button class="btn sec sm" onclick="marcarDoRegime('${esc(c.regime || '')}')">Marcar as do regime ${esc(c.regime || '')}</button>
+      <div class="row-flex" style="margin-bottom:8px;flex-wrap:wrap"><button class="btn sec sm" onclick="marcarDoRegime($('c-reg').value)">Marcar as do regime escolhido</button>
       <button class="btn sec sm" onclick="document.querySelectorAll('.c-ob').forEach(x=>x.checked=false)">Desmarcar todas</button></div>
       ${S.obrigacoes.length ? `<div class="checklist">${S.obrigacoes.map(o => `<label><input type="checkbox" class="c-ob" value="${o.id}" data-reg='${esc(JSON.stringify(o.regimes || []))}' ${meus.has(o.id) ? 'checked' : ''}>
         ${esc(o.nome)} <span class="chip">${esc(o.departamento)}</span><span class="muted">${RECORRENCIAS[o.recorrencia] || o.recorrencia}${o.ativo ? '' : ' · inativa'}</span>
@@ -681,6 +696,7 @@ async function mCliente(id) {
     `<button class="btn sec" onclick="fechar()">Cancelar</button><button class="btn" id="c-ok" onclick="salvarCliente('${id}')">Salvar</button>`, true);
 }
 function marcarDoRegime(regime) {
+  if (!regime) return toast('Escolha o regime do cliente.', true);
   document.querySelectorAll('.c-ob').forEach(x => { const r = JSON.parse(x.dataset.reg); if (!r.length || r.includes(regime)) x.checked = true; });
 }
 async function novoToken(id) {
@@ -701,6 +717,11 @@ async function salvarCliente(id) {
     }, { onConflict: 'cliente_id' }).select().single();
     chk(error);
     S.entCli.set(id, data);
+    const reg = $('c-reg').value || null, cli = S.cliPorId.get(id);
+    if (reg !== (cli.regime || null)) {
+      chk((await sb.from('gclik_clientes').update({ regime: reg }).eq('id', id)).error);
+      cli.regime = reg;
+    }
     const marcadas = [...document.querySelectorAll('.c-ob')].filter(x => x.checked).map(x => x.value);
     const respOb = {}; document.querySelectorAll('.c-ob-resp').forEach(x => respOb[x.dataset.ob] = x.value.trim() || null);
     const antes = S.vinculos.filter(v => v.cliente_id === id).map(v => v.obrigacao_id);
@@ -720,8 +741,8 @@ const CATALOGO_PADRAO = [
   ['DASN-SIMEI', 'Fiscal', 'Federal', 'anual', 31, 'corridos', 'antecipa', 1, 5, 10, ['MEI'], 'Declaração anual do MEI'],
   ['PGDAS-D / DAS', 'Fiscal', 'Federal', 'mensal', 20, 'corridos', 'prorroga', 1, null, 3, ['Simples Nacional'], ''],
   ['DEFIS', 'Fiscal', 'Federal', 'anual', 31, 'corridos', 'antecipa', 1, 3, 10, ['Simples Nacional'], ''],
-  ['DCTFWeb', 'Fiscal', 'Federal', 'mensal', 15, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real'], ''],
-  ['EFD-Reinf', 'Fiscal', 'Federal', 'mensal', 15, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real'], ''],
+  ['DCTFWeb', 'Fiscal', 'Federal', 'mensal', 15, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'Imune / Isenta'], ''],
+  ['EFD-Reinf', 'Fiscal', 'Federal', 'mensal', 15, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'Imune / Isenta'], ''],
   ['EFD Contribuições', 'Fiscal', 'Federal', 'mensal', 10, 'uteis', 'antecipa', 2, null, 2, ['Lucro Presumido', 'Lucro Real'], '10º dia útil do 2º mês'],
   ['DARF PIS/COFINS', 'Fiscal', 'Federal', 'mensal', 25, 'corridos', 'antecipa', 1, null, 2, ['Lucro Presumido', 'Lucro Real'], ''],
   ['IRPJ/CSLL trimestral', 'Fiscal', 'Federal', 'trimestral', 0, 'corridos', 'antecipa', 1, null, 3, ['Lucro Presumido', 'Lucro Real'], 'Último dia útil do mês seguinte ao trimestre'],
@@ -729,12 +750,17 @@ const CATALOGO_PADRAO = [
   ['ICMS — apuração e guia', 'Fiscal', 'Estadual', 'mensal', 10, 'corridos', 'antecipa', 1, null, 2, ['Lucro Presumido', 'Lucro Real'], 'Ajuste o dia conforme o estado'],
   ['ISS — apuração e guia', 'Fiscal', 'Municipal', 'mensal', 10, 'corridos', 'antecipa', 1, null, 2, ['Lucro Presumido', 'Lucro Real'], 'Ajuste o dia conforme o município'],
   ['Balancete mensal', 'Contábil', 'Interna', 'mensal', 25, 'corridos', 'antecipa', 1, null, 0, ['Lucro Presumido', 'Lucro Real'], ''],
-  ['ECD', 'Contábil', 'Federal', 'anual', 0, 'corridos', 'antecipa', 1, 6, 15, ['Lucro Presumido', 'Lucro Real'], 'Último dia útil de junho'],
-  ['ECF', 'Contábil', 'Federal', 'anual', 0, 'corridos', 'antecipa', 1, 7, 15, ['Lucro Presumido', 'Lucro Real'], 'Último dia útil de julho'],
-  ['Folha de pagamento e pró-labore', 'Pessoal', 'Interna', 'mensal', 5, 'uteis', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real'], '5º dia útil'],
-  ['eSocial — fechamento (S-1299)', 'Pessoal', 'Federal', 'mensal', 15, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real'], ''],
-  ['FGTS Digital', 'Pessoal', 'Federal', 'mensal', 20, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real'], ''],
-  ['DARF Previdenciário (DCTFWeb)', 'Pessoal', 'Federal', 'mensal', 20, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real'], ''],
+  ['ECD', 'Contábil', 'Federal', 'anual', 0, 'corridos', 'antecipa', 1, 6, 15, ['Lucro Presumido', 'Lucro Real', 'Imune / Isenta'], 'Último dia útil de junho'],
+  ['ECF', 'Contábil', 'Federal', 'anual', 0, 'corridos', 'antecipa', 1, 7, 15, ['Lucro Presumido', 'Lucro Real', 'Imune / Isenta'], 'Último dia útil de julho'],
+  ['Folha de pagamento e pró-labore', 'Pessoal', 'Interna', 'mensal', 5, 'uteis', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'Imune / Isenta'], '5º dia útil'],
+  ['eSocial — fechamento (S-1299)', 'Pessoal', 'Federal', 'mensal', 15, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'Imune / Isenta'], ''],
+  ['FGTS Digital', 'Pessoal', 'Federal', 'mensal', 20, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'Imune / Isenta'], ''],
+  ['DARF Previdenciário (DCTFWeb)', 'Pessoal', 'Federal', 'mensal', 20, 'corridos', 'antecipa', 1, null, 2, ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'Imune / Isenta'], ''],
+  ['Carnê-Leão', 'Fiscal', 'Federal', 'mensal', 0, 'corridos', 'antecipa', 1, null, 3, ['Pessoa Física'], 'Último dia útil do mês seguinte'],
+  ['Declaração de IRPF', 'Fiscal', 'Federal', 'anual', 29, 'corridos', 'antecipa', 1, 5, 15, ['Pessoa Física'], 'Confira a data do ano no edital da Receita'],
+  ['DAE — eSocial Doméstico', 'Pessoal', 'Federal', 'mensal', 7, 'corridos', 'antecipa', 1, null, 2, ['Empregador Doméstico'], ''],
+  ['Folha do empregado doméstico', 'Pessoal', 'Interna', 'mensal', 5, 'uteis', 'antecipa', 1, null, 2, ['Empregador Doméstico'], '5º dia útil'],
+  ['CNIR / ITR', 'Fiscal', 'Federal', 'anual', 30, 'corridos', 'antecipa', 1, 9, 15, ['Produtor Rural'], 'Confira a data do ano no edital da Receita'],
   ['Honorários do escritório', 'Financeiro', 'Interna', 'mensal', 10, 'corridos', 'mantem', 1, null, 0, [], 'Cobrança mensal'],
 ];
 let depOb = '';
@@ -783,7 +809,7 @@ function mObrigacao(id) {
       <div><label>Vence quantos meses após a competência</label><input id="o-cm" type="number" min="0" max="12" value="${o.competencia_meses}"></div>
       <div id="o-mes-w" class="${o.recorrencia === 'anual' ? '' : 'hidden'}"><label>Mês do vencimento (ano seguinte)</label><select id="o-mes">${opts([...Array(12)].map((_, i) => [i + 1, new Date(2000, i, 1).toLocaleDateString('pt-BR', { month: 'long' })]), o.mes_vencimento, '—')}</select></div></div>
     <div class="f2"><div><label>Meta interna (dias úteis antes do vencimento)</label><input id="o-meta" type="number" min="0" max="30" value="${o.meta_dias}"></div>
-      <div><label>Regimes (nenhum marcado = todos)</label><div class="row-flex" style="flex-wrap:wrap">${REGIMES.map(r => `<label style="display:flex;gap:5px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" class="o-reg" value="${r}" ${(o.regimes || []).includes(r) ? 'checked' : ''}>${r}</label>`).join('')}</div></div></div>
+      <div><label>Regimes (nenhum marcado = todos)</label><div class="row-flex" style="flex-wrap:wrap">${regimes().map(r => `<label style="display:flex;gap:5px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" class="o-reg" value="${esc(r)}" ${(o.regimes || []).includes(r) ? 'checked' : ''}>${esc(r)}</label>`).join('')}</div></div></div>
     <div class="row-flex" style="flex-wrap:wrap;gap:18px">
       <label style="display:flex;gap:6px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" id="o-multa" ${o.multa ? 'checked' : ''}> Gera multa se atrasar</label>
       <label style="display:flex;gap:6px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" id="o-envia" ${o.envia_cliente ? 'checked' : ''}> Publicar ao cliente ao concluir</label>
@@ -838,6 +864,116 @@ async function aplicarObrigacao(id) {
   S.vinculos.push(...rows);
   toast(`Aplicada a ${novos.length} cliente(s).`);
   vObrigacoes();
+}
+
+// ════════════ REGIMES ════════════
+function obrigacoesDoRegime(nome) { return S.obrigacoes.filter(o => (o.regimes || []).includes(nome)); }
+function vRegimes() {
+  const ativos = S.clientes.filter(c => c.status !== 'Inativo');
+  const gerais = S.obrigacoes.filter(o => !(o.regimes || []).length).length;
+  const semReg = ativos.filter(c => !c.regime).length;
+  const cadastrados = new Set(S.regimes.map(r => r.nome));
+  const lista = [...S.regimes, ...regimes().filter(n => !cadastrados.has(n)).map(nome => ({ nome, avulso: true }))];
+  $('view').innerHTML = `<div class="head"><div><h1>Regimes</h1><p>Cada regime tem suas obrigações. Ao aplicar, os clientes do regime recebem todas elas de uma vez.</p></div>
+    <div class="acts"><button class="btn" onclick="mRegime()">+ Novo regime</button></div></div>
+    ${semReg ? `<div class="card" style="margin-bottom:14px;border-color:var(--warn)"><b>${semReg} cliente(s) ativo(s) sem regime.</b>
+      <a href="#" onclick="regCli='-';ir('clientes');return false">Ver e definir</a></div>` : ''}
+    <div class="tbl"><table><thead><tr><th>Regime</th><th>Clientes ativos</th><th>Obrigações</th><th></th></tr></thead><tbody>
+    ${lista.map(r => {
+      const obs = obrigacoesDoRegime(r.nome), nCli = ativos.filter(c => c.regime === r.nome).length;
+      return `<tr><td style="cursor:pointer" onclick="${r.avulso ? `mRegime(null,'${esc(r.nome)}')` : `mRegime('${r.id}')`}"><b>${esc(r.nome)}</b>
+        <div class="muted">${r.avulso ? 'usado em clientes, ainda não cadastrado — clique para cadastrar' : esc(r.descricao || '')}</div></td>
+        <td><a href="#" onclick="regCli='${esc(r.nome)}';ir('clientes');return false">${nCli}</a></td>
+        <td>${obs.length ? obs.map(o => `<span class="chip">${esc(o.nome)}</span>`).join('') : '<span class="muted">nenhuma específica</span>'}${gerais ? ` <span class="muted">+ ${gerais} de todos os regimes</span>` : ''}</td>
+        <td class="nowrap">${r.avulso ? '' : `<button class="btn sec sm" onclick="mRegime('${r.id}')">Editar</button> `}<button class="btn sec sm" onclick="aplicarRegime('${esc(r.nome)}')">Aplicar aos clientes</button></td></tr>`;
+    }).join('')}
+    </tbody></table>${lista.length ? '' : '<div class="empty">Nenhum regime.</div>'}</div>
+    <div class="help" style="margin-top:8px">O regime do cliente é o mesmo do Gestão Fiscal. Obrigações sem regime marcado valem para todos.</div>`;
+}
+function mRegime(id, nomeNovo) {
+  const r = S.regimes.find(x => x.id === id) || { nome: nomeNovo || '', descricao: '' };
+  modal(id ? 'Editar regime' : 'Novo regime', `
+    <div class="f2"><div><label>Nome</label><input id="r-nome" value="${esc(r.nome)}" placeholder="Ex.: Simples Nacional — Anexo III"></div>
+      <div><label>Descrição (opcional)</label><input id="r-desc" value="${esc(r.descricao || '')}"></div></div>
+    <div><label>Obrigações deste regime</label>
+      ${S.obrigacoes.length ? `<div class="checklist">${S.obrigacoes.map(o => { const geral = !(o.regimes || []).length;
+        return `<label style="${geral ? 'opacity:.6' : ''}"><input type="checkbox" class="r-ob" value="${o.id}" ${geral || (o.regimes || []).includes(r.nome) && r.nome ? 'checked' : ''} ${geral ? 'disabled' : ''}>
+        ${esc(o.nome)} <span class="chip">${esc(o.departamento)}</span><span class="muted">${geral ? 'todos os regimes' : (o.regimes || []).map(esc).join(', ')}</span></label>`; }).join('')}</div>`
+      : '<div class="empty">Cadastre as obrigações primeiro.</div>'}</div>`,
+    `${id ? `<button class="btn danger" style="margin-right:auto" onclick="excluirRegime('${id}')">Excluir</button>` : ''}<button class="btn sec" onclick="fechar()">Cancelar</button><button class="btn" id="r-ok" onclick="salvarRegime('${id || ''}')">Salvar</button>`, true);
+}
+async function salvarRegime(id) {
+  const nome = $('r-nome').value.trim(), descricao = $('r-desc').value.trim() || null;
+  if (!nome) return toast('Informe o nome.', true);
+  const antigo = id ? S.regimes.find(x => x.id === id).nome : null;
+  if (nome !== antigo && S.regimes.some(x => x.nome === nome)) return toast('Já existe um regime com esse nome.', true);
+  $('r-ok').disabled = true;
+  try {
+    const marcadas = new Set([...document.querySelectorAll('.r-ob:not(:disabled)')].filter(x => x.checked).map(x => x.value));
+    const q = id ? sb.from('ent_regimes').update({ nome, descricao }).eq('id', id)
+      : sb.from('ent_regimes').insert({ nome, descricao, ordem: S.regimes.reduce((m, x) => Math.max(m, x.ordem || 0), 0) + 1 });
+    const { data, error } = await q.select().single();
+    chk(error);
+    S.regimes = S.regimes.filter(x => x.id !== data.id).concat(data);
+    // renomeado: acompanha nos clientes (Gestão Fiscal) e nas obrigações
+    if (antigo && antigo !== nome) {
+      chk((await sb.from('gclik_clientes').update({ regime: nome }).eq('regime', antigo)).error);
+      S.clientes.forEach(c => { if (c.regime === antigo) c.regime = nome; });
+    }
+    const ficariamGerais = [];
+    for (const o of S.obrigacoes) {
+      const atual = o.regimes || [];
+      if (!atual.length) continue; // vale para todos
+      let novo = atual.map(x => x === antigo ? nome : x).filter(x => x !== nome);
+      if (marcadas.has(o.id)) novo.push(nome);
+      if (!novo.length) { ficariamGerais.push(o.nome); continue; }
+      if (novo.slice().sort().join('|') === atual.slice().sort().join('|')) continue;
+      chk((await sb.from('ent_obrigacoes').update({ regimes: novo }).eq('id', o.id)).error);
+      o.regimes = novo;
+    }
+    toast(ficariamGerais.length ? `Salvo. Não desmarquei ${ficariamGerais.join(', ')}: sem nenhum regime ela(s) passaria(m) a valer para todos.` : 'Regime salvo.', !!ficariamGerais.length);
+    fechar(); vRegimes();
+  } finally { const b = $('r-ok'); if (b) b.disabled = false; }
+}
+async function excluirRegime(id) {
+  const r = S.regimes.find(x => x.id === id);
+  const nCli = S.clientes.filter(c => c.regime === r.nome).length;
+  if (nCli) return toast(`${nCli} cliente(s) estão em ${r.nome}. Mude o regime deles antes de excluir.`, true);
+  const so = obrigacoesDoRegime(r.nome).filter(o => o.regimes.length === 1);
+  if (so.length) return toast(`Estas obrigações só valem para ${r.nome}: ${so.map(o => o.nome).join(', ')}. Ajuste-as antes de excluir.`, true);
+  if (!confirm(`Excluir o regime ${r.nome}?`)) return;
+  for (const o of obrigacoesDoRegime(r.nome)) {
+    const novo = o.regimes.filter(x => x !== r.nome);
+    chk((await sb.from('ent_obrigacoes').update({ regimes: novo }).eq('id', o.id)).error);
+    o.regimes = novo;
+  }
+  chk((await sb.from('ent_regimes').delete().eq('id', id)).error);
+  S.regimes = S.regimes.filter(x => x.id !== id);
+  fechar(); vRegimes();
+}
+async function aplicarRegime(nome) {
+  const clientes = S.clientes.filter(c => c.status !== 'Inativo' && c.regime === nome);
+  const obs = S.obrigacoes.filter(o => o.ativo !== false && E.aplicaAoRegime(o, nome));
+  if (!clientes.length) return toast(`Nenhum cliente ativo em ${nome}.`, true);
+  if (!obs.length) return toast(`Nenhuma obrigação vale para ${nome}.`, true);
+  const ja = new Set(S.vinculos.map(v => `${v.cliente_id}|${v.obrigacao_id}`));
+  const rows = [];
+  clientes.forEach(c => obs.forEach(o => { if (!ja.has(`${c.id}|${o.id}`)) rows.push({ cliente_id: c.id, obrigacao_id: o.id }); }));
+  if (!rows.length) return toast('Os clientes deste regime já têm todas as obrigações dele.');
+  if (!confirm(`Marcar as ${obs.length} obrigação(ões) de ${nome} em ${clientes.length} cliente(s)? (${rows.length} vínculo(s) novo(s); nada é desmarcado)`)) return;
+  for (let i = 0; i < rows.length; i += 500)
+    chk((await sb.from('ent_cliente_obrigacoes').upsert(rows.slice(i, i + 500), { onConflict: 'cliente_id,obrigacao_id', ignoreDuplicates: true })).error);
+  S.vinculos.push(...rows);
+  toast(`${rows.length} vínculo(s) criado(s).`);
+  vRegimes();
+}
+async function garantirRegimes() {
+  if (S.regimes.length) return;
+  const nomes = REGIMES_PADRAO.map(r => r[0]);
+  const extras = [...new Set(S.clientes.map(c => c.regime).filter(r => r && !nomes.includes(r)))].map(n => [n, '']);
+  const rows = [...REGIMES_PADRAO, ...extras].map(([nome, descricao], i) => ({ nome, descricao: descricao || null, ordem: i + 1 }));
+  const { data, error } = await sb.from('ent_regimes').upsert(rows, { onConflict: 'user_id,nome', ignoreDuplicates: true }).select();
+  if (!error && data) S.regimes = data.sort((a, b) => a.ordem - b.ordem);
 }
 
 // ════════════ PROCESSOS ════════════
@@ -1008,7 +1144,7 @@ async function delFeriado(id) {
   if (!session) { location.replace('../index.html?next=' + encodeURIComponent(location.href)); return; }
   S.user = session.user;
   S.autor = (session.user.email || '').split('@')[0];
-  try { await carregar(); }
+  try { await carregar(); await garantirRegimes(); }
   catch (e) {
     $('view').innerHTML = `<div class="card empty">Não foi possível carregar os dados: ${esc(e.message)}</div>`;
     return;

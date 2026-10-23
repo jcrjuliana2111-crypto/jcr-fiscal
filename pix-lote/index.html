@@ -134,6 +134,32 @@
     </ol>
   </div>
 
+  <div class="card" id="cardConf">
+    <h2>4 · Conferir com o relatório do banco</h2>
+    <p class="muted" style="margin-bottom:10px">
+      Depois de lançar os Pix, baixe no Internet Banking o <b>Relatório de Transações Pendentes</b> (PDF) ou o <b>Extrato</b> (PDF) e envie aqui.
+      A ferramenta compara nome e valor de cada pessoa da lista com o que está no banco. Nada sai do seu computador.
+    </p>
+    <div class="muted" style="margin-bottom:6px">Conferir estas listas:</div>
+    <div id="confListas" style="margin-bottom:12px"></div>
+    <div class="row">
+      <label>PDF do banco (pode escolher mais de um)
+        <input type="file" id="confPdf" accept="application/pdf" multiple>
+      </label>
+      <button class="btn btn-primary" id="confBtn">Conferir</button>
+    </div>
+    <div class="msg" id="msgConf"></div>
+    <div id="confRes" style="display:none;margin-top:14px">
+      <div class="stats" id="confStats"></div>
+      <div id="confTabelas"></div>
+      <div id="confFaltam" style="display:none;margin-top:14px">
+        <div class="muted" style="margin-bottom:6px">Lista só com os que <b>faltam no banco</b> — para colar na extensão:</div>
+        <textarea id="confSaida" readonly style="min-height:110px"></textarea>
+        <div class="row" style="margin-top:8px"><button class="btn btn-success" id="confCopiar">Copiar lista dos que faltam</button></div>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <h2>Histórico de listas geradas (neste navegador)</h2>
     <p class="muted" style="margin-bottom:8px">Serve para avisar quando alguém da lista nova já esteve numa lista recente — evita pagar duas vezes.</p>
@@ -141,6 +167,8 @@
   </div>
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="conferir-core.js"></script>
 <script>
 (() => {
   const HIST_KEY = 'jcr_pix_lote_hist';
@@ -314,6 +342,7 @@
     atual.texto = texto;
     $('saida').value = texto;
     $('cardSaida').style.display = ok.length ? 'block' : 'none';
+    mostrarListasConf();
     $('msgSaida').className = 'msg';
     $('cardRes').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -328,6 +357,84 @@
     atual.salvo = true;
     mostrarHist();
   }
+
+  // ---------- 4. conferência com o relatório do banco ----------
+  function listasParaConferir() {
+    const h = lerHist();
+    const op = [];
+    if (atual && !atual.salvo && atual.itens.some((i) => i.incluir)) {
+      const ok = atual.itens.filter((i) => i.incluir);
+      op.push({ id: 'atual', nome: 'Lista atual (ainda não copiada)', ts: Date.now(), itens: ok.map((i) => ({ nome: i.nome, chave: i.chave, centavos: i.centavos })), desc: atual.desc });
+    }
+    h.forEach((x, i) => op.push({ id: 'h' + i, ...x }));
+    return op;
+  }
+  function mostrarListasConf() {
+    const op = listasParaConferir();
+    const ant = new Set([...document.querySelectorAll('#confListas input:checked')].map((c) => c.value));
+    $('confListas').innerHTML = op.length ? op.slice(0, 15).map((x, i) => `
+      <label style="flex-direction:row;align-items:center;gap:8px;color:var(--text);font-size:13px;margin-bottom:4px">
+        <input type="checkbox" value="${x.id}" ${(ant.size ? ant.has(x.id) : i === 0) ? 'checked' : ''} style="min-width:0">
+        ${esc(x.nome)} <span class="muted">· ${new Date(x.ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · ${x.itens.length} Pix · ${brl(x.itens.reduce((s, y) => s + y.centavos, 0) / 100)}</span>
+      </label>`).join('') : '<p class="muted">Gere (e copie) uma lista primeiro — ela aparece aqui para conferir.</p>';
+  }
+  async function lerPdf(arquivo) {
+    if (!window.pdfjsLib) throw new Error('não consegui carregar o leitor de PDF (pdf.js) — confira a internet e recarregue a página');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await arquivo.arrayBuffer()) }).promise;
+    const pags = [];
+    for (let p = 1; p <= doc.numPages; p++) pags.push((await (await doc.getPage(p)).getTextContent()).items);
+    return ConferirPix.lerRelatorio(pags);
+  }
+  async function conferirBanco() {
+    const escolhidas = new Set([...document.querySelectorAll('#confListas input:checked')].map((c) => c.value));
+    const listas = listasParaConferir().filter((x) => escolhidas.has(x.id));
+    const arquivos = [...$('confPdf').files];
+    if (!listas.length) return aviso('msgConf', 'erro', 'Marque pelo menos uma lista para conferir.');
+    if (!arquivos.length) return aviso('msgConf', 'erro', 'Escolha o PDF do relatório do banco.');
+    aviso('msgConf', 'ok', 'Lendo o PDF...');
+    let registros = [];
+    const infos = [];
+    try {
+      for (const a of arquivos) {
+        const r = await lerPdf(a);
+        if (r.tipo === 'desconhecido' || !r.registros.length) throw new Error(`"${a.name}" não parece um Relatório de Transações Pendentes nem um Extrato da Unicred`);
+        const soma = r.registros.reduce((s, x) => s + x.centavos, 0);
+        let conf = '';
+        if (r.totalInformado != null) conf = soma === r.totalInformado && r.registros.length === r.qtdInformada ? ' ✓ bate com o total do relatório' : ` ⚠️ o relatório informa ${r.qtdInformada} transações / ${brl(r.totalInformado / 100)}`;
+        infos.push(`${a.name}: ${r.tipo === 'pendentes' ? 'Transações Pendentes' : 'Extrato (débitos)'} — ${r.registros.length} lançamentos, ${brl(soma / 100)}${conf}`);
+        registros = registros.concat(r.registros);
+      }
+    } catch (e) { return aviso('msgConf', 'erro', e.message); }
+    const lista = listas.flatMap((x) => x.itens.map((i) => ({ ...i, desc: x.desc, lista: x.nome })));
+    const { resultado, sobras } = ConferirPix.conferir(lista, registros);
+    const grupo = (st) => resultado.filter((r) => r.status === st);
+    const soma = (arr, f) => arr.reduce((s, x) => s + f(x), 0);
+    const ok = grupo('ok'); const falta = grupo('falta'); const valor = grupo('valor');
+    $('confStats').innerHTML = [
+      ['Conferidos', `${ok.length} · ${brl(soma(ok, (r) => r.item.centavos) / 100)}`, 'var(--success)'],
+      ['Faltam no banco', `${falta.length} · ${brl(soma(falta, (r) => r.item.centavos) / 100)}`, falta.length ? 'var(--danger)' : 'var(--text)'],
+      ['Valor diferente', `${valor.length}`, valor.length ? 'var(--warn)' : 'var(--text)'],
+      ['No banco, fora da lista', `${sobras.length} · ${brl(soma(sobras, (r) => r.centavos) / 100)}`, 'var(--text2)'],
+    ].map(([l, v, c]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value" style="color:${c};font-size:17px">${v}</div></div>`).join('');
+    const tabela = (titulo, cor, linhas, cab) => linhas.length ? `
+      <div style="margin:14px 0 6px;font-weight:600;color:${cor}">${titulo}</div>
+      <div class="table-wrap"><table><thead><tr>${cab.map((c) => `<th>${c}</th>`).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table></div>` : '';
+    $('confTabelas').innerHTML =
+      tabela('❌ Na lista, mas NÃO estão no banco', 'var(--danger)', falta.map((r) => `<tr><td>${esc(r.item.nome)}</td><td class="mono">${esc(r.item.chave || '')}</td><td class="mono num">${(r.item.centavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td><td class="muted">${esc(r.item.lista)}</td></tr>`), ['Nome', 'Chave', 'Valor', 'Lista']) +
+      tabela('⚠️ Nome encontrado, mas com valor diferente', 'var(--warn)', valor.map((r) => `<tr><td>${esc(r.item.nome)}</td><td class="mono num">lista ${(r.item.centavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td><td class="mono num">banco ${(r.registro.centavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td><td class="muted">${esc(r.registro.nome)}</td></tr>`), ['Nome', 'Na lista', 'No banco', 'Como está no banco']) +
+      tabela('ℹ️ No banco, mas fora das listas escolhidas', 'var(--text2)', sobras.map((r) => `<tr><td>${esc(r.nome)}</td><td class="muted">${esc(r.descricao || r.tipo || '')}</td><td class="mono num">${(r.centavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>`), ['Como está no banco', 'Descrição', 'Valor']) +
+      (ok.length ? `<details style="margin-top:14px"><summary style="cursor:pointer;color:var(--success);font-weight:600">✅ ${ok.length} conferidos (nome e valor batendo) — ver</summary>
+        <div class="table-wrap" style="margin-top:6px"><table><thead><tr><th>Nome na lista</th><th>Como está no banco</th><th>Valor</th></tr></thead><tbody>${ok.map((r) => `<tr><td>${esc(r.item.nome)}</td><td class="muted">${esc(r.registro.nome)}</td><td class="mono num">${(r.item.centavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>`).join('')}</tbody></table></div></details>` : '');
+    const faltaTxt = ['nome;chave;valor;descrição', ...falta.map((r) => `${r.item.nome};${r.item.chave};${(r.item.centavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })};${r.item.desc || ''}`)].join('\n') + '\n';
+    $('confSaida').value = faltaTxt;
+    $('confFaltam').style.display = falta.length ? 'block' : 'none';
+    $('confRes').style.display = 'block';
+    const tudoOk = !falta.length && !valor.length;
+    aviso('msgConf', tudoOk ? 'ok' : 'warn', (tudoOk ? `✅ Tudo certo: os ${ok.length} Pix das listas escolhidas estão no banco com nome e valor corretos. ` : '') + infos.join(' · '));
+  }
+  $('confBtn').onclick = conferirBanco;
+  $('confCopiar').onclick = async () => { try { await navigator.clipboard.writeText($('confSaida').value); $('confCopiar').textContent = 'Copiado ✓'; setTimeout(() => ($('confCopiar').textContent = 'Copiar lista dos que faltam'), 2000); } catch (e) { $('confSaida').select(); document.execCommand('copy'); } };
 
   async function copiar() {
     try { await navigator.clipboard.writeText(atual.texto); }
@@ -350,6 +457,7 @@
   function aviso(id, tipo, txt) { const m = $(id); m.className = `msg show ${tipo}`; m.textContent = txt; }
 
   function mostrarHist() {
+    mostrarListasConf();
     const h = lerHist();
     $('hist').innerHTML = h.length ? h.map((x, i) => `
       <div class="hist-item">

@@ -87,11 +87,12 @@
     <h2>1 · Cole as linhas da planilha</h2>
     <p class="muted" style="margin-bottom:10px">
       Uma pessoa por linha, nas colunas <b>Nome · CPF · Chave Pix · Valor</b> (do jeito que vem do Excel, separado por TAB ou “;”).
+      Se copiar <b>junto com a linha de títulos</b>, as colunas podem estar em qualquer ordem (ex.: <i>Nome do Credor · Vencimento · Observação · Descrição · Valor · PIX</i>) — e a coluna <b>Descrição</b> de cada linha é usada no Pix.
       Linhas de subtotal ou sem chave (ex.: “Geap … 34.973,67”, “(vazio)”) ficam de fora e aparecem nos avisos.
     </p>
     <textarea id="entrada" placeholder="Rosângela Lima Doczy	032.515.167-95	032.515.167-95	220,00&#10;Rose Mendonça dos Reis	092.598.777-84	22992269979	1.760,00"></textarea>
     <div class="row" style="margin-top:12px">
-      <label style="flex:1;min-width:260px">Descrição (vai em todos os Pix)
+      <label style="flex:1;min-width:260px">Descrição (vai nos Pix que não têm coluna Descrição)
         <input id="desc" value="FOLHA TECNICO">
       </label>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -260,11 +261,35 @@
     const linhas = $('entrada').value.split(/\r?\n/).map((l) => l.replace(/ /g, ' ')).filter((l) => l.trim());
     const itens = [];
     const ignorados = [];
-    linhas.forEach((l, n) => {
-      const c = (l.includes('\t') ? l.split('\t') : l.split(';')).map((x) => x.trim());
-      if (/^nome$/i.test(c[0] || '') && /valor/i.test(l)) return; // cabeçalho
-      let [nome, cpf, chave, valor] = c;
-      if (c.length === 3) { valor = c[2]; chave = c[1]; cpf = ''; }
+    // Linha de títulos (ex.: "Nome do Credor · Vencimento · Observação · Descrição · Valor · PIX"):
+    // se existir, as colunas são achadas pelo nome; senão vale a ordem Nome · CPF · Chave · Valor.
+    const corta = (l) => (l.includes('\t') ? l.split('\t') : l.split(';')).map((x) => x.trim());
+    let mapa = null;
+    const titulo = linhas.length ? corta(linhas[0]).map((x) => norm(x)) : [];
+    if (titulo.some((t) => /^VALOR/.test(t)) && titulo.some((t) => /^(NOME|CREDOR|PROFISSIONAL|FAVORECIDO|BENEFICIARIO|RECEBEDOR)/.test(t) || /CREDOR/.test(t))) {
+      mapa = { nome: -1, cpf: -1, chave: -1, valor: -1, desc: -1 };
+      titulo.forEach((t, i) => {
+        if (mapa.nome < 0 && /(NOME|CREDOR|PROFISSIONAL|FAVORECIDO|BENEFICIARIO|RECEBEDOR)/.test(t)) mapa.nome = i;
+        else if (mapa.cpf < 0 && /^(CPF|CNPJ|DOCUMENTO)/.test(t)) mapa.cpf = i;
+        else if (mapa.chave < 0 && /(PIX|CHAVE)/.test(t) && !/BANCO/.test(t)) mapa.chave = i;
+        else if (mapa.valor < 0 && /^VALOR|^SOMA DE VALOR|^TOTAL/.test(t)) mapa.valor = i;
+        else if (mapa.desc < 0 && /^DESCRI/.test(t)) mapa.desc = i;
+      });
+      linhas.shift();
+    }
+    atual = null;
+    linhas.forEach((l, n0) => {
+      const n = mapa ? n0 + 1 : n0;
+      const c = corta(l);
+      if (!mapa && /^nome$/i.test(c[0] || '') && /valor/i.test(l)) return; // cabeçalho simples
+      let nome, cpf, chave, valor, descLinha = '';
+      if (mapa) {
+        const pega = (k) => (mapa[k] >= 0 ? c[mapa[k]] || '' : '');
+        nome = pega('nome'); cpf = pega('cpf'); chave = pega('chave'); valor = pega('valor'); descLinha = pega('desc');
+      } else {
+        [nome, cpf, chave, valor] = c;
+        if (c.length === 3) { valor = c[2]; chave = c[1]; cpf = ''; }
+      }
       const cent = centavos(valor);
       const nomeLimpo = String(nome || '').replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
       if (!String(chave || '').trim() && !String(cpf || '').trim()) {
@@ -277,7 +302,7 @@
       if (dc && dc.length === 11 && !cpfOk(dc) && cl.tipo !== 'cpf') cl.avisos.push(['info', `CPF da planilha (${cpf}) é inválido — não afeta o Pix`]);
       if (!nomeLimpo) cl.avisos.push(['medio', 'sem nome — a extensão não vai conferir o recebedor']);
       if (/\(.*\)/.test(nome || '')) cl.avisos.push(['info', `tirei "${(nome.match(/\(.*?\)/) || [''])[0]}" do nome para a conferência`]);
-      itens.push({ nome: nomeLimpo, chave: cl.chave, tipo: cl.tipo, centavos: cent, avisos: cl.avisos, incluir: cl.tipo !== 'erro' });
+      itens.push({ nome: nomeLimpo, chave: cl.chave, tipo: cl.tipo, centavos: cent, avisos: cl.avisos, incluir: cl.tipo !== 'erro', desc: descLinha.replace(/\s+/g, ' ').trim() });
     });
 
     // repetidos dentro da lista
@@ -338,7 +363,7 @@
       </tr>`).join('');
     $('cardRes').style.display = 'block';
 
-    const texto = ['nome;chave;valor;descrição', ...ok.map((i) => `${i.nome};${i.chave};${reais(i.centavos)};${atual.desc}`)].join('\n') + '\n';
+    const texto = ['nome;chave;valor;descrição', ...ok.map((i) => `${i.nome};${i.chave};${reais(i.centavos)};${i.desc || atual.desc}`)].join('\n') + '\n';
     atual.texto = texto;
     $('saida').value = texto;
     $('cardSaida').style.display = ok.length ? 'block' : 'none';
@@ -352,7 +377,7 @@
     const ok = atual.itens.filter((i) => i.incluir);
     const nome = $('nomeLista').value.trim() || `Lista ${new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
     const h = lerHist();
-    h.unshift({ ts: Date.now(), nome, desc: atual.desc, total: ok.reduce((s, i) => s + i.centavos, 0), itens: ok.map((i) => ({ nome: i.nome, chave: i.chave, centavos: i.centavos })) });
+    h.unshift({ ts: Date.now(), nome, desc: atual.desc, total: ok.reduce((s, i) => s + i.centavos, 0), itens: ok.map((i) => ({ nome: i.nome, chave: i.chave, centavos: i.centavos, desc: i.desc || '' })) });
     salvarHist(h);
     atual.salvo = true;
     mostrarHist();
@@ -364,7 +389,7 @@
     const op = [];
     if (atual && !atual.salvo && atual.itens.some((i) => i.incluir)) {
       const ok = atual.itens.filter((i) => i.incluir);
-      op.push({ id: 'atual', nome: 'Lista atual (ainda não copiada)', ts: Date.now(), itens: ok.map((i) => ({ nome: i.nome, chave: i.chave, centavos: i.centavos })), desc: atual.desc });
+      op.push({ id: 'atual', nome: 'Lista atual (ainda não copiada)', ts: Date.now(), itens: ok.map((i) => ({ nome: i.nome, chave: i.chave, centavos: i.centavos, desc: i.desc || '' })), desc: atual.desc });
     }
     h.forEach((x, i) => op.push({ id: 'h' + i, ...x }));
     return op;
@@ -406,7 +431,7 @@
         registros = registros.concat(r.registros);
       }
     } catch (e) { return aviso('msgConf', 'erro', e.message); }
-    const lista = listas.flatMap((x) => x.itens.map((i) => ({ ...i, desc: x.desc, lista: x.nome })));
+    const lista = listas.flatMap((x) => x.itens.map((i) => ({ ...i, desc: i.desc || x.desc, lista: x.nome })));
     const { resultado, sobras } = ConferirPix.conferir(lista, registros);
     const grupo = (st) => resultado.filter((r) => r.status === st);
     const soma = (arr, f) => arr.reduce((s, x) => s + f(x), 0);
@@ -474,7 +499,7 @@
     const d = ev.target.dataset.del;
     if (v != null) {
       const x = h[+v];
-      const t = ['nome;chave;valor;descrição', ...x.itens.map((i) => `${i.nome};${i.chave};${reais(i.centavos)};${x.desc}`)].join('\n') + '\n';
+      const t = ['nome;chave;valor;descrição', ...x.itens.map((i) => `${i.nome};${i.chave};${reais(i.centavos)};${i.desc || x.desc}`)].join('\n') + '\n';
       try { await navigator.clipboard.writeText(t); ev.target.textContent = 'copiado ✓'; } catch (e) { /* ok */ }
     }
     if (d != null && confirm(`Apagar "${h[+d].nome}" do histórico?`)) { h.splice(+d, 1); salvarHist(h); mostrarHist(); }

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/jcr-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerador de lista Pix · Portal JCR</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14; --surface: #13161e; --surface2: #1a1e2a; --border: #2a2f42;
+    --accent: #4f8ef7; --accent2: #22d3ee; --warn: #ffb84f; --danger: #ff5f5f; --success: #4fcf8a;
+    --text: #e8eaf2; --text2: #9aa1b8; --text3: #626a85;
+    --font: 'DM Sans', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; gap: 20px; height: 64px; position: sticky; top: 0; z-index: 100; }
+  .logo { display: flex; align-items: center; gap: 12px; font-family: 'Syne', var(--font); font-size: 16px; font-weight: 700; }
+  .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #22d3ee, #4f8ef7); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .header-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  main { padding: 28px 32px 80px; max-width: 1400px; margin: 0 auto; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .card h2 { font-size: 13px; font-family: var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--text2); margin-bottom: 14px; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+  label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text2); }
+  input, select, textarea { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: var(--font); outline: none; }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { width: 100%; font-family: var(--mono); font-size: 12px; line-height: 1.5; resize: vertical; }
+  #entrada { min-height: 200px; }
+  #saida { min-height: 180px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: var(--font); text-decoration: none; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-success { background: var(--success); color: #0f1117; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .chip { padding: 5px 10px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); font-size: 12px; cursor: pointer; }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 16px; }
+  .stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .stat-label { font-size: 11px; font-family: var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--text2); margin-bottom: 4px; }
+  .stat-value { font-size: 20px; font-weight: 700; font-family: var(--mono); }
+  .table-wrap { border: 1px solid var(--border); border-radius: 10px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 12px; font-size: 11px; font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--text2); border-bottom: 1px solid var(--border); white-space: nowrap; background: var(--surface2); }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr.fora td { opacity: .55; text-decoration: line-through; }
+  .mono { font-family: var(--mono); white-space: nowrap; }
+  .num { text-align: right; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-family: var(--mono); font-weight: 600; background: var(--surface2); color: var(--text2); }
+  .pill.cpf { background: rgba(79,142,247,.15); color: var(--accent); }
+  .pill.celular { background: rgba(34,211,238,.15); color: var(--accent2); }
+  .pill.email { background: rgba(167,139,250,.15); color: #a78bfa; }
+  .pill.cnpj, .pill.aleatoria { background: rgba(79,207,138,.15); color: var(--success); }
+  .pill.erro { background: rgba(255,95,95,.15); color: var(--danger); }
+  .av { font-size: 12px; margin-top: 3px; }
+  .av.alto { color: var(--danger); } .av.medio { color: var(--warn); } .av.info { color: var(--text2); }
+  .muted { color: var(--text2); font-size: 12px; line-height: 1.6; }
+  .msg { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; }
+  .msg.show { display: block; }
+  .msg.ok { background: rgba(79,207,138,.12); color: var(--success); }
+  .msg.erro { background: rgba(255,95,95,.12); color: var(--danger); }
+  .msg.warn { background: rgba(255,184,79,.12); color: var(--warn); }
+  ol.passos { margin: 6px 0 0 18px; }
+  ol.passos li { margin-bottom: 4px; }
+  .hist-item { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .hist-item:last-child { border-bottom: none; }
+  .link { cursor: pointer; color: var(--accent); font-size: 12px; text-decoration: underline; background: none; border: none; font-family: var(--font); padding: 0; }
+  .link.danger { color: var(--danger); }
+  @media (max-width: 700px) { header { padding: 0 16px; } main { padding: 16px; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-icon">⚡</div>Gerador de lista Pix</div>
+  <span style="color:var(--text3);font-size:12px;font-family:var(--mono)">// BPO Financeiro · Portal JCR</span>
+  <div class="header-right">
+    <a class="btn btn-outline" href="../index.html#/bpo">‹ BPO Financeiro</a>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <h2>1 · Cole as linhas da planilha</h2>
+    <p class="muted" style="margin-bottom:10px">
+      Uma pessoa por linha, nas colunas <b>Nome · CPF · Chave Pix · Valor</b> (do jeito que vem do Excel, separado por TAB ou “;”).
+      Linhas de subtotal ou sem chave (ex.: “Geap … 34.973,67”, “(vazio)”) ficam de fora e aparecem nos avisos.
+    </p>
+    <textarea id="entrada" placeholder="Rosângela Lima Doczy	032.515.167-95	032.515.167-95	220,00&#10;Rose Mendonça dos Reis	092.598.777-84	22992269979	1.760,00"></textarea>
+    <div class="row" style="margin-top:12px">
+      <label style="flex:1;min-width:260px">Descrição (vai em todos os Pix)
+        <input id="desc" value="FOLHA TECNICO">
+      </label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="chip" data-desc="FOLHA TECNICO">FOLHA TECNICO</span>
+        <span class="chip" data-desc="FORA FOLHA TECNICO">FORA FOLHA TECNICO</span>
+      </div>
+      <button class="btn btn-primary" id="gerar">Gerar lista</button>
+      <button class="btn btn-outline" id="limpar">Limpar</button>
+    </div>
+    <div class="msg" id="msgEntrada"></div>
+  </div>
+
+  <div class="card" id="cardRes" style="display:none">
+    <h2>2 · Conferência</h2>
+    <div class="stats" id="stats"></div>
+    <div class="msg" id="msgRes"></div>
+    <div class="table-wrap" style="margin-top:12px">
+      <table>
+        <thead><tr><th>#</th><th>Nome</th><th>Chave usada</th><th>Tipo</th><th class="num">Valor</th><th>Avisos</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" id="cardSaida" style="display:none">
+    <h2>3 · Lista para a extensão “Pix em lote - Unicred (preencher)”</h2>
+    <textarea id="saida" readonly></textarea>
+    <div class="row" style="margin-top:12px">
+      <label>Nome da lista (histórico)
+        <input id="nomeLista" placeholder="ex.: Folha técnico Geap">
+      </label>
+      <button class="btn btn-success" id="copiar">Copiar lista</button>
+      <button class="btn btn-outline" id="baixar">Baixar .txt</button>
+    </div>
+    <div class="msg" id="msgSaida"></div>
+    <ol class="passos muted" style="margin-top:12px">
+      <li>No Internet Banking da Unicred, abra <b>Pix → Transferir</b> (painel roxo da extensão).</li>
+      <li>Clique em <b>Nova lista</b>, cole a lista e clique em <b>Carregar lista</b>.</li>
+      <li>Confira o total no painel e clique em <b>Preencher próximo</b>. A senha/token e a confirmação são sempre suas.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>Histórico de listas geradas (neste navegador)</h2>
+    <p class="muted" style="margin-bottom:8px">Serve para avisar quando alguém da lista nova já esteve numa lista recente — evita pagar duas vezes.</p>
+    <div id="hist"></div>
+  </div>
+</main>
+
+<script>
+(() => {
+  const HIST_KEY = 'jcr_pix_lote_hist';
+  const $ = (id) => document.getElementById(id);
+  const brl = (n) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const digitos = (s) => String(s || '').replace(/\D/g, '');
+
+  function cpfOk(d) {
+    if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false;
+    for (const n of [9, 10]) {
+      let s = 0;
+      for (let i = 0; i < n; i++) s += +d[i] * (n + 1 - i);
+      if (((s * 10) % 11) % 10 !== +d[n]) return false;
+    }
+    return true;
+  }
+  function cnpjOk(d) {
+    if (d.length !== 14 || /^(\d)\1+$/.test(d)) return false;
+    const pesos = [[5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2], [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]];
+    for (const [k, w] of pesos.entries()) {
+      const n = 12 + k;
+      let s = 0;
+      for (let i = 0; i < n; i++) s += +d[i] * w[i];
+      let v = s % 11; v = v < 2 ? 0 : 11 - v;
+      if (v !== +d[n]) return false;
+    }
+    return true;
+  }
+  const fCpf = (d) => `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+  const fCnpj = (d) => `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+  function centavos(t) {
+    let s = String(t || '').replace(/R\$|\s/gi, '');
+    if (!s) return null;
+    if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+    else if (/\.\d{3}(\.|$)/.test(s) && !/\.\d{1,2}$/.test(s)) s = s.replace(/\./g, '');
+    const n = Number(s);
+    return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null;
+  }
+  const reais = (c) => (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Decide o tipo da chave e o formato que a extensão vai digitar
+  function classificar(chaveBruta, cpfBruto) {
+    const ch = String(chaveBruta || '').trim().replace(/^[:;]+/, '');
+    const dk = digitos(ch);
+    const dc = digitos(cpfBruto);
+    const avisos = [];
+    if (/@/.test(ch)) {
+      const e = ch.toLowerCase().replace(/\s+/g, '');
+      if (!/^[^@]+@[^@]+\.[a-z]{2,}$/.test(e) || /\.con$/.test(e)) avisos.push(['alto', 'e-mail parece incompleto ou com erro — confira']);
+      return { chave: e, tipo: 'email', avisos };
+    }
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ch)) return { chave: ch.toLowerCase(), tipo: 'aleatoria', avisos };
+    if (dk.length === 14) {
+      if (!cnpjOk(dk)) avisos.push(['alto', 'CNPJ inválido']);
+      return { chave: fCnpj(dk), tipo: 'cnpj', avisos };
+    }
+    if (dk.length === 13 && dk.startsWith('55') && dk[4] === '9') return { chave: dk.slice(2), tipo: 'celular', avisos };
+    if (dk.length === 11) {
+      const pareceCelular = dk[2] === '9' && +dk.slice(0, 2) >= 11;
+      if (dk === dc || cpfOk(dk)) {
+        if (cpfOk(dk)) return { chave: fCpf(dk), tipo: 'cpf', avisos };
+        if (pareceCelular) {
+          avisos.push(['medio', `"${ch}" não é CPF válido e tem formato de celular — usei como celular`]);
+          return { chave: dk, tipo: 'celular', avisos };
+        }
+        avisos.push(['alto', 'CPF da chave inválido']);
+        return { chave: fCpf(dk), tipo: 'cpf', avisos };
+      }
+      if (pareceCelular) {
+        if (!['21', '22', '24'].includes(dk.slice(0, 2))) avisos.push(['info', `celular com DDD ${dk.slice(0, 2)} — confira`]);
+        return { chave: dk, tipo: 'celular', avisos };
+      }
+      avisos.push(['alto', 'não reconheci a chave (11 números que não são CPF nem celular)']);
+      return { chave: dk, tipo: 'erro', avisos };
+    }
+    avisos.push(['alto', ch ? 'chave incompleta ou em formato desconhecido' : 'sem chave Pix']);
+    return { chave: ch, tipo: 'erro', avisos };
+  }
+
+  function lerHist() { try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch (e) { return []; } }
+  function salvarHist(h) { try { localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(0, 40))); } catch (e) { /* ok */ } }
+
+  let atual = null; // { itens, ignorados, texto }
+
+  function gerar() {
+    const desc = $('desc').value.trim();
+    const linhas = $('entrada').value.split(/\r?\n/).map((l) => l.replace(/ /g, ' ')).filter((l) => l.trim());
+    const itens = [];
+    const ignorados = [];
+    linhas.forEach((l, n) => {
+      const c = (l.includes('\t') ? l.split('\t') : l.split(';')).map((x) => x.trim());
+      if (/^nome$/i.test(c[0] || '') && /valor/i.test(l)) return; // cabeçalho
+      let [nome, cpf, chave, valor] = c;
+      if (c.length === 3) { valor = c[2]; chave = c[1]; cpf = ''; }
+      const cent = centavos(valor);
+      const nomeLimpo = String(nome || '').replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!String(chave || '').trim() && !String(cpf || '').trim()) {
+        ignorados.push(`linha ${n + 1}: "${nomeLimpo || '(sem nome)'}" ${cent ? reais(cent) : ''} — sem CPF e sem chave (subtotal ou linha vazia?)`);
+        return;
+      }
+      if (cent == null) { ignorados.push(`linha ${n + 1}: "${nomeLimpo}" — valor inválido (${valor || 'vazio'})`); return; }
+      const cl = classificar(chave || cpf, cpf);
+      const dc = digitos(cpf);
+      if (dc && dc.length === 11 && !cpfOk(dc) && cl.tipo !== 'cpf') cl.avisos.push(['info', `CPF da planilha (${cpf}) é inválido — não afeta o Pix`]);
+      if (!nomeLimpo) cl.avisos.push(['medio', 'sem nome — a extensão não vai conferir o recebedor']);
+      if (/\(.*\)/.test(nome || '')) cl.avisos.push(['info', `tirei "${(nome.match(/\(.*?\)/) || [''])[0]}" do nome para a conferência`]);
+      itens.push({ nome: nomeLimpo, chave: cl.chave, tipo: cl.tipo, centavos: cent, avisos: cl.avisos, incluir: cl.tipo !== 'erro' });
+    });
+
+    // repetidos dentro da lista
+    const porChave = new Map();
+    itens.forEach((it, i) => { const k = it.chave.toLowerCase(); if (!porChave.has(k)) porChave.set(k, []); porChave.get(k).push(i); });
+    for (const idx of porChave.values()) if (idx.length > 1) idx.forEach((i) => itens[i].avisos.push(['alto', `mesma chave aparece ${idx.length}× nesta lista (linhas ${idx.map((x) => x + 1).join(', ')})`]));
+
+    // histórico: quem já esteve numa lista recente
+    const hist = lerHist();
+    const limite = Date.now() - 15 * 86400000;
+    const recentes = hist.filter((h) => h.ts >= limite);
+    let iguais = 0;
+    for (const it of itens) {
+      for (const h of recentes) {
+        const ant = h.itens.find((x) => x.chave.toLowerCase() === it.chave.toLowerCase());
+        if (!ant) continue;
+        const quando = new Date(h.ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        if (ant.centavos === it.centavos) { iguais++; it.avisos.push(['alto', `já esteve na lista "${h.nome}" (${quando}) com o MESMO valor — pode ser pagamento em dobro`]); }
+        else it.avisos.push(['medio', `já esteve na lista "${h.nome}" (${quando}) com R$ ${reais(ant.centavos)}`]);
+        break;
+      }
+    }
+
+    atual = { itens, ignorados, desc };
+    mostrar(iguais);
+  }
+
+  function mostrar(iguais) {
+    const { itens, ignorados } = atual;
+    const ok = itens.filter((i) => i.incluir);
+    const tot = ok.reduce((s, i) => s + i.centavos, 0);
+    const cont = (t) => ok.filter((i) => i.tipo === t).length;
+    const alertas = itens.filter((i) => i.avisos.some((a) => a[0] === 'alto')).length;
+    $('stats').innerHTML = [
+      ['Pix na lista', ok.length],
+      ['Total', brl(tot / 100)],
+      ['CPF · Celular · E-mail', `${cont('cpf')} · ${cont('celular')} · ${cont('email')}`],
+      ['Outros (CNPJ/aleatória)', cont('cnpj') + cont('aleatoria')],
+      ['Para conferir', alertas + ignorados.length],
+    ].map(([l, v]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value">${v}</div></div>`).join('');
+
+    const m = $('msgRes');
+    const partes = [];
+    if (iguais && iguais >= Math.max(3, itens.length * 0.6)) partes.push(`⚠️ ATENÇÃO: ${iguais} de ${itens.length} pessoas já estiveram numa lista recente com o MESMO valor. Esta parece ser uma lista repetida — confira antes de pagar.`);
+    if (ignorados.length) partes.push('Ficaram de fora: ' + ignorados.join(' · '));
+    if (itens.some((i) => !i.incluir)) partes.push('Linhas riscadas não entram no arquivo — corrija a chave na planilha e gere de novo.');
+    m.className = 'msg show ' + (partes.length ? (iguais >= 3 ? 'erro' : 'warn') : 'ok');
+    m.textContent = partes.length ? partes.join('  ') : 'Tudo certo: todas as chaves foram reconhecidas.';
+
+    $('tbody').innerHTML = itens.map((it, i) => `
+      <tr class="${it.incluir ? '' : 'fora'}">
+        <td class="mono">${i + 1}</td>
+        <td>${esc(it.nome || '—')}</td>
+        <td class="mono">${esc(it.chave)}</td>
+        <td><span class="pill ${it.tipo}">${{ cpf: 'CPF', celular: 'celular', email: 'e-mail', cnpj: 'CNPJ', aleatoria: 'aleatória', erro: 'erro' }[it.tipo]}</span></td>
+        <td class="mono num">${reais(it.centavos)}</td>
+        <td>${it.avisos.map(([n, t]) => `<div class="av ${n}">${esc(t)}</div>`).join('')}</td>
+      </tr>`).join('');
+    $('cardRes').style.display = 'block';
+
+    const texto = ['nome;chave;valor;descrição', ...ok.map((i) => `${i.nome};${i.chave};${reais(i.centavos)};${atual.desc}`)].join('\n') + '\n';
+    atual.texto = texto;
+    $('saida').value = texto;
+    $('cardSaida').style.display = ok.length ? 'block' : 'none';
+    $('msgSaida').className = 'msg';
+    $('cardRes').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function registrar() {
+    if (!atual || atual.salvo) return;
+    const ok = atual.itens.filter((i) => i.incluir);
+    const nome = $('nomeLista').value.trim() || `Lista ${new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+    const h = lerHist();
+    h.unshift({ ts: Date.now(), nome, desc: atual.desc, total: ok.reduce((s, i) => s + i.centavos, 0), itens: ok.map((i) => ({ nome: i.nome, chave: i.chave, centavos: i.centavos })) });
+    salvarHist(h);
+    atual.salvo = true;
+    mostrarHist();
+  }
+
+  async function copiar() {
+    try { await navigator.clipboard.writeText(atual.texto); }
+    catch (e) { $('saida').select(); document.execCommand('copy'); }
+    registrar();
+    aviso('msgSaida', 'ok', 'Lista copiada. Cole no painel roxo da extensão (Nova lista → colar → Carregar lista).');
+  }
+  function baixar() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    const nome = `pix_lista_${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}_${p(d.getHours())}h${p(d.getMinutes())}.txt`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([atual.texto], { type: 'text/plain;charset=utf-8' }));
+    a.download = nome;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    registrar();
+    aviso('msgSaida', 'ok', `Arquivo ${nome} baixado.`);
+  }
+  function aviso(id, tipo, txt) { const m = $(id); m.className = `msg show ${tipo}`; m.textContent = txt; }
+
+  function mostrarHist() {
+    const h = lerHist();
+    $('hist').innerHTML = h.length ? h.map((x, i) => `
+      <div class="hist-item">
+        <span class="mono" style="color:var(--text2)">${new Date(x.ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+        <span style="flex:1">${esc(x.nome)} <span class="muted">· ${x.itens.length} Pix · ${esc(x.desc || '')}</span></span>
+        <span class="mono">${brl(x.total / 100)}</span>
+        <button class="link" data-ver="${i}">copiar de novo</button>
+        <button class="link danger" data-del="${i}">apagar</button>
+      </div>`).join('') : '<p class="muted">Nenhuma lista gerada ainda.</p>';
+  }
+  $('hist').addEventListener('click', async (ev) => {
+    const h = lerHist();
+    const v = ev.target.dataset.ver;
+    const d = ev.target.dataset.del;
+    if (v != null) {
+      const x = h[+v];
+      const t = ['nome;chave;valor;descrição', ...x.itens.map((i) => `${i.nome};${i.chave};${reais(i.centavos)};${x.desc}`)].join('\n') + '\n';
+      try { await navigator.clipboard.writeText(t); ev.target.textContent = 'copiado ✓'; } catch (e) { /* ok */ }
+    }
+    if (d != null && confirm(`Apagar "${h[+d].nome}" do histórico?`)) { h.splice(+d, 1); salvarHist(h); mostrarHist(); }
+  });
+
+  document.querySelectorAll('[data-desc]').forEach((c) => c.addEventListener('click', () => { $('desc').value = c.dataset.desc; if (atual) gerar(); }));
+  $('gerar').onclick = () => {
+    if (!$('entrada').value.trim()) { aviso('msgEntrada', 'erro', 'Cole as linhas da planilha primeiro.'); return; }
+    $('msgEntrada').className = 'msg';
+    gerar();
+  };
+  $('limpar').onclick = () => { $('entrada').value = ''; atual = null; $('cardRes').style.display = 'none'; $('cardSaida').style.display = 'none'; $('nomeLista').value = ''; };
+  $('copiar').onclick = copiar;
+  $('baixar').onclick = baixar;
+  mostrarHist();
+})();
+</script>
+</body>
+</html>

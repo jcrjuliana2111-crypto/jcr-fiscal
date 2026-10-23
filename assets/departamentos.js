@@ -110,6 +110,7 @@ window.JCR_DEPARTAMENTOS = [
     ],
     ferramentas: [
       { nome: 'Conciliação Conta Azul', url: 'conciliacao/', desc: 'Extrato OFX/CSV × contas a pagar/receber: baixa em lote, tarifas, juros e resumo do fechamento.', status: 'ativa' },
+      { nome: 'Gerador de lista Pix (Unicred)', url: 'pix-lote/', desc: 'Cola a planilha (nome, CPF, chave, valor) e gera a lista no layout da extensão de Pix em lote: valida CPF, padroniza chaves e avisa repetidos.', status: 'ativa' },
       { nome: 'Painel financeiro do cliente', desc: 'Caixa, contas a pagar/receber e indicadores.', status: 'ideia' },
       { nome: 'Agenda de pagamentos com aprovação', desc: 'Cliente aprova os pagamentos do dia pelo celular.', status: 'ideia' },
       { nome: 'Gerador de relatório gerencial', desc: 'DRE gerencial e fluxo de caixa em PDF automático.', status: 'ideia' },

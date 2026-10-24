@@ -674,7 +674,7 @@ async function rodar() {
     const pendentes = movimentos.filter(m => !jaConciliados.has(m.id))
       .map(m => compPorMov[m.id] ? { ...m, textoComprovante: compId[compPorMov[m.id]].texto } : m);
 
-    resultado = Conciliacao.conciliar(pendentes, parcelas, { janelaDias: janela });
+    resultado = Conciliacao.conciliar(pendentes, parcelas, { janelaDias: janela, rejeitados: new Set(rejeitados()) });
     selecionados.clear(); selLanc.clear();
     for (const k in retornos) delete retornos[k];
     for (const k in retLanc) delete retLanc[k];
@@ -743,8 +743,10 @@ function render() {
 }
 
 function renderPares(r) {
-  if (!r.pares.length) return '<div class="empty">Nenhuma sugestão de baixa.</div>';
-  return `<table><thead><tr>
+  const nRej = rejeitados().length;
+  const rodape = nRej ? `<div class="muted" style="padding:8px 12px">${nRej} sugestão(ões) excluída(s) não aparecem mais para este cliente · <button class="link" onclick="esquecerExcluidas()">voltar a sugerir</button></div>` : '';
+  if (!r.pares.length) return '<div class="empty">Nenhuma sugestão de baixa.</div>' + rodape;
+  return rodape + `<table><thead><tr>
     <th><input type="checkbox" onchange="marcarTodos(this.checked)"></th>
     <th>Data banco</th><th>Histórico do extrato</th><th>Valor</th>
     <th>Lançamento Conta Azul</th><th>Vencimento</th><th>Confiança</th><th>Comprovante</th><th>Resultado</th></tr></thead><tbody>` +
@@ -764,7 +766,7 @@ function renderPares(r) {
         <td>${valorHtml(p.movimento.valor)}${aj}</td>
         <td>${p.grupo ? grupoHtml(p) : `${esc(p.parcela.nome || '—')}<div class="muted">${p.parcela.tipo === 'receber' ? 'A receber' : 'A pagar'} · ${esc(p.parcela.descricao)}</div>`}</td>
         <td class="mono">${p.grupo ? `${fmtData(p.parcelas[0].vencimento)}${p.parcelas.length > 1 ? `<div class="muted">a ${fmtData(p.parcelas[p.parcelas.length - 1].vencimento)}</div>` : ''}` : `${fmtData(p.parcela.vencimento)}<div class="muted">${p.dias} dia(s)</div>`}</td>
-        <td><span class="pill ${p.confianca}">${p.confianca}</span>${p.confianca === 'manual' && !travado ? `<div><button class="link" onclick="desfazerVinculo('${esc(p.movimento.id)}')">voltar</button></div>` : ''}</td>
+        <td><span class="pill ${p.confianca}">${p.confianca}</span>${travado ? '' : `<div><button class="link danger" title="Tirar esta sugestão: o movimento volta para Extrato sem lançamento" onclick="excluirSugestao('${esc(p.movimento.id)}')">✕ excluir</button></div>`}</td>
         <td>${comprovanteHtml(p.movimento.id, travado)}</td>
         <td>${retornoHtml(ret, p.movimento.id)}</td>
       </tr>`;
@@ -910,6 +912,7 @@ function vincularVarios() {
   }
   const { possiveis, ...mov } = m;
   const par = Conciliacao.montarGrupo(mov, sel, 'manual');
+  liberarRejeicao(m.id, sel.map(p => p.id));
   resultado.pares.push(par);
   resultado.semParcela = resultado.semParcela.filter(x => x.id !== m.id);
   resultado.parcelasSemMovimento = resultado.parcelasSemMovimento.filter(p => !multi.sel.has(p.id));
@@ -965,12 +968,37 @@ function vincularLancamento(movId, parcelaId) {
   const p = resultado.parcelasSemMovimento.find(x => x.id === parcelaId);
   if (!m || !p) return;
   const par = Conciliacao.montarPar(m, p);
+  liberarRejeicao(movId, [parcelaId]);
   resultado.pares.push(par);
   resultado.semParcela = resultado.semParcela.filter(x => x.id !== movId);
   resultado.parcelasSemMovimento = resultado.parcelasSemMovimento.filter(x => x.id !== parcelaId);
   selLanc.delete(movId); selecionados.add(movId);
   msg('msgRodar', 'ok', `Vinculado à mão a <b>${esc(p.nome)}</b>${par.ajuste ? ` com ${par.ajuste.tipo} de ${brl(par.ajuste.valor)}` : ''}. Ele está em <i>Sugestões de baixa</i>, já marcado.`);
   render();
+}
+
+// ---- sugestões excluídas (lembradas neste navegador, por cliente) ----
+const chaveRej = () => `robo_rej_${cliente()}`;
+function rejeitados() { try { return JSON.parse(store.get(chaveRej()) || '[]'); } catch { return []; } }
+function salvarRejeitados(lista) { store.set(chaveRej(), JSON.stringify(lista.slice(-3000))); }
+function excluirSugestao(movId) {
+  const par = resultado.pares.find(p => p.movimento.id === movId);
+  if (!par) return;
+  if (par.confianca !== 'manual') { // vínculo feito à mão só é desfeito; sugestão do robô fica lembrada
+    const novas = (par.grupo ? par.parcelas : [par.parcela]).map(x => `${movId}|${x.id}`);
+    salvarRejeitados([...new Set([...rejeitados(), ...novas])]);
+  }
+  desfazerVinculo(movId);
+  msg('msgRodar', 'ok', `Sugestão excluída: “${esc(par.movimento.historico)}” foi para <i>Extrato sem lançamento</i>` +
+    (par.confianca !== 'manual' ? ' e essa sugestão não aparece de novo. Se quiser, vincule à mão lá.' : '.'));
+}
+function liberarRejeicao(movId, parcelaIds) {
+  const tirar = new Set(parcelaIds.map(id => `${movId}|${id}`));
+  salvarRejeitados(rejeitados().filter(k => !tirar.has(k)));
+}
+function esquecerExcluidas() {
+  if (!confirm('Voltar a sugerir as sugestões excluídas deste cliente? Vale a partir da próxima vez que rodar a conciliação.')) return;
+  salvarRejeitados([]); render();
 }
 
 function desfazerVinculo(movId) {

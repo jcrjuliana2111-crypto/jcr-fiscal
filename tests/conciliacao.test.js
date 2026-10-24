@@ -434,3 +434,16 @@ test('comprovante com nome de outra pessoa não é ligado', () => {
   const semNome = { id: 'k3', ...C.dadosComprovante('', '2026-10-21 200,00.jpg') };
   assert.deepStrictEqual(C.casarComprovantes([par], [semNome]), { m: 'k3' });
 });
+
+test('sugestão excluída não volta a ser sugerida (1:1, juros e agrupado)', () => {
+  const P = (id, v, nome) => ({ id, tipo: 'pagar', vencimento: '2026-10-10', valor: v, nome, descricao: '' });
+  const m = { id: 'm', data: '2026-10-10', valor: -300, historico: 'PIX ENVIADO / ALFA LTDA' };
+  const parcelas = [P('x', 300, 'Alfa Ltda'), P('y', 295, 'Alfa Ltda'), P('a', 100, 'Alfa Ltda'), P('b', 200, 'Alfa Ltda')];
+  assert.strictEqual(C.conciliar([m], parcelas).pares[0].parcela.id, 'x');
+  const r1 = C.conciliar([m], parcelas, { rejeitados: new Set(['m|x']) });
+  assert.strictEqual(r1.pares[0].parcela.id, 'y');                      // próxima opção: juros
+  const r2 = C.conciliar([m], parcelas, { rejeitados: new Set(['m|x', 'm|y']) });
+  assert.deepStrictEqual(r2.pares[0].parcelas.map(p => p.id).sort(), ['a', 'b']); // depois: agrupado
+  const r3 = C.conciliar([m], parcelas, { rejeitados: new Set(['m|x', 'm|y', 'm|a']) });
+  assert.strictEqual(r3.pares.length, 0);
+});

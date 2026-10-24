@@ -154,6 +154,7 @@
         <input type="file" id="pastaInput" webkitdirectory multiple style="display:none">
       </label>
       <button class="btn btn-primary" id="btnRodar" onclick="rodar()">▶ Rodar conciliação</button>
+      <button class="btn btn-outline" id="btnLeitura" onclick="verLeitura()">🔍 Ver o que o robô leu dos comprovantes</button>
     </div>
     <p class="muted" style="margin-top:10px">
       <b>Regras:</b> valor igual ao centavo e data próxima. Em PIX/TED/DOC, o <b>nome do favorecido precisa bater</b> (pelo menos nome e sobrenome — um sobrenome só não basta) com o contato ou a descrição do lançamento — se não bater, o movimento vai para <i>Extrato sem lançamento</i> como “possível”, para você vincular à mão. Valor um pouco diferente (até 15%) vira sugestão com <b>juros/multa ou desconto</b> só quando o banco mostra o <b>mesmo fornecedor</b> do Conta Azul (descrição parecida não vale). Comprovante com nome de outra pessoa/empresa não é ligado.
@@ -161,6 +162,7 @@
       Confiança <b>alta</b> (já marcada) só com nome batendo; <b>média</b> e <b>manual</b> vêm para conferir.<br>
       Comprovantes: o robô lê o texto dos PDFs e o nome dos arquivos (sem IA) e só <b>identifica</b> o comprovante de cada lançamento — anexe à mão no Conta Azul. A observação da baixa recebe a marca de baixa automática, mantendo o que já estava escrito.</p>
     <div id="msgRodar" class="msg"></div>
+    <div id="leitura" style="display:none;margin-top:14px"></div>
   </div>
 
   <!-- DDA -->
@@ -569,12 +571,58 @@ function exportarDDA() {
   a.click();
 }
 
+// ---- o que o robô leu de cada comprovante ----
+const ORIGEM_TXT = { pdf: 'texto do PDF + nome do arquivo', 'pdf-sem-texto': 'só o nome do arquivo (PDF sem texto — escaneado?)',
+  'pdf-erro': 'só o nome do arquivo (não abriu o PDF)', imagem: 'só o nome do arquivo (imagem)' };
+async function verLeitura() {
+  const box = $('leitura');
+  if (box.style.display !== 'none' && box.dataset.aberto) { box.style.display = 'none'; box.dataset.aberto = ''; return; }
+  $('btnLeitura').disabled = true;
+  try {
+    if (!comprovantes.length) {
+      msg('msgRodar', 'info', 'Lendo a pasta de comprovantes…');
+      const arqs = await arquivosDaPasta();
+      if (!arqs.length) throw new Error(avisoPasta ? avisoPasta.replace(/<[^>]+>/g, '') : 'Escolha a pasta de comprovantes primeiro (📁 Escolher pasta).');
+      comprovantes = await lerComprovantes(arqs);
+      msg('msgRodar', 'ok', `${comprovantes.length} comprovante(s) lidos. Veja abaixo o que o robô enxergou em cada um.`);
+    }
+    box.innerHTML = leituraHtml(); box.style.display = ''; box.dataset.aberto = '1';
+  } catch (e) { msg('msgRodar', 'erro', esc(e.message)); }
+  finally { $('btnLeitura').disabled = false; }
+}
+function leituraHtml() {
+  const dono = {};
+  for (const [mov, c] of Object.entries(vinculo)) dono[c] = movimentos.find(m => m.id === mov);
+  const brlC = c => brl(c / 100);
+  const semData = comprovantes.filter(c => !c.datas.length && !c.vencimentos.length).length;
+  const semValor = comprovantes.filter(c => !c.valores.length).length;
+  return `<div class="muted" style="margin-bottom:8px">${comprovantes.length} comprovante(s) · ${semData} sem nenhuma data · ${semValor} sem valor.
+    O robô junta o <b>nome do arquivo</b> e o <b>texto de dentro do PDF</b>. Clique em “ver texto” para ver exatamente o que ele leu do PDF.</div>
+  <div class="table-wrap"><table><thead><tr><th>Arquivo</th><th>Leu de</th><th>Data do pagamento</th><th>Vencimento</th><th>Valor(es)</th><th>Nome que ele enxerga</th><th>Ligado a</th></tr></thead><tbody>` +
+  comprovantes.map((c, i) => {
+    const m = dono[c.id];
+    return `<tr>
+      <td style="max-width:280px;word-break:break-word">${esc(c.file.name)}${c.textoPdf && c.textoPdf.trim() ? `<div><button class="link" onclick="const d=document.getElementById('txt${i}'); d.style.display = d.style.display==='none' ? '' : 'none'">ver texto</button></div>
+        <pre id="txt${i}" style="display:none;white-space:pre-wrap;max-height:220px;overflow:auto;font-size:11px;color:var(--text2)">${esc(c.textoPdf.slice(0, 3000))}</pre>` : ''}</td>
+      <td class="muted">${ORIGEM_TXT[c.origem] || '—'}</td>
+      <td class="mono">${c.datas.length ? c.datas.map(fmtData).join('<br>') : '<span style="color:var(--warn)">nenhuma</span>'}</td>
+      <td class="mono">${c.vencimentos.length ? c.vencimentos.map(fmtData).join('<br>') : '—'}</td>
+      <td class="mono">${c.valores.length ? c.valores.map(brlC).join('<br>') : '<span style="color:var(--danger)">nenhum</span>'}</td>
+      <td class="muted" style="max-width:260px">${esc(Conciliacao.palavrasNome(c.texto).slice(0, 12).join(' ')) || '—'}</td>
+      <td>${m ? `<span class="mono">${fmtData(m.data)}</span> · ${valorHtml(m.valor)}<div class="muted">${esc(m.historico)}</div>` : '<span class="muted">—</span>'}</td>
+    </tr>`;
+  }).join('') + '</tbody></table></div>';
+}
+
 async function lerComprovantes(files) {
   const lista = [];
   for (const [i, file] of files.entries()) {
     let texto = '';
-    if (/\.pdf$/i.test(file.name)) { try { texto = await textoPdf(file); } catch {} }
-    lista.push({ id: 'c' + i + '_' + file.name, file, ...Conciliacao.dadosComprovante(texto, file.name) });
+    let origem = /\.pdf$/i.test(file.name) ? 'pdf-sem-texto' : 'imagem';
+    if (/\.pdf$/i.test(file.name)) {
+      try { texto = await textoPdf(file); if (texto.trim()) origem = 'pdf'; } catch { origem = 'pdf-erro'; }
+    }
+    lista.push({ id: 'c' + i + '_' + file.name, file, origem, textoPdf: texto, ...Conciliacao.dadosComprovante(texto, file.name) });
     if (i % 10 === 9) msg('msgRodar', 'info', `Lendo comprovantes… ${i + 1}/${files.length}`);
   }
   return lista;
@@ -651,6 +699,7 @@ async function rodar() {
       (comPossivel ? `. ${comPossivel} movimento(s) com valor igual mas <b>nome diferente</b> foram para <i>Extrato sem lançamento</i> para você conferir` : '') +
       (comprovantes.length ? `. Comprovantes: ${Object.keys(vinculo).length} de ${comprovantes.length} ligados` + (ilegiveis ? `, ${ilegiveis} sem valor reconhecível (ex.: imagens sem valor no nome)` : '') : '') + '.' + (avisoPasta ? `<br>⚠ ${avisoPasta}` : ''));
     $('resultado').style.display = '';
+    if ($('leitura').dataset.aberto) $('leitura').innerHTML = leituraHtml();
     trocarAba('pares');
   } catch (e) {
     msg('msgRodar', 'erro', esc(e.message));

@@ -81,6 +81,15 @@ em `conciliacao/` do Portal JCR) e configurar o secret `CONTA_AZUL_ANEXO_PATH` (
 `/v1/financeiro/eventos-financeiros/parcelas/{parcela_id}/anexos`) e, se
 precisar, `CONTA_AZUL_ANEXO_CAMPO` (padrão `file`).
 
+## Ver o que o robô leu dos comprovantes
+
+Botão **🔍 Ver o que o robô leu dos comprovantes** (bloco 2): mostra cada arquivo
+da pasta com de onde leu (texto do PDF + nome do arquivo, ou só o nome quando é
+imagem/PDF escaneado), data de pagamento, vencimento, valores, as palavras que
+ele considera nome e a qual pagamento do extrato o comprovante foi ligado.
+“ver texto” abre o texto bruto lido de dentro do PDF. Funciona antes ou depois
+de rodar a conciliação.
+
 ## Pagamento agrupado (um valor no banco quita vários lançamentos)
 
 Ex.: um PIX de R$ 1.500 para a F F Distribuidora pagando três notas

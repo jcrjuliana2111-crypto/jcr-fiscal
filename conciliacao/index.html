@@ -377,11 +377,16 @@ const idb = {
   }
 };
 
+let avisoPasta = '';   // aviso da última leitura da pasta (arquivos pulados, pasta sumida)
+let pulados = 0;
 async function listarPasta(dir, prefixo = '') {
   const out = [];
   for await (const [nome, h] of dir.entries()) {
     if (h.kind === 'directory') out.push(...await listarPasta(h, prefixo + nome + '/'));
-    else if (EXT_COMPROVANTE.test(nome)) out.push(await h.getFile());
+    else if (EXT_COMPROVANTE.test(nome)) {
+      // arquivo apagado no meio da leitura ou só na nuvem (OneDrive): pula
+      try { out.push(await h.getFile()); } catch { pulados++; }
+    }
   }
   return out;
 }
@@ -416,10 +421,23 @@ async function arquivosDaPasta() {
         (await pastaHandle.requestPermission({ mode: 'read' })) !== 'granted') {
       throw new Error('Sem permissão para ler a pasta de comprovantes.');
     }
-    const lista = await listarPasta(pastaHandle);
-    mostrarPasta(pastaHandle.name, lista.length);
-    return lista;
+    pulados = 0; avisoPasta = '';
+    try {
+      const lista = await listarPasta(pastaHandle);
+      mostrarPasta(pastaHandle.name, lista.length);
+      if (pulados) avisoPasta = `${pulados} arquivo(s) da pasta não puderam ser abertos (apagados agora ou só na nuvem do OneDrive) e foram pulados.`;
+      return lista;
+    } catch (e) {
+      // a pasta lembrada não existe mais (movida, renomeada ou apagada): segue sem comprovantes
+      const nome = pastaHandle.name;
+      pastaHandle = null;
+      try { await idb.set('pasta', null); } catch {}
+      mostrarPasta('', 0);
+      avisoPasta = `A pasta de comprovantes “${nome}” não foi encontrada (movida, renomeada ou apagada). A conciliação rodou sem comprovantes — clique em <b>Escolher pasta</b> e selecione-a de novo.`;
+      return [];
+    }
   }
+  avisoPasta = '';
   return pastaArquivos;
 }
 
@@ -580,7 +598,10 @@ async function rodar() {
     const arqs = await arquivosDaPasta();
     msg('msgRodar', 'info', 'Lendo extrato…');
     // FITID só é único dentro da conta — prefixa com a conta financeira
-    movimentos = Conciliacao.parseExtrato(f.name, await lerArquivo(f))
+    let textoExtrato;
+    try { textoExtrato = await lerArquivo(f); }
+    catch { throw new Error(`Não consegui abrir o extrato “${f.name}”: ele foi movido, renomeado ou apagado depois de escolhido. Clique em “Escolher arquivo” e selecione o extrato de novo.`); }
+    movimentos = Conciliacao.parseExtrato(f.name, textoExtrato)
       .map(m => ({ ...m, id: `${conta}:${m.id}` }));
     if (!movimentos.length) throw new Error('Nenhum movimento encontrado no arquivo.');
 
@@ -628,7 +649,7 @@ async function rodar() {
       (agrupados ? `. ${agrupados} <b>pagamento(s) agrupado(s)</b> (um valor no banco quitando vários lançamentos) — confira antes de marcar` : '') +
       (jaConciliados.size ? `, ${jaConciliados.size} movimentos já conciliados antes foram ignorados` : '') +
       (comPossivel ? `. ${comPossivel} movimento(s) com valor igual mas <b>nome diferente</b> foram para <i>Extrato sem lançamento</i> para você conferir` : '') +
-      (comprovantes.length ? `. Comprovantes: ${Object.keys(vinculo).length} de ${comprovantes.length} ligados` + (ilegiveis ? `, ${ilegiveis} sem valor reconhecível (ex.: imagens sem valor no nome)` : '') : '') + '.');
+      (comprovantes.length ? `. Comprovantes: ${Object.keys(vinculo).length} de ${comprovantes.length} ligados` + (ilegiveis ? `, ${ilegiveis} sem valor reconhecível (ex.: imagens sem valor no nome)` : '') : '') + '.' + (avisoPasta ? `<br>⚠ ${avisoPasta}` : ''));
     $('resultado').style.display = '';
     trocarAba('pares');
   } catch (e) {

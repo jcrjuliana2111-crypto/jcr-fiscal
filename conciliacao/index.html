@@ -67,6 +67,10 @@
   .anexo-btn { cursor: pointer; color: var(--accent); font-size: 12px; white-space: nowrap; }
   .anexo-btn input { display: none; }
   .x { cursor: pointer; color: var(--text2); margin-left: 4px; }
+  .multi { display: grid; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  .multi-itens { max-height: 320px; overflow: auto; display: grid; gap: 4px; }
+  .multi-item { display: grid; grid-template-columns: auto minmax(120px, 1.2fr) minmax(100px, 1fr) auto auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text); }
+  .multi-item:hover { background: var(--surface); }
   .empty { padding: 30px; text-align: center; color: var(--text2); }
   .pill.manual { background: rgba(79,124,255,.15); color: var(--accent); }
   .pill.desfeito { background: var(--surface2); color: var(--text2); }
@@ -153,6 +157,7 @@
     </div>
     <p class="muted" style="margin-top:10px">
       <b>Regras:</b> valor igual ao centavo e data próxima. Em PIX/TED/DOC, o <b>nome do favorecido precisa bater</b> com o contato ou a descrição do lançamento — se não bater, o movimento vai para <i>Extrato sem lançamento</i> como “possível”, para você vincular à mão. Mesmo contato com valor um pouco diferente (até 15%) vira sugestão com <b>juros/multa ou desconto</b>.
+      Um valor no banco que quita <b>vários lançamentos</b> do mesmo contato (soma exata) vira <b>pagamento agrupado</b> para conferir; para montar à mão, use <i>vários lançamentos…</i> em <i>Extrato sem lançamento</i>.
       Confiança <b>alta</b> (já marcada) só com nome batendo; <b>média</b> e <b>manual</b> vêm para conferir.<br>
       Comprovantes: o robô lê o texto dos PDFs e o nome dos arquivos (sem IA) e só <b>identifica</b> o comprovante de cada lançamento — anexe à mão no Conta Azul. A observação da baixa recebe a marca de baixa automática, mantendo o que já estava escrito.</p>
     <div id="msgRodar" class="msg"></div>
@@ -588,9 +593,9 @@ async function rodar() {
     msg('msgRodar', 'info', `${movimentos.length} movimentos. Buscando lançamentos em aberto no Conta Azul (${fmtData(de)} a ${fmtData(ate)})…`);
     const [parcelas, conciliados] = await Promise.all([
       api('parcelas', { de, ate }),
-      api('conciliados', { fitids: movimentos.map(m => m.id) })
+      api('conciliados', { fitids: movimentos.flatMap(m => [m.id, `${m.id}#1`]) })
     ]);
-    jaConciliados = new Set(conciliados);
+    jaConciliados = new Set(conciliados.map(f => String(f).replace(/#\d+$/, ''))); // grupo baixado = "id#1", "id#2"…
     const pendentes = movimentos.filter(m => !jaConciliados.has(m.id));
 
     resultado = Conciliacao.conciliar(pendentes, parcelas, { janelaDias: janela });
@@ -606,7 +611,9 @@ async function rodar() {
     const ilegiveis = comprovantes.filter(c => !c.valores.length).length;
     const comPossivel = resultado.semParcela.filter(m => m.possiveis?.length).length;
 
+    const agrupados = resultado.pares.filter(p => p.grupo).length;
     msg('msgRodar', 'ok', `Pronto: ${resultado.pares.length} sugestões, ${parcelas.length} lançamentos em aberto analisados` +
+      (agrupados ? `. ${agrupados} <b>pagamento(s) agrupado(s)</b> (um valor no banco quitando vários lançamentos) — confira antes de marcar` : '') +
       (jaConciliados.size ? `, ${jaConciliados.size} movimentos já conciliados antes foram ignorados` : '') +
       (comPossivel ? `. ${comPossivel} movimento(s) com valor igual mas <b>nome diferente</b> foram para <i>Extrato sem lançamento</i> para você conferir` : '') +
       (comprovantes.length ? `. Comprovantes: ${Object.keys(vinculo).length} de ${comprovantes.length} ligados` + (ilegiveis ? `, ${ilegiveis} sem valor reconhecível (ex.: imagens sem valor no nome)` : '') : '') + '.');
@@ -666,20 +673,27 @@ function renderPares(r) {
         `+ <select onchange="tipoAjuste(${i}, this.value)" ${travado ? 'disabled' : ''}>
             <option value="juros" ${p.ajuste.tipo === 'juros' ? 'selected' : ''}>juros</option>
             <option value="multa" ${p.ajuste.tipo === 'multa' ? 'selected' : ''}>multa</option></select>`} ${brl(p.ajuste.valor)}
-        <span class="muted">(parcela ${brl(p.parcela.valor)})</span></div>` : '';
+        <span class="muted">(${p.grupo ? `no lançamento de ${brl((p.parcelas.find(x => x.id === p.ajusteEm) || p.parcela).valor)}` : `parcela ${brl(p.parcela.valor)}`})</span></div>` : '';
       return `<tr>
         <td><input type="checkbox" ${selecionados.has(p.movimento.id) ? 'checked' : ''} ${travado ? 'disabled' : ''}
              onchange="marcar('${esc(p.movimento.id)}', this.checked)"></td>
         <td class="mono">${fmtData(p.movimento.data)}</td>
         <td>${esc(p.movimento.historico)}</td>
         <td>${valorHtml(p.movimento.valor)}${aj}</td>
-        <td>${esc(p.parcela.nome || '—')}<div class="muted">${p.parcela.tipo === 'receber' ? 'A receber' : 'A pagar'} · ${esc(p.parcela.descricao)}</div></td>
-        <td class="mono">${fmtData(p.parcela.vencimento)}<div class="muted">${p.dias} dia(s)</div></td>
+        <td>${p.grupo ? grupoHtml(p) : `${esc(p.parcela.nome || '—')}<div class="muted">${p.parcela.tipo === 'receber' ? 'A receber' : 'A pagar'} · ${esc(p.parcela.descricao)}</div>`}</td>
+        <td class="mono">${p.grupo ? `${fmtData(p.parcelas[0].vencimento)}${p.parcelas.length > 1 ? `<div class="muted">a ${fmtData(p.parcelas[p.parcelas.length - 1].vencimento)}</div>` : ''}` : `${fmtData(p.parcela.vencimento)}<div class="muted">${p.dias} dia(s)</div>`}</td>
         <td><span class="pill ${p.confianca}">${p.confianca}</span>${p.confianca === 'manual' && !travado ? `<div><button class="link" onclick="desfazerVinculo('${esc(p.movimento.id)}')">voltar</button></div>` : ''}</td>
         <td>${comprovanteHtml(p.movimento.id, travado)}</td>
         <td>${retornoHtml(ret, p.movimento.id)}</td>
       </tr>`;
     }).join('') + '</tbody></table>';
+}
+
+function grupoHtml(p) {
+  const soma = p.parcelas.reduce((t, x) => t + x.valor, 0);
+  return `<div><span class="pill media" style="margin-right:6px">agrupado</span><b>${p.parcelas.length} lançamentos</b> · ${esc(p.parcela.nome || '—')}</div>` +
+    p.parcelas.map(x => `<div class="muted">• ${esc(x.descricao || '—')} · venc. ${fmtData(x.vencimento)} · ${brl(x.valor)}</div>`).join('') +
+    `<div class="muted">Soma: <b>${brl(soma)}</b>${p.ajuste ? '' : ' = valor do banco'}</div>`;
 }
 
 function retornoHtml(ret, movId) {
@@ -734,12 +748,76 @@ function renderSemParcela(r) {
         <td class="mono">${fmtData(m.data)}</td>
         <td>${esc(m.historico)}${poss.map(x => `<div class="possivel">⚠ possível: ${esc(x.parcela.nome)} · ${brl(x.parcela.valor)} — ${esc(x.motivo)}</div>`).join('')}</td>
         <td>${valorHtml(m.valor)}</td>
-        <td>${travado ? '' : `<select class="vinc" onchange="vincularLancamento('${esc(m.id)}', this.value)"><option value="">— escolher —</option>${opcoesVinculo(m)}</select>`}</td>
+        <td>${travado ? '' : `<select class="vinc" onchange="vincularLancamento('${esc(m.id)}', this.value)"><option value="">— escolher —</option>${opcoesVinculo(m)}</select>
+          <div><button class="link" onclick="abrirVarios('${esc(m.id)}')">${multi.mov === m.id ? 'fechar' : 'vários lançamentos…'}</button></div>`}</td>
         <td>${ret ? `<span class="pill ${ret.status}">${ret.status === 'ok' ? 'lançado' : ret.status}</span>` +
           (ret.erro ? `<div class="muted">${esc(ret.erro)}</div>` : '') + (ret.aviso ? `<div class="muted">${esc(ret.aviso)}</div>` : '') +
           (ret.status === 'ok' ? `<div><button class="link danger" onclick="desfazerLanc('${esc(m.id)}')">desfazer baixa</button></div>` : '') : ''}</td>
-      </tr>`;
+      </tr>` + (multi.mov === m.id ? `<tr><td colspan="6">${variosHtml(m)}</td></tr>` : '');
     }).join('') + '</tbody></table>';
+}
+
+// ---- vários lançamentos para um movimento (escolha à mão) ----
+const multi = { mov: null, sel: new Set(), filtro: '' };
+function abrirVarios(movId) {
+  multi.mov = multi.mov === movId ? null : movId; multi.sel = new Set(); multi.filtro = '';
+  render();
+}
+function variosLista(m) {
+  const tipo = m.valor > 0 ? 'receber' : 'pagar';
+  const f = multi.filtro.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return resultado.parcelasSemMovimento.filter(p => p.tipo === tipo && (multi.sel.has(p.id) || !f ||
+      `${p.nome} ${p.descricao}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(f)))
+    .sort((a, b) => (a.nome || '').localeCompare(b.nome || '') || a.vencimento.localeCompare(b.vencimento)).slice(0, 80);
+}
+function variosHtml(m) {
+  return `<div class="multi">
+    <div class="row" style="align-items:center">
+      <b>Marque os lançamentos que este pagamento de ${brl(Math.abs(m.valor))} quita</b>
+      <input id="multiFiltro" placeholder="filtrar por nome ou descrição" value="${esc(multi.filtro)}" oninput="multi.filtro=this.value; $('multiItens').innerHTML = variosItens(resultado.semParcela.find(x => x.id === multi.mov))" style="min-width:220px">
+    </div>
+    <div id="multiItens" class="multi-itens">${variosItens(m)}</div>
+    <div class="row" style="align-items:center"><span id="multiSoma">${variosSoma(m)}</span>
+      <button class="btn btn-primary" onclick="vincularVarios()">Vincular selecionados</button></div>
+  </div>`;
+}
+function variosItens(m) {
+  const lista = variosLista(m);
+  if (!lista.length) return '<div class="muted">Nenhum lançamento em aberto encontrado.</div>';
+  return lista.map(p => `<label class="multi-item"><input type="checkbox" ${multi.sel.has(p.id) ? 'checked' : ''} onchange="marcarVarios('${esc(p.id)}', this.checked)">
+    <span>${esc(p.nome || '—')}</span><span class="muted">${esc(p.descricao || '')}</span><span class="mono">venc. ${fmtData(p.vencimento)}</span><span class="mono">${brl(p.valor)}</span></label>`).join('');
+}
+function variosSoma(m) {
+  const sel = resultado.parcelasSemMovimento.filter(p => multi.sel.has(p.id));
+  const soma = Math.round(sel.reduce((t, p) => t + p.valor, 0) * 100);
+  const dif = Math.round(Math.abs(m.valor) * 100) - soma;
+  const txt = !sel.length ? 'Nenhum marcado.' : `${sel.length} marcado(s) · soma <b>${brl(soma / 100)}</b> · banco ${brl(Math.abs(m.valor))} · `;
+  if (!sel.length) return txt;
+  if (!dif) return txt + '<span style="color:var(--success)">bate certinho ✓</span>';
+  return txt + `<span style="color:var(--warn)">diferença ${brl(Math.abs(dif) / 100)} → vira ${dif > 0 ? 'juros' : 'desconto'} no maior lançamento</span>`;
+}
+function marcarVarios(id, on) {
+  on ? multi.sel.add(id) : multi.sel.delete(id);
+  $('multiSoma').innerHTML = variosSoma(resultado.semParcela.find(x => x.id === multi.mov));
+}
+function vincularVarios() {
+  const m = resultado.semParcela.find(x => x.id === multi.mov);
+  const sel = resultado.parcelasSemMovimento.filter(p => multi.sel.has(p.id));
+  if (!m || !sel.length) return msg('msgRodar', 'erro', 'Marque pelo menos um lançamento.');
+  if (sel.length === 1) { const id = sel[0].id; multi.mov = null; return vincularLancamento(m.id, id); }
+  const soma = sel.reduce((t, p) => t + p.valor, 0);
+  if (Math.abs(Math.abs(m.valor) - soma) > soma * 0.15) {
+    return msg('msgRodar', 'erro', `A soma dos marcados (${brl(soma)}) está longe do valor do banco (${brl(Math.abs(m.valor))}). Diferença maior que 15% não vira juros/desconto — confira os lançamentos.`);
+  }
+  const { possiveis, ...mov } = m;
+  const par = Conciliacao.montarGrupo(mov, sel, 'manual');
+  resultado.pares.push(par);
+  resultado.semParcela = resultado.semParcela.filter(x => x.id !== m.id);
+  resultado.parcelasSemMovimento = resultado.parcelasSemMovimento.filter(p => !multi.sel.has(p.id));
+  selLanc.delete(m.id); selecionados.add(m.id);
+  multi.mov = null; multi.sel = new Set();
+  msg('msgRodar', 'ok', `Pagamento agrupado montado: ${sel.length} lançamentos${par.ajuste ? `, com ${par.ajuste.tipo} de ${brl(par.ajuste.valor)}` : ''}. Ele está em <i>Sugestões de baixa</i>, já marcado.`);
+  render();
 }
 
 function contatoOpcoes(conts, k) {
@@ -802,7 +880,7 @@ function desfazerVinculo(movId) {
   resultado.pares = resultado.pares.filter(p => p !== par);
   const { possiveis, ...mov } = par.movimento;
   resultado.semParcela.push(mov);
-  resultado.parcelasSemMovimento.push(par.parcela);
+  resultado.parcelasSemMovimento.push(...(par.grupo ? par.parcelas : [par.parcela]));
   selecionados.delete(movId); delete vinculo[movId];
   render();
 }
@@ -888,41 +966,73 @@ function marcarTodos(on) {
 function tipoAjuste(i, tipo) { if (resultado.pares[i]?.ajuste) resultado.pares[i].ajuste.tipo = tipo; }
 
 // ---- baixa ----
+// Itens de baixa de uma sugestão. Grupo → uma baixa por lançamento, com
+// fitid "movimento#1", "#2"…; o ajuste (juros/desconto) vai no lançamento ajusteEm.
+function itensBaixa(p, conta) {
+  const c = comprovantes.find(x => x.id === vinculo[p.movimento.id]);
+  const base = { tipo: p.parcela.tipo, data: p.movimento.data, conta_financeira: conta, metodo_pagamento: $('metodo').value,
+    comprovante: c ? { nome: c.file.name } : undefined };
+  if (!p.grupo) return [{ ...base, fitid: p.movimento.id, parcela_id: p.parcela.id, valor: Math.abs(p.movimento.valor),
+    valor_parcela: p.parcela.valor, ajuste: p.ajuste || null, historico: p.movimento.historico }];
+  const n = p.parcelas.length;
+  const feitos = retornos[p.movimento.id]?.partes || {};
+  return p.parcelas.map((x, k) => {
+    const aj = p.ajuste && x.id === p.ajusteEm ? p.ajuste : null;
+    const valor = Math.round((x.valor + (aj ? (aj.tipo === 'desconto' ? -aj.valor : aj.valor) : 0)) * 100) / 100;
+    return { ...base, fitid: `${p.movimento.id}#${k + 1}`, parcela_id: x.id, tipo: x.tipo, valor, valor_parcela: x.valor, ajuste: aj,
+      historico: `${p.movimento.historico} (pagamento agrupado ${k + 1}/${n})` };
+  }).filter(it => feitos[it.fitid]?.status !== 'ok'); // nova tentativa: só as partes que faltaram
+}
+
+// junta o retorno das partes de um grupo num retorno só da linha
+function juntarRetornoGrupo(movId, n) {
+  const partes = retornos[movId]?.partes || {};
+  const lista = Object.values(partes);
+  const ok = lista.filter(x => x.status === 'ok').length;
+  const erros = lista.filter(x => x.status === 'erro');
+  retornos[movId] = {
+    partes, status: ok === n ? 'ok' : 'erro', anexo: lista.find(x => x.anexo)?.anexo,
+    erro: erros.map(x => x.erro).join(' | ') || undefined,
+    aviso: ok && ok < n ? `${ok} de ${n} lançamentos baixados. Clique em “Dar baixa” de novo para tentar os que faltaram.` : undefined
+  };
+}
+
 async function darBaixa() {
   const conta = $('contaFin').value;
   const lote = resultado.pares.filter(p => selecionados.has(p.movimento.id) && retornos[p.movimento.id]?.status !== 'ok');
   if (!lote.length) return alert('Nenhuma sugestão selecionada.');
   const total = lote.reduce((s, p) => s + Math.abs(p.movimento.valor), 0);
   const comAj = lote.filter(p => p.ajuste).length;
-  if (!confirm(`Dar baixa em ${lote.length} lançamento(s) no Conta Azul, total ${brl(total)}${comAj ? ` (${comAj} com juros/multa/desconto)` : ''}?\n\nIsso altera dados reais.`)) return;
+  const grupos = lote.filter(p => p.grupo);
+  const nLanc = lote.reduce((t, p) => t + (p.grupo ? p.parcelas.length : 1), 0);
+  if (!confirm(`Dar baixa em ${nLanc} lançamento(s) no Conta Azul, total ${brl(total)}` +
+    (grupos.length ? ` — inclui ${grupos.length} pagamento(s) agrupado(s)` : '') +
+    (comAj ? ` (${comAj} com juros/multa/desconto)` : '') + `?\n\nIsso altera dados reais.`)) return;
 
   $('btnBaixar').disabled = true;
   try {
+    const itens = lote.flatMap(p => itensBaixa(p, conta));
+    const dono = Object.fromEntries(lote.map(p => [p.movimento.id, p]));
     // lotes de 20 para não estourar o tempo da Edge Function
-    for (let i = 0; i < lote.length; i += 20) {
-      const fatia = lote.slice(i, i + 20);
-      msg('msgRodar', 'info', `Dando baixa… ${i + fatia.length}/${lote.length}`);
-      const parte = fatia.map(p => {
-        const c = comprovantes.find(x => x.id === vinculo[p.movimento.id]);
-        return {
-          fitid: p.movimento.id, parcela_id: p.parcela.id, tipo: p.parcela.tipo,
-          data: p.movimento.data, valor: Math.abs(p.movimento.valor), valor_parcela: p.parcela.valor,
-          ajuste: p.ajuste || null,
-          conta_financeira: conta, metodo_pagamento: $('metodo').value, historico: p.movimento.historico,
-          comprovante: c ? { nome: c.file.name } : undefined
-        };
-      });
+    for (let i = 0; i < itens.length; i += 20) {
+      const parte = itens.slice(i, i + 20);
+      msg('msgRodar', 'info', `Dando baixa… ${i + parte.length}/${itens.length}`);
       for (const res of await api('baixar', { baixas: parte })) {
-        retornos[res.fitid] = res;
-        if (res.status === 'ok') selecionados.delete(res.fitid);
+        const movId = String(res.fitid).replace(/#\d+$/, '');
+        const p = dono[movId];
+        if (p?.grupo) {
+          retornos[movId] = { ...(retornos[movId] || {}), partes: { ...(retornos[movId]?.partes || {}), [res.fitid]: res } };
+          juntarRetornoGrupo(movId, p.parcelas.length);
+        } else retornos[res.fitid] = res;
+        if (retornos[movId]?.status === 'ok') selecionados.delete(movId);
       }
       render();
     }
     const vals = lote.map(p => retornos[p.movimento.id]).filter(Boolean);
     const erros = vals.filter(x => x.status === 'erro').length;
     const manuais = vals.filter(x => x.anexo === 'manual').length;
-    msg('msgRodar', erros ? 'erro' : 'ok', `${vals.filter(x => x.status === 'ok').length} baixa(s) registradas` +
-      (erros ? `, ${erros} com erro (veja a coluna Resultado)` : '') +
+    msg('msgRodar', erros ? 'erro' : 'ok', `${vals.filter(x => x.status === 'ok').length} sugestão(ões) baixada(s), ${nLanc} lançamento(s)` +
+      (erros ? `; ${erros} com erro (veja a coluna Resultado)` : '') +
       (manuais ? `. ${manuais} com comprovante identificado — anexe à mão no Conta Azul.` : '.'));
   } catch (e) {
     msg('msgRodar', 'erro', esc(e.message));
@@ -942,7 +1052,23 @@ async function desfazer(fitid, onde) {
     return r;
   } catch (e) { msg('msgRodar', 'erro', esc(e.message)); return null; }
 }
-async function desfazerBaixa(movId) { if (await desfazer(movId, retornos)) { selecionados.delete(movId); render(); } }
+async function desfazerBaixa(movId) {
+  const par = resultado.pares.find(p => p.movimento.id === movId);
+  if (!par?.grupo) { if (await desfazer(movId, retornos)) { selecionados.delete(movId); render(); } return; }
+  const feitas = Object.entries(retornos[movId]?.partes || {}).filter(([, r]) => r.status === 'ok').map(([f]) => f);
+  if (!feitas.length || !confirm(`Desfazer as ${feitas.length} baixa(s) deste pagamento agrupado no Conta Azul? Os lançamentos voltam a ficar em aberto.`)) return;
+  const erros = [];
+  for (const f of feitas) {
+    try { await api('desfazer', { fitid: f }); retornos[movId].partes[f] = { fitid: f, status: 'desfeito' }; }
+    catch (e) { erros.push(e.message); }
+  }
+  jaConciliados.delete(movId);
+  retornos[movId] = erros.length ? { ...retornos[movId], status: 'erro', erro: erros.join(' | ') }
+    : { status: 'desfeito', aviso: 'Baixas desfeitas: os lançamentos voltaram a ficar em aberto.' };
+  msg('msgRodar', erros.length ? 'erro' : 'ok', erros.length ? esc(erros.join(' | ')) : 'Baixas do pagamento agrupado desfeitas.');
+  selecionados.delete(movId);
+  render();
+}
 async function desfazerLanc(movId) { if (await desfazer(movId, retLanc)) render(); }
 
 // ---- histórico ----
@@ -1002,7 +1128,8 @@ function baixarResumo() {
 function exportarCSV() {
   const linhas = [['situacao', 'data', 'historico', 'valor', 'lancamento', 'tipo', 'vencimento', 'confianca', 'ajuste', 'resultado', 'comprovante']];
   resultado.pares.forEach(p => linhas.push(['sugestao', p.movimento.data, p.movimento.historico, p.movimento.valor,
-    p.parcela.nome, p.parcela.tipo, p.parcela.vencimento, p.confianca, p.ajuste ? `${p.ajuste.tipo} ${p.ajuste.valor}` : '',
+    p.grupo ? `${p.parcela.nome} (agrupado: ${p.parcelas.map(x => `${x.descricao || '—'} ${x.valor}`).join(' + ')})` : p.parcela.nome,
+    p.parcela.tipo, p.parcela.vencimento, p.confianca, p.ajuste ? `${p.ajuste.tipo} ${p.ajuste.valor}` : '',
     retornos[p.movimento.id]?.status || '', comprovantes.find(x => x.id === vinculo[p.movimento.id])?.file.name || '']));
   resultado.semParcela.forEach(m => linhas.push([retLanc[m.id]?.status === 'ok' ? 'lancado_do_extrato' : 'extrato_sem_lancamento',
     m.data, m.historico, m.valor, (m.possiveis || []).map(x => 'possível: ' + x.parcela.nome).join(' | '), '', '', '', '', retLanc[m.id]?.status || '', '']));

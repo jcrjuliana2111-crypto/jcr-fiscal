@@ -306,3 +306,62 @@ test('parseDDA: valor colado na linha digitável na mesma linha da tabela', () =
   const r = C.parseDDA(['CONTABILIDADE XYZ LTDA  99.888.777/0001-66  05/10/2026  20/10/2026  350,00  ' + linhaDigitavel('2026-10-20', 350)]);
   assert.deepStrictEqual(r.map(b => [b.beneficiario, b.vencimento, b.valor, b.linha.length]), [['CONTABILIDADE XYZ LTDA', '2026-10-20', 350, 47]]);
 });
+
+// ---------- pagamento agrupado ----------
+test('agrupado: um PIX quita 3 notas do mesmo fornecedor (nome bate)', () => {
+  const movs = [{ id: 'm1', data: '2026-10-10', valor: -1500, historico: 'PIX ENVIADO / F F DISTRIBUIDORA DE PRODUTOS' }];
+  const parcelas = [
+    { id: 'a', tipo: 'pagar', vencimento: '2026-10-05', valor: 500, nome: 'F F Distribuidora de Produtos', descricao: 'NF 1' },
+    { id: 'b', tipo: 'pagar', vencimento: '2026-10-10', valor: 600, nome: 'F F Distribuidora de Produtos', descricao: 'NF 2' },
+    { id: 'c', tipo: 'pagar', vencimento: '2026-10-12', valor: 400, nome: 'F F Distribuidora de Produtos', descricao: 'NF 3' },
+    { id: 'd', tipo: 'pagar', vencimento: '2026-10-10', valor: 1000, nome: 'Outro Fornecedor', descricao: 'X' },
+    { id: 'e', tipo: 'pagar', vencimento: '2026-10-10', valor: 500, nome: 'Outro Fornecedor', descricao: 'Y' }
+  ];
+  const r = C.conciliar(movs, parcelas, { janelaDias: 5 });
+  assert.strictEqual(r.pares.length, 1);
+  const g = r.pares[0];
+  assert.ok(g.grupo);
+  assert.deepStrictEqual(g.parcelas.map(p => p.id), ['a', 'b', 'c']);
+  assert.strictEqual(g.confianca, 'media');
+  assert.strictEqual(g.ajuste, null);
+  assert.deepStrictEqual(r.parcelasSemMovimento.map(p => p.id), ['d', 'e']);
+  assert.strictEqual(r.semParcela.length, 0);
+});
+
+test('agrupado: nome do PIX diferente do contato não agrupa; boleto sem nome agrupa pelo contato único', () => {
+  const parcelas = [
+    { id: 'a', tipo: 'pagar', vencimento: '2026-10-05', valor: 500, nome: 'Alfa Ltda', descricao: '' },
+    { id: 'b', tipo: 'pagar', vencimento: '2026-10-06', valor: 250, nome: 'Alfa Ltda', descricao: '' }
+  ];
+  const pix = C.conciliar([{ id: 'm', data: '2026-10-06', valor: -750, historico: 'PIX ENVIADO / BETA SERVICOS' }], parcelas);
+  assert.strictEqual(pix.pares.length, 0);
+  const bol = C.conciliar([{ id: 'm', data: '2026-10-06', valor: -750, historico: 'PAGTO BOLETO' }], parcelas);
+  assert.strictEqual(bol.pares.length, 1);
+  assert.deepStrictEqual(bol.pares[0].parcelas.map(p => p.id), ['a', 'b']);
+  assert.strictEqual(bol.pares[0].confianca, 'media'); // contato único com combinação única
+});
+
+test('agrupado: 1:1 exato tem prioridade e o agrupamento não reaproveita lançamentos', () => {
+  const parcelas = [
+    { id: 'x', tipo: 'pagar', vencimento: '2026-10-06', valor: 750, nome: 'Alfa Ltda', descricao: '' },
+    { id: 'a', tipo: 'pagar', vencimento: '2026-10-05', valor: 500, nome: 'Alfa Ltda', descricao: '' },
+    { id: 'b', tipo: 'pagar', vencimento: '2026-10-06', valor: 250, nome: 'Alfa Ltda', descricao: '' }
+  ];
+  const movs = [
+    { id: 'm1', data: '2026-10-06', valor: -750, historico: 'PIX ENVIADO / ALFA LTDA' },
+    { id: 'm2', data: '2026-10-06', valor: -750, historico: 'PIX ENVIADO / ALFA LTDA' }
+  ];
+  const r = C.conciliar(movs, parcelas);
+  assert.strictEqual(r.pares.length, 2);
+  assert.ok(!r.pares[0].grupo && r.pares[0].parcela.id === 'x');
+  assert.deepStrictEqual(r.pares[1].parcelas.map(p => p.id), ['a', 'b']);
+});
+
+test('montarGrupo: diferença vira juros/desconto no maior lançamento', () => {
+  const g = C.montarGrupo({ id: 'm', data: '2026-10-10', valor: -1012.5 }, [
+    { id: 'a', vencimento: '2026-10-05', valor: 300 }, { id: 'b', vencimento: '2026-10-01', valor: 700 }]);
+  assert.deepStrictEqual(g.parcelas.map(p => p.id), ['b', 'a']);
+  assert.deepStrictEqual(g.ajuste, { tipo: 'juros', valor: 12.5 });
+  assert.strictEqual(g.ajusteEm, 'b');
+  assert.strictEqual(g.confianca, 'manual');
+});

@@ -77,3 +77,17 @@ Conferência contra contas a pagar (todas, inclusive pagas; valor = `total`):
 | falta | nenhum dos anteriores |
 
 Cada parcela atende no máximo um boleto (maior pontuação ganha).
+
+## Pagamento agrupado (`agruparPagamentos` / `montarGrupo`)
+
+Roda depois dos pares 1:1 e de juros/desconto, só com o que sobrou.
+
+| Regra | Detalhe |
+|---|---|
+| Contato | todos os lançamentos do grupo têm o mesmo contato; PIX/TED: nome do extrato bate com ele |
+| Soma | exatamente o valor do banco (centavos), 2 ou mais lançamentos, cada um menor que o valor |
+| Datas | vencimentos até 31 dias da data do banco; entre combinações, a de datas mais próximas |
+| Busca | até 16 lançamentos mais próximos por contato, até 20 combinações |
+| Confiança | média se o nome bate ou se há uma única combinação num único contato; senão baixa |
+| Manual | diferença ≤ 15% da soma → juros (banco maior) / desconto (banco menor) no maior lançamento |
+| Baixa | uma por lançamento, fitid `movimento#n`; reenvio só das partes que falharam |

@@ -165,6 +165,87 @@
       score: 0, confianca: 'manual', ajuste: ajusteDe(movimento, parcela) };
   }
 
+  // --- pagamento agrupado: 1 movimento do banco quita vários lançamentos ---
+  // Ajuste (juros/desconto) da diferença vai para o maior lançamento do grupo.
+  function montarGrupo(movimento, parcelas, confianca) {
+    const ordem = [...parcelas].sort((a, b) => a.vencimento.localeCompare(b.vencimento) || b.valor - a.valor);
+    const soma = ordem.reduce((t, p) => t + Math.round(p.valor * 100), 0);
+    const dif = Math.round(Math.abs(movimento.valor) * 100) - soma;
+    const maior = ordem.reduce((a, b) => (b.valor > a.valor ? b : a), ordem[0]);
+    return {
+      movimento, parcela: ordem[0], parcelas: ordem, grupo: true,
+      dias: Math.max(...ordem.map(p => diasEntre(movimento.data, p.vencimento))),
+      similaridade: 0, score: 0, confianca: confianca || 'manual',
+      ajuste: dif ? { tipo: dif > 0 ? 'juros' : 'desconto', valor: Math.abs(dif) / 100 } : null,
+      ajusteEm: dif ? maior.id : null
+    };
+  }
+
+  // Combinações (2+ itens) cuja soma em centavos é exatamente `alvo`.
+  // `itens` já vem limitado (até 16); para no máximo `limite` soluções.
+  function combinacoesSoma(itens, alvo, limite) {
+    const v = itens.map(p => Math.round(p.valor * 100));
+    const idx = v.map((_, i) => i).sort((a, b) => v[b] - v[a]);
+    const resto = []; // soma do que ainda pode entrar, para podar
+    for (let k = idx.length - 1, acc = 0; k >= 0; k--) { acc += v[idx[k]]; resto[k] = acc; }
+    const sols = [], atual = [];
+    (function dfs(k, soma) {
+      if (sols.length >= limite) return;
+      if (soma === alvo) { if (atual.length >= 2) sols.push(atual.map(i => itens[i])); return; }
+      if (k >= idx.length || soma + resto[k] < alvo) return;
+      const i = idx[k];
+      if (soma + v[i] <= alvo) { atual.push(i); dfs(k + 1, soma + v[i]); atual.pop(); }
+      dfs(k + 1, soma);
+    })(0, 0);
+    return sols;
+  }
+
+  // Para movimentos sem par: procura lançamentos do MESMO contato cuja soma bate
+  // exatamente com o valor do banco. Com nome no extrato (PIX/TED), o nome tem
+  // que bater com o contato. Nunca vem com confiança alta: é para conferir.
+  function agruparPagamentos(movimentos, parcelas, opts) {
+    const janela = (opts && opts.janelaGrupo) != null ? opts.janelaGrupo : 31;
+    const cand = [];
+    for (const m of movimentos) {
+      const tipo = m.valor > 0 ? 'receber' : 'pagar';
+      const cents = Math.round(Math.abs(m.valor) * 100);
+      const nomeExt = nomeNoExtrato(m.historico);
+      const porContato = {};
+      for (const p of parcelas) {
+        if (p.tipo !== tipo || !(p.valor > 0) || Math.round(p.valor * 100) >= cents) continue;
+        if (diasEntre(m.data, p.vencimento) > janela) continue;
+        const k = tokens(p.nome).join(' ');
+        if (!k) continue;
+        (porContato[k] = porContato[k] || []).push(p);
+      }
+      const opcoes = [];
+      for (const lista of Object.values(porContato)) {
+        if (lista.length < 2) continue;
+        if (nomeExt && !nomeBate(nomeExt, lista[0])) continue;
+        const nome = nomeExt ? 1 : similaridadeNome(m.historico, lista[0].nome);
+        const perto = lista.sort((a, b) => diasEntre(m.data, a.vencimento) - diasEntre(m.data, b.vencimento)).slice(0, 16);
+        const sols = combinacoesSoma(perto, cents, 20);
+        if (!sols.length) continue;
+        const dias = s => Math.max(...s.map(p => diasEntre(m.data, p.vencimento)));
+        sols.sort((a, b) => dias(a) - dias(b) || a.length - b.length);
+        opcoes.push({ parcelas: sols[0], nome, unica: sols.length === 1, dias: dias(sols[0]) });
+      }
+      if (!opcoes.length) continue;
+      opcoes.sort((a, b) => b.nome - a.nome || a.dias - b.dias);
+      const o = opcoes[0];
+      const confiavel = o.nome >= 0.5 || (o.unica && opcoes.length === 1);
+      cand.push({ m, ...o, confianca: confiavel ? 'media' : 'baixa', score: (confiavel ? 100 : 0) + 20 * o.nome - o.dias });
+    }
+    cand.sort((a, b) => b.score - a.score);
+    const usados = new Set(), grupos = [];
+    for (const c of cand) {
+      if (c.parcelas.some(p => usados.has(p.id))) continue;
+      c.parcelas.forEach(p => usados.add(p.id));
+      grupos.push({ ...montarGrupo(c.m, c.parcelas, c.confianca), similaridade: Math.round(c.nome * 100) / 100 });
+    }
+    return grupos;
+  }
+
   // movimentos: [{id, data, valor(+ entrada / - saída), historico}]
   // parcelas:   [{id, tipo:'receber'|'pagar', vencimento, valor, nome, descricao}]
   // Regras:
@@ -246,6 +327,16 @@
         score: Math.round(c.score), confianca: 'media', ajuste: c.aj });
     }
 
+    // 4. pagamento agrupado: um movimento quita vários lançamentos do mesmo contato
+    if (!(opts && opts.agrupar === false)) {
+      const grupos = agruparPagamentos(movimentos.filter(m => !usadosM.has(m.id)), parcelas.filter(p => !usadosP.has(p.id)), opts);
+      for (const g of grupos) {
+        usadosM.add(g.movimento.id);
+        g.parcelas.forEach(p => usadosP.add(p.id));
+        pares.push(g);
+      }
+    }
+
     return {
       pares,
       semParcela: movimentos.filter(m => !usadosM.has(m.id))
@@ -261,7 +352,7 @@
     const subiram = [];
     for (const p of pares) {
       const c = porId[vinculo[p.movimento.id]];
-      if (!c || p.confianca !== 'media' || p.ajuste || p.dias > 3) continue;
+      if (!c || p.grupo || p.confianca !== 'media' || p.ajuste || p.dias > 3) continue; // agrupado: sempre conferir
       if (similaridadeNome(c.texto, p.parcela.nome) >= 0.5) { p.confianca = 'alta'; subiram.push(p.movimento.id); }
     }
     return subiram;
@@ -521,7 +612,7 @@
 
   const api = { parseValorBR, parseData, parseOFX, parseCSV, parseExtrato, similaridadeNome, conciliar, dadosComprovante, casarComprovantes,
     nomeNoExtrato, nomeBate, ajusteDe, montarPar, reforcarComComprovantes, resumoFechamento,
-    dadosLinhaDigitavel, parseDDA, conferirDDA };
+    dadosLinhaDigitavel, parseDDA, conferirDDA, montarGrupo, agruparPagamentos };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Conciliacao = api;
 })(this);

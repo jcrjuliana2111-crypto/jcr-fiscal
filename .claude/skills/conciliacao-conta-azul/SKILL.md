@@ -153,6 +153,19 @@ tela e configurar `CONTA_AZUL_ANEXO_PATH` (e `CONTA_AZUL_ANEXO_CAMPO`).
 - **Sem comprovante**: localizar o arquivo, salvar no padrão e anexar à mão.
 - **Exportar CSV** gera o relatório de tudo (sugestões, pendências, comprovantes).
 
+## Pagamento agrupado (1 movimento → vários lançamentos)
+
+Automático (`agruparPagamentos`, chamado no fim de `conciliar`): movimentos sem
+par × lançamentos do mesmo contato, soma exata, até 31 dias; o fornecedor do
+banco TEM que bater com o contato (nome do PIX/TED ou nome no histórico) — sem
+nome no extrato não agrupa sozinho. À mão: um único fornecedor e, se o banco
+mostra o nome, ele tem que bater (a usuária pediu essa regra). Sai como par com `grupo: true` e `parcelas: [...]`, confiança
+média/baixa (nunca alta, nem com comprovante). À mão: *Extrato sem lançamento* →
+**vários lançamentos…** (`montarGrupo`; diferença ≤ 15% vira juros/desconto no
+maior lançamento, `ajusteEm`). Baixa: uma por lançamento com fitid
+`<movimento>#1`, `#2`… (a página consulta `conciliados` com `id` e `id#1`);
+desfazer percorre as partes. Nenhuma mudança na Edge Function.
+
 ## DDA — boletos sem lançamento
 
 Bloco **3 · DDA** da tela: a pessoa envia o PDF do DDA → **Conferir DDA**. O robô

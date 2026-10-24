@@ -26,16 +26,20 @@ Para atualizar: substitua os arquivos da pasta e clique em ↻ na extensão em
    que têm comprovante ligado).
 3. No Conta Azul, aparece o botão **📎 Comprovantes (N)** no canto inferior
    direito. Clique para abrir a lista.
-4. Abra o lançamento no Conta Azul e a área de **anexo** dele. O comprovante
+4. Abra o lançamento no Conta Azul e a janela **Inserir anexos**. O comprovante
    daquele lançamento aparece destacado (“provável deste lançamento”, pelo
    valor na tela).
-5. Clique em **Anexar aqui**: o arquivo vai para o campo de anexo. **Confira e
-   salve no Conta Azul.** Depois clique em **Já anexei** para tirar da lista.
+5. Clique em **Anexar aqui**: o arquivo vai para a primeira linha vazia da
+   janela (se não houver, a extensão clica em **Adicionar anexo**) e a
+   **Descrição** é preenchida com “Comprovante de pagamento - nome”. Escolha o
+   **Tipo de anexo**, **confira e clique em Salvar no Conta Azul**. Depois
+   clique em **Já anexei** para tirar da lista.
 6. Se o campo não for encontrado, use **Baixar arquivo** e anexe à mão.
 
 ## Limites desta primeira versão
 
-- Ela procura o campo de arquivo que estiver aberto na tela (de preferência
-  dentro da janela/modal). Se o Conta Azul usar um componente diferente, me
+- Ela usa a janela **Inserir anexos**; em outras telas, procura o campo de
+  arquivo aberto (de preferência dentro da janela/modal). O **Tipo de anexo** e
+  o **Salvar** ficam com você. Se o Conta Azul usar um componente diferente, me
   mande prints da tela de anexo para ajustar.
 - A lista fica guardada no navegador onde a extensão foi instalada.

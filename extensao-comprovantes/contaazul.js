@@ -122,15 +122,66 @@
     return cand.at(-1) || null;
   }
 
+  // janela "Inserir anexos" do Conta Azul: uma linha por anexo (Forma · Anexo · Tipo · Descrição)
+  function janelaAnexos() {
+    const tit = [...document.querySelectorAll('h1, h2, h3, h4, header, div, span')]
+      .find(el => el.children.length === 0 && /^\s*inserir anexos\s*$/i.test(el.textContent || ''));
+    if (!tit) return null;
+    let j = tit;
+    while (j && !(j.querySelector && j.querySelector('input[type=file]') && /adicionar anexo/i.test(j.textContent || ''))) j = j.parentElement;
+    return j;
+  }
+  function linhasDaJanela(j) {
+    const linhas = [];
+    for (const inp of j.querySelectorAll('input[type=file]')) {
+      let l = inp.parentElement;
+      while (l && l !== j && !l.querySelector('input:not([type=file]):not([type=hidden]), textarea')) l = l.parentElement;
+      if (l && l !== j && !linhas.some(x => x.linha === l)) linhas.push({ linha: l, campo: inp });
+    }
+    return linhas;
+  }
+  const linhaVazia = x => !(x.campo.files && x.campo.files.length) && /escolha um arquivo/i.test(x.linha.textContent || '');
+  function preencher(el, valor) {
+    const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, valor);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  const esperar = ms => new Promise(r => setTimeout(r, ms));
+  function colocar(campo, dtf) {
+    campo.files = dtf.files;
+    campo.dispatchEvent(new Event('input', { bubbles: true }));
+    campo.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  async function anexarNaJanela(j, it, dtf) {
+    let alvo = linhasDaJanela(j).find(linhaVazia);
+    if (!alvo) {
+      const add = [...j.querySelectorAll('button, a, [role=button]')].find(b => /adicionar anexo/i.test(b.textContent || ''));
+      if (!add) return false;
+      add.click();
+      for (let k = 0; k < 20 && !alvo; k++) { await esperar(150); alvo = linhasDaJanela(j).find(linhaVazia); }
+      if (!alvo) return false;
+    }
+    colocar(alvo.campo, dtf);
+    const desc = [...alvo.linha.querySelectorAll('input:not([type=file]):not([type=hidden]), textarea')]
+      .filter(el => !el.readOnly && !el.closest('[role=combobox], [class*="select" i]')).at(-1);
+    if (desc && !desc.value) preencher(desc, `Comprovante de pagamento - ${it.contato || it.descricao || it.arquivo}`.slice(0, 200));
+    return true;
+  }
+
   async function anexar(it) {
     const file = arquivoDe(it);
     const dtf = new DataTransfer();
     dtf.items.add(file);
+    const j = janelaAnexos();
+    if (j && await anexarNaJanela(j, it, dtf)) {
+      msg('ok', `Arquivo <b>${esc(it.arquivo)}</b> colocado em <b>Inserir anexos</b>, com a descrição preenchida. Escolha o <b>Tipo de anexo</b> (ex.: Comprovante), confira e clique em <b>Salvar</b>; depois clique em <b>Já anexei</b>.`);
+      return;
+    }
     const campo = campoDeArquivo();
     if (campo) {
-      campo.files = dtf.files;
-      campo.dispatchEvent(new Event('input', { bubbles: true }));
-      campo.dispatchEvent(new Event('change', { bubbles: true }));
+      colocar(campo, dtf);
       msg('ok', `Arquivo <b>${esc(it.arquivo)}</b> colocado no campo de anexo. Confira na tela do Conta Azul e <b>salve</b>; depois clique em <b>Já anexei</b>.`);
       return;
     }
@@ -140,7 +191,7 @@
       msg('ok', `Arquivo <b>${esc(it.arquivo)}</b> solto na área de anexo. Confira e <b>salve</b> no Conta Azul.`);
       return;
     }
-    msg('erro', 'Não achei o campo de anexo nesta tela. Abra o lançamento, clique em <b>Anexar</b>/<b>Adicionar arquivo</b> no Conta Azul e clique em <b>Anexar aqui</b> de novo. Se não funcionar, use <b>Baixar arquivo</b> e anexe à mão.');
+    msg('erro', 'Não achei o campo de anexo nesta tela. No lançamento, abra <b>Inserir anexos</b> no Conta Azul e clique em <b>Anexar aqui</b> de novo. Se não funcionar, use <b>Baixar arquivo</b> e anexe à mão.');
   }
 
   function baixar(it) {

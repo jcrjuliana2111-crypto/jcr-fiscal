@@ -160,10 +160,14 @@
   const FORMULARIO = new Set(['favorecido', 'fornecedor', 'valor', 'tipo', 'comprovante', 'data', 'vencimento',
     'beneficiario', 'pagador', 'documento', 'agendamento', 'agencia', 'banco', 'codigo', 'autenticacao', 'pago',
     'enviada', 'transacao', 'descricao', 'chave', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set',
-    'out', 'nov', 'dez', 'pdf', 'png', 'jpg', 'jpeg']);
+    'out', 'nov', 'dez', 'pdf', 'png', 'jpg', 'jpeg', 'para', 'id', 'via', 'instituicao', 'identificacao', 'cpf', 'cnpj']);
   // o comprovante traz algum nome (pessoa/empresa/descrição)?
   function temNome(texto) {
-    return tokens(texto).filter(t => !FORMULARIO.has(t)).length >= 2;
+    return tokens(texto).filter(t => !FORMULARIO.has(t) && !/\d/.test(t)).length >= 2;
+  }
+  // palavras que o robô considera "nome" no comprovante (para mostrar na tela)
+  function palavrasNome(texto) {
+    return [...new Set(tokens(texto).filter(t => !FORMULARIO.has(t) && !/\d/.test(t)))];
   }
 
   // nome do extrato bate com o contato (ou, se permitido, com a descrição) do lançamento?
@@ -673,7 +677,7 @@
   }
 
   const api = { parseValorBR, parseData, parseOFX, parseCSV, parseExtrato, similaridadeNome, conciliar, dadosComprovante, casarComprovantes,
-    nomeNoExtrato, nomeBate, nomeForte, temNome, ajusteDe, montarPar, reforcarComComprovantes, resumoFechamento,
+    nomeNoExtrato, nomeBate, nomeForte, temNome, palavrasNome, ajusteDe, montarPar, reforcarComComprovantes, resumoFechamento,
     dadosLinhaDigitavel, parseDDA, conferirDDA, montarGrupo, agruparPagamentos, comprovantesDosMovimentos };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Conciliacao = api;

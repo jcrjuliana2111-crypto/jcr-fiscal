@@ -145,10 +145,30 @@
     return t.length >= 2 ? t.join(' ') : '';
   }
 
-  // nome do extrato bate com o contato (ou com a descrição) do lançamento?
-  function nomeBate(nomeExtrato, parcela) {
-    const sim = (a, b) => Math.max(similaridadeNome(a, b), similaridadeNome(b, a));
-    return Math.max(sim(nomeExtrato, parcela.nome), sim(nomeExtrato, parcela.descricao)) >= 0.5;
+  // O nome está mesmo no texto? Precisa de pelo menos DUAS palavras do nome em
+  // comum (ex.: nome e sobrenome) e metade do nome; um sobrenome só ("Souza")
+  // não basta. Nome de uma palavra só (ex.: "Energisa", "Alfa") precisa aparecer.
+  function nomeForte(texto, nome) {
+    const tn = [...new Set(tokens(nome))];
+    if (!tn.length) return false;
+    const th = new Set(tokens(texto));
+    const c = tn.filter(t => th.has(t)).length;
+    return tn.length === 1 ? c === 1 && tn[0].length >= 4 : c >= 2 && c / tn.length >= 0.5;
+  }
+
+  // palavras de formulário que não são nome de ninguém (comprovantes)
+  const FORMULARIO = new Set(['favorecido', 'fornecedor', 'valor', 'tipo', 'comprovante', 'data', 'vencimento',
+    'beneficiario', 'pagador', 'documento', 'agendamento', 'agencia', 'banco', 'codigo', 'autenticacao', 'pago',
+    'enviada', 'transacao', 'descricao', 'chave', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set',
+    'out', 'nov', 'dez', 'pdf', 'png', 'jpg', 'jpeg']);
+  // o comprovante traz algum nome (pessoa/empresa/descrição)?
+  function temNome(texto) {
+    return tokens(texto).filter(t => !FORMULARIO.has(t)).length >= 2;
+  }
+
+  // nome do extrato bate com o contato (ou, se permitido, com a descrição) do lançamento?
+  function nomeBate(nomeExtrato, parcela, soContato) {
+    return nomeForte(nomeExtrato, parcela.nome) || (!soContato && nomeForte(nomeExtrato, parcela.descricao));
   }
 
   // diferença entre o que caiu no banco e o valor da parcela:
@@ -209,8 +229,10 @@
     const cand = [];
     for (const m of movimentos) {
       const cents = Math.round(Math.abs(m.valor) * 100);
+      const nomeExt = nomeNoExtrato(m.historico);
       for (const c of comprovantes) {
         if (!c.valores || !c.valores.includes(cents)) continue;
+        if (nomeExt && temNome(c.texto) && !nomeForte(c.texto, nomeExt)) continue; // banco e comprovante com nomes diferentes
         let dias = null;
         if (c.datas && c.datas.length) {
           dias = Math.min(...c.datas.map(d => diasEntre(m.data, d)));
@@ -256,8 +278,8 @@
       const opcoes = [];
       for (const lista of Object.values(porContato)) {
         if (lista.length < 2) continue;
-        const nome = nomeExt ? (nomeBate(nomeExt, lista[0]) ? 1 : 0)
-          : Math.max(similaridadeNome(m.historico, lista[0].nome), m.textoComprovante ? similaridadeNome(m.textoComprovante, lista[0].nome) : 0);
+        const nome = (nomeExt ? nomeBate(nomeExt, lista[0], true)
+          : nomeForte(m.historico, lista[0].nome) || (m.textoComprovante && nomeForte(m.textoComprovante, lista[0].nome))) ? 1 : 0;
         if (nome < 0.5) continue; // fornecedor do banco ≠ contato do Conta Azul
         const perto = lista.sort((a, b) => diasEntre(m.data, a.vencimento) - diasEntre(m.data, b.vencimento)).slice(0, 16);
         const sols = combinacoesSoma(perto, cents, 20);
@@ -349,8 +371,8 @@
         if (!aj || aj.valor > p.valor * margem) continue;
         const dias = diasEntre(m.data, p.vencimento);
         if (dias > janelaAjuste) continue;
-        const nome = nomeExt ? (nomeBate(nomeExt, p) ? 1 : 0)
-          : Math.max(similaridadeNome(m.historico, p.nome), similaridadeNome(m.historico, p.descricao) * 0.8);
+        // valor diferente: só sugere juros/desconto se o banco mostra o MESMO fornecedor do Conta Azul
+        const nome = (nomeExt ? nomeBate(nomeExt, p, true) : nomeForte(m.historico, p.nome)) ? 1 : 0;
         if (nome < 0.5) continue;
         candAj.push({ m, p, dias, nome, aj, score: nome * 50 - dias - 100 * aj.valor / p.valor });
       }
@@ -389,7 +411,7 @@
     for (const p of pares) {
       const c = porId[vinculo[p.movimento.id]];
       if (!c || p.grupo || p.confianca !== 'media' || p.ajuste || p.dias > 3) continue; // agrupado: sempre conferir
-      if (similaridadeNome(c.texto, p.parcela.nome) >= 0.5) { p.confianca = 'alta'; subiram.push(p.movimento.id); }
+      if (nomeForte(c.texto, p.parcela.nome)) { p.confianca = 'alta'; subiram.push(p.movimento.id); }
     }
     return subiram;
   }
@@ -450,8 +472,12 @@
     const cand = [];
     for (const par of pares) {
       const cents = Math.round(Math.abs(par.movimento.valor) * 100);
+      const nomeExt = nomeNoExtrato(par.movimento.historico);
       for (const c of comprovantes) {
         if (!c.valores.includes(cents)) continue;
+        // comprovante com nome: tem que ser o do contato, o da descrição ou o do banco
+        if (temNome(c.texto) && !(nomeForte(c.texto, par.parcela.nome) || nomeForte(c.texto, par.parcela.descricao) ||
+          (nomeExt && nomeForte(c.texto, nomeExt)))) continue;
         const venc = c.vencimentos || [];
         let dias = null;
         if (venc.length) {
@@ -647,7 +673,7 @@
   }
 
   const api = { parseValorBR, parseData, parseOFX, parseCSV, parseExtrato, similaridadeNome, conciliar, dadosComprovante, casarComprovantes,
-    nomeNoExtrato, nomeBate, ajusteDe, montarPar, reforcarComComprovantes, resumoFechamento,
+    nomeNoExtrato, nomeBate, nomeForte, temNome, ajusteDe, montarPar, reforcarComComprovantes, resumoFechamento,
     dadosLinhaDigitavel, parseDDA, conferirDDA, montarGrupo, agruparPagamentos, comprovantesDosMovimentos };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Conciliacao = api;

@@ -6,6 +6,21 @@ comprovantes das baixas e coloca o arquivo no campo de anexo do lançamento.
 Nada passa por IA nem por servidor — os arquivos ficam guardados no próprio
 navegador.
 
+## Instalação automática (recomendada)
+
+1. Baixe o **instalar.bat** (link no robô ou
+   https://jcrjuliana2111-crypto.github.io/jcr-fiscal/extensao-comprovantes/instalar.bat)
+   e dê dois cliques. Se o Windows avisar "protegeu o computador", clique em
+   **Mais informações → Executar assim mesmo**.
+2. Ele cria `Documents\Extensoes\extensao-comprovantes` já extraída e agenda a
+   tarefa **JCR - atualizar extensao**, que baixa a versão nova a cada hora.
+3. Só uma vez: `chrome://extensions` → **Modo do desenvolvedor** →
+   **Carregar sem compactação** → escolha essa pasta.
+
+Daí em diante a extensão se atualiza sozinha: a tarefa troca os arquivos e a
+extensão percebe a versão nova e se recarrega (em até 5 minutos). Aperte F5 nas
+abas do robô e do Conta Azul que estavam abertas.
+
 ## Instalar (uma vez, Chrome ou Edge)
 
 1. Baixe o arquivo `extensao-comprovantes.zip` e **extraia** numa pasta fixa

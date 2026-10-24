@@ -1,0 +1,6 @@
+manifest.json
+background.js
+portal.js
+contaazul.js
+icone.png
+atualizar.ps1

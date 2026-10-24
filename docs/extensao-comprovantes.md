@@ -51,6 +51,19 @@ Para atualizar: substitua os arquivos da pasta e clique em ↻ na extensão em
    clique em **Já anexei** para tirar da lista.
 6. Se o campo não for encontrado, use **Baixar arquivo** e anexe à mão.
 
+## Arrastar o 📎 direto do lançamento
+
+- Nas telas do Conta Azul (contas a pagar, conciliação…), aparece um **📎** ao
+  lado do valor dos lançamentos que têm comprovante pendente — só quando o
+  **valor e o nome** do favorecido aparecem na linha.
+- **Arraste o 📎 até o campo "Escolha um arquivo / Ou arraste-o para este
+  espaço"**: o arquivo entra naquela linha e a descrição é preenchida.
+- Quando a janela **Inserir anexos** abre e cobre a lista, o comprovante do
+  lançamento em que você clicou aparece num botão azul ao lado do título:
+  arraste-o para o campo ou clique nele.
+- Ao clicar em **Salvar** na janela, os comprovantes colocados saem da lista
+  sozinhos.
+
 ## Limites desta primeira versão
 
 - Ela usa a janela **Inserir anexos**; em outras telas, procura o campo de

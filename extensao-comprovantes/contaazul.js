@@ -336,7 +336,7 @@
       // um ícone só por lançamento (o valor aparece em Total e em A pagar): fica no primeiro
       let a = achados.find(x => x.linha === linha || x.linha.contains(linha) || linha.contains(x.linha));
       for (const c of porValor.get(m[2]).filter(c => c.bate(txt))) {
-        if (!a) achados.push(a = { linha, el, r, its: [] });
+        if (!a) achados.push(a = { linha, el, r, n, its: [] });
         if (!a.its.includes(c.it)) a.its.push(c.it);
       }
     }
@@ -363,7 +363,7 @@
     try {
       for (const a of acharNaTela()) {
         linhas.push(a);
-        html += chipHtml(a.it, '', Math.max(2, a.r.left - 26), a.r.top + a.r.height / 2 - 10, a.its); // à esquerda do valor, para não cobrir botões
+        html += chipHtml(a.it, '', a.r.right + 6, a.r.top + a.r.height / 2 - 10, a.its); // à direita do valor
       }
       // janela "Inserir anexos" aberta: mostra os comprovantes do lançamento ao lado do título
       const jan = janelaAnexos();
@@ -383,6 +383,7 @@
       }
     } catch (e) { /* tela mudando: tenta de novo no próximo ciclo */ }
     if (chipsEl.innerHTML !== html) chipsEl.innerHTML = html;
+    ancoras = linhas.map(a => a.n);
   }
 
   // clicou num lançamento que tem 📎: ele vira o "atual" (aparece em destaque quando abrir Inserir anexos)
@@ -456,8 +457,22 @@
   }, true);
 
   setInterval(desenhar, 1200);
-  addEventListener('scroll', () => requestAnimationFrame(desenhar), true);
-  addEventListener('resize', desenhar);
+  // a cada quadro, cola cada ícone no texto do valor: anda junto com a rolagem, sem "dançar"
+  let ancoras = [];
+  const rg = document.createRange();
+  (function seguir() {
+    const cs = chipsEl.children;
+    for (let k = 0; k < ancoras.length && k < cs.length; k++) {
+      const n = ancoras[k], c = cs[k];
+      if (!n.isConnected) { c.style.display = 'none'; continue; }
+      rg.selectNodeContents(n);
+      const r = rg.getBoundingClientRect();
+      const fora = r.width === 0 || r.bottom < 0 || r.top > innerHeight;
+      c.style.display = fora ? 'none' : '';
+      if (!fora) { c.style.left = Math.round(r.right + 6) + 'px'; c.style.top = Math.round(r.top + r.height / 2 - 10) + 'px'; }
+    }
+    requestAnimationFrame(seguir);
+  })();
 
   $('abrirPasta').addEventListener('click', () => chrome.runtime.sendMessage({ tipo: 'abrirPasta' }));
   $('fab').addEventListener('click', () => { $('painel').classList.toggle('aberto'); render(); });

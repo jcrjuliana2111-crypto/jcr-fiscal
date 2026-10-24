@@ -43,6 +43,7 @@
       <div class="linha"><b>📎 Comprovantes para anexar</b><button class="b" id="fechar">fechar</button></div>
       <input id="busca" placeholder="filtrar por nome, valor ou arquivo">
       <div class="msg" id="msg">Abra o lançamento no Conta Azul, abra a área de anexo e clique em <b>Anexar aqui</b>.</div>
+      <div class="linha"><span class="sub" id="pastaInfo"></span><button class="b" id="abrirPasta">Escolher / ler pasta</button></div>
       <label class="sub"><input type="checkbox" id="mostrarFeitos" style="width:auto"> mostrar os já anexados</label>
     </div>
     <div id="lista"></div>
@@ -52,14 +53,18 @@
   const $ = id => root.getElementById(id);
 
   let itens = [];
+  let pasta = null, usados = new Set(); // comprovantes lidos da pasta (página 📂) e os já anexados
   async function carregar() {
-    const { pendentes = [] } = await chrome.storage.local.get('pendentes');
-    itens = pendentes;
+    const { pendentes = [], pasta: p = null, usados: u = [] } = await chrome.storage.local.get(['pendentes', 'pasta', 'usados']);
+    itens = pendentes; pasta = p; usados = new Set(u);
     const n = itens.filter(i => i.status !== 'feito').length;
-    $('fab').textContent = `📎 Comprovantes (${n})`;
+    $('fab').textContent = `📎 Comprovantes (${n})` + (pasta ? ` · 📂 ${pasta.itens.filter(i => !usados.has(i.id)).length}` : '');
+    $('pastaInfo').innerHTML = pasta
+      ? `📂 <b>${esc(pasta.nome)}</b> · ${pasta.itens.length} comprovante(s) · lida em ${new Date(pasta.lidaEm).toLocaleString('pt-BR')}`
+      : '📂 Nenhuma pasta lida: os 📎 aparecem só para o que o robô mandar.';
     if ($('painel').classList.contains('aberto')) render();
   }
-  chrome.storage.onChanged.addListener(c => { if (c.pendentes) carregar(); });
+  chrome.storage.onChanged.addListener(c => { if (c.pendentes || c.pasta || c.usados) carregar(); });
 
   function msg(tipo, html) { const el = $('msg'); el.className = 'msg ' + (tipo || ''); el.innerHTML = html; }
 
@@ -172,7 +177,13 @@
       .filter(el => !el.readOnly && !el.closest('[role=combobox], [class*="select" i]')).at(-1);
     if (desc && !desc.value) preencher(desc, `Comprovante de pagamento - ${it.contato || it.descricao || it.arquivo}`.slice(0, 200));
   }
-  const dtfDe = it => { const d = new DataTransfer(); d.items.add(arquivoDe(it)); return d; };
+  async function obterArquivo(it) {
+    if (it.dataUrl) return arquivoDe(it);
+    const r = await chrome.runtime.sendMessage({ tipo: 'arquivo', id: it.pastaId });
+    if (!r || r.erro) throw new Error((r && r.erro) || 'Não consegui pegar o arquivo da pasta.');
+    return arquivoDe({ dataUrl: r.dataUrl, arquivo: it.arquivo });
+  }
+  const dtfDe = async it => { const d = new DataTransfer(); d.items.add(await obterArquivo(it)); return d; };
 
   async function anexar(it) {
     const file = arquivoDe(it);
@@ -259,11 +270,48 @@
   }
 
   // acha os lançamentos na tela cujo valor (e, se possível, nome) bate com um comprovante pendente
+  function candidatos() {
+    const lista = itens.filter(i => i.status !== 'feito' && i.dataUrl)
+      .map(it => ({ it, valores: [valorTxt(Math.abs(it.valor))], bate: txt => nomeNaLinha(it, txt) }));
+    const doRobo = new Set(itens.map(i => norm(i.arquivo)));
+    for (const p of (pasta ? pasta.itens : [])) {
+      if (usados.has(p.id) || doRobo.has(norm(p.arquivo))) continue;
+      const valor = Math.max(...p.valores) / 100;
+      const it = { id: 'pasta:' + p.id, pastaId: p.id, origem: 'pasta', arquivo: p.arquivo, valor,
+        contato: p.arquivo.replace(/\.[a-z0-9]+$/i, '').replace(/^\s*(favorecido|fornecedor)\s*:?\s*/i, '').replace(/\s*R\$.*$/i, '') || p.arquivo };
+      lista.push({ it, valores: p.valores.filter(v => v > 0).map(v => valorTxt(v / 100)), bate: txt => batePasta(p, txt) });
+    }
+    return lista;
+  }
+  // palavras comuns nas linhas do Conta Azul que, sozinhas, não identificam ninguém
+  const GENERICO = new Set(['mensal', 'pedido', 'venda', 'compra', 'fechamento', 'acordo', 'judicial', 'material', 'medicamento', 'medico',
+    'consumo', 'locacao', 'equipamento', 'servicos', 'servico', 'comercio', 'plantao', 'extra', 'protesto', 'dias', 'apos', 'solicitacao',
+    'aberto', 'vencido', 'atrasado', 'curinga', 'total', 'parcela', 'referente', 'nota', 'fiscal', 'fatura', 'mercadoria', 'produtos',
+    'distribuidora', 'limpeza', 'folha', 'acoes', 'situacao', 'pagar', 'receber', 'despesa', 'despesas', 'outros', 'diversos']);
+  const isoDe = t => [...t.matchAll(/(\d{2})\/(\d{2})\/(\d{4})/g)].map(m => `${m[3]}-${m[2]}-${m[1]}`);
+  const diasEntre = (a, b) => Math.abs(Date.parse(a) - Date.parse(b)) / 864e5;
+  // comprovante da pasta bate com a linha? 2+ palavras de nome em comum (1+ não genérica) e datas compatíveis
+  function batePasta(p, txt) {
+    const C = window.Conciliacao;
+    const comp = new Set(C.palavrasNome(p.texto));
+    const comuns = C.palavrasNome(txt).filter(w => comp.has(w));
+    const fortes = comuns.filter(w => !GENERICO.has(w));
+    const datasLinha = isoDe(txt);
+    let dataBate = null; // null = sem data para comparar
+    if (datasLinha.length) {
+      if (p.vencimentos.length) dataBate = p.vencimentos.some(v => datasLinha.some(d => diasEntre(v, d) <= 3));
+      else if (p.datas.length) dataBate = p.datas.some(v => datasLinha.some(d => diasEntre(v, d) <= 5));
+    }
+    if (dataBate === false) return false;
+    // 2+ palavras em comum (1+ não genérica), ou 1 palavra marcante (5+ letras) com a data batendo
+    return (comuns.length >= 2 && fortes.length >= 1) || (dataBate === true && fortes.some(w => w.length >= 5));
+  }
+
   function acharNaTela() {
-    const pend = itens.filter(i => i.status !== 'feito' && i.dataUrl);
-    if (!pend.length) return [];
+    const cands = candidatos();
+    if (!cands.length) return [];
     const porValor = new Map();
-    for (const it of pend) { const v = valorTxt(Math.abs(it.valor)); (porValor.get(v) || porValor.set(v, []).get(v)).push(it); }
+    for (const c of cands) for (const v of c.valores) (porValor.get(v) || porValor.set(v, []).get(v)).push(c);
     const re = new RegExp(`(^|[^\\d.,])(${[...porValor.keys()].map(v => v.replace(/\./g, '\\.')).join('|')})(?![\\d])`);
     const achados = [];
     const jan = janelaAnexos();
@@ -277,14 +325,17 @@
       const rg = document.createRange(); rg.selectNodeContents(n);
       const r = rg.getBoundingClientRect(); // só o texto do valor (a célula pode ser bem mais larga)
       const linha = linhaDe(el), txt = norm(linha.innerText);
-      const cands = porValor.get(m[2]);
       // só mostra o 📎 quando o nome do favorecido também está na linha (valor sozinho engana)
-      cands.filter(it => nomeNaLinha(it, txt)).forEach((it, k) => achados.push({ it, el, linha, r, k }));
+      const daqui = porValor.get(m[2]).filter(c => c.bate(txt)).slice(0, 2);
+      daqui.forEach((c, k) => achados.push({ it: c.it, el, linha, r, k }));
     }
     return achados;
   }
 
+  let ultimos = [];
+  const acharItem = id => itens.find(i => i.id === id) || ultimos.find(i => i.id === id) || (atual && atual.id === id ? atual : null);
   function chipHtml(it, cls, x, y) {
+    if (!ultimos.includes(it)) ultimos.push(it);
     return `<div class="chip ${cls}" draggable="true" data-id="${esc(it.id)}" style="left:${Math.round(x)}px;top:${Math.round(y)}px"
       title="${esc(it.arquivo)} — arraste até o campo de anexo do Conta Azul (ou clique com a janela de anexos aberta)">📎${cls.includes('grande') ? ' ' + esc(it.contato || it.arquivo) + ' · ' + brl(Math.abs(it.valor)) : ''}</div>`;
   }
@@ -293,7 +344,7 @@
   function desenhar() {
     if (arrastando) return;
     let html = '';
-    linhas = [];
+    linhas = []; ultimos = [];
     try {
       for (const a of acharNaTela()) {
         linhas.push(a);
@@ -303,8 +354,8 @@
       const jan = janelaAnexos();
       if (jan) {
         const pend = itens.filter(i => i.status !== 'feito' && i.dataUrl);
-        const at = atual && pend.find(i => i.id === atual.id);
-        const sug = [at, ...pend.filter(i => pontuacao(i) >= 2)].filter((i, k, arr) => i && i.status !== 'feito' && arr.findIndex(x => x && x.id === i.id) === k).slice(0, 3);
+        const at = atual && (atual.origem === 'pasta' ? (usados.has(atual.pastaId) ? null : atual) : pend.find(i => i.id === atual.id));
+        const sug = [at, ...pend.filter(i => pontuacao(i) >= 2)].filter((i, k, arr) => i && arr.findIndex(x => x && x.id === i.id) === k && (i.origem === 'pasta' || i.status !== 'feito')).slice(0, 3);
         const tit = [...jan.querySelectorAll('*')].find(el => el.children.length === 0 && /^\s*inserir anexos\s*$/i.test(el.textContent || ''));
         let r = (tit || jan).getBoundingClientRect();
         if (tit) { const rg = document.createRange(); rg.selectNodeContents(tit); r = rg.getBoundingClientRect(); }
@@ -329,22 +380,24 @@
     const b = e.target.closest && e.target.closest('button, [role=button]');
     const jan = janelaAnexos();
     if (b && jan && /^\s*salvar\s*$/i.test(b.textContent || '') && colocados.size) {
-      for (const id of colocados) marcar(id, 'feito');
+      const daPasta = [...colocados].filter(id => id.startsWith('pasta:')).map(id => id.slice(6));
+      for (const id of colocados) if (!id.startsWith('pasta:')) marcar(id, 'feito');
+      if (daPasta.length) chrome.storage.local.set({ usados: [...new Set([...usados, ...daPasta])] });
       colocados.clear();
     }
   }, true);
 
   chipsEl.addEventListener('click', async e => {
     const c = e.target.closest('.chip'); if (!c) return;
-    const it = itens.find(i => i.id === c.dataset.id); if (!it) return;
+    const it = acharItem(c.dataset.id); if (!it) return;
     atual = it;
     const jan = janelaAnexos();
-    if (jan && await anexarNaJanela(jan, it, dtfDe(it))) { colocados.add(it.id); aviso(`${it.arquivo} colocado. Escolha o Tipo de anexo e clique em Salvar.`); }
+    if (jan && await anexarNaJanela(jan, it, await dtfDe(it))) { colocados.add(it.id); aviso(`${it.arquivo} colocado. Escolha o Tipo de anexo e clique em Salvar.`); }
     else aviso(`Arraste o 📎 até o campo "Escolha um arquivo / arraste-o", ou abra Inserir anexos e clique nele.`);
   });
   chipsEl.addEventListener('dragstart', e => {
     const c = e.target.closest('.chip'); if (!c) return;
-    arrastando = itens.find(i => i.id === c.dataset.id) || null;
+    arrastando = acharItem(c.dataset.id);
     if (!arrastando) return;
     atual = arrastando;
     e.dataTransfer.effectAllowed = 'copy';
@@ -379,7 +432,9 @@
     const it = arrastando; arrastando = null;
     const alvo = campoPerto(e.target);
     if (!alvo) { aviso('Solte em cima do campo "Escolha um arquivo / arraste-o para este espaço".'); return; }
-    if (alvo.linha) colocarNaLinha(alvo.linha, it, dtfDe(it)); else colocar(alvo.campo, dtfDe(it));
+    let dtf;
+    try { dtf = await dtfDe(it); } catch (er) { aviso(er.message); return; }
+    if (alvo.linha) colocarNaLinha(alvo.linha, it, dtf); else colocar(alvo.campo, dtf);
     colocados.add(it.id);
     aviso(`${it.arquivo} colocado. Escolha o Tipo de anexo, confira e clique em Salvar.`);
     desenhar();
@@ -389,6 +444,7 @@
   addEventListener('scroll', () => requestAnimationFrame(desenhar), true);
   addEventListener('resize', desenhar);
 
+  $('abrirPasta').addEventListener('click', () => chrome.runtime.sendMessage({ tipo: 'abrirPasta' }));
   $('fab').addEventListener('click', () => { $('painel').classList.toggle('aberto'); render(); });
   $('fechar').addEventListener('click', () => $('painel').classList.remove('aberto'));
   $('busca').addEventListener('input', render);

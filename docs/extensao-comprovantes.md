@@ -51,6 +51,24 @@ Para atualizar: substitua os arquivos da pasta e clique em ↻ na extensão em
    clique em **Já anexei** para tirar da lista.
 6. Se o campo não for encontrado, use **Baixar arquivo** e anexe à mão.
 
+## Pasta de comprovantes (sem o robô)
+
+1. No painel **📎 Comprovantes** do Conta Azul, clique em **Escolher / ler pasta**.
+2. Na página que abre, clique em **Escolher pasta** e aponte a pasta onde você
+   salva os comprovantes (subpastas valem). Escolha o período (padrão: arquivos
+   dos últimos 120 dias).
+3. A extensão lê o **nome do arquivo e o texto do PDF** (sem IA) e mostra o que
+   leu. Volte ao Conta Azul e aperte F5: o botão mostra **📂 N**.
+4. O 📎 aparece nos lançamentos em que o **valor** bate e o **nome** também:
+   2 palavras em comum (uma delas não genérica), ou 1 palavra marcante com a
+   data batendo. Se o comprovante tem vencimento (`V ddmmaa`) ou data de
+   pagamento, ela precisa estar perto das datas da linha.
+5. Comprovante novo na pasta: abra a página de novo e clique em **Ler de novo**
+   (se o Chrome perguntar, escolha **Permitir em todas as visitas** e ele passa a
+   ler sozinho ao abrir).
+
+Os comprovantes anexados (depois do **Salvar**) não aparecem mais.
+
 ## Arrastar o 📎 direto do lançamento
 
 - Nas telas do Conta Azul (contas a pagar, conciliação…), aparece um **📎** ao

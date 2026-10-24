@@ -157,8 +157,10 @@ tela e configurar `CONTA_AZUL_ANEXO_PATH` (e `CONTA_AZUL_ANEXO_CAMPO`).
 
 Automático (`agruparPagamentos`, chamado no fim de `conciliar`): movimentos sem
 par × lançamentos do mesmo contato, soma exata, até 31 dias; o fornecedor do
-banco TEM que bater com o contato (nome do PIX/TED ou nome no histórico) — sem
-nome no extrato não agrupa sozinho. À mão: um único fornecedor e, se o banco
+banco TEM que bater com o contato (nome do PIX/TED ou nome no histórico); sem
+nome no extrato vale o fornecedor do comprovante da pasta ligado ao movimento
+(`comprovantesDosMovimentos` → `textoComprovante`, lido ANTES de `conciliar`);
+sem nenhum dos dois não agrupa sozinho. À mão: um único fornecedor e, se o banco
 mostra o nome, ele tem que bater (a usuária pediu essa regra). Sai como par com `grupo: true` e `parcelas: [...]`, confiança
 média/baixa (nunca alta, nem com comprovante). À mão: *Extrato sem lançamento* →
 **vários lançamentos…** (`montarGrupo`; diferença ≤ 15% vira juros/desconto no

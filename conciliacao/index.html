@@ -157,7 +157,7 @@
     </div>
     <p class="muted" style="margin-top:10px">
       <b>Regras:</b> valor igual ao centavo e data próxima. Em PIX/TED/DOC, o <b>nome do favorecido precisa bater</b> com o contato ou a descrição do lançamento — se não bater, o movimento vai para <i>Extrato sem lançamento</i> como “possível”, para você vincular à mão. Mesmo contato com valor um pouco diferente (até 15%) vira sugestão com <b>juros/multa ou desconto</b>.
-      Um valor no banco que quita <b>vários lançamentos</b> do mesmo fornecedor (soma exata) vira <b>pagamento agrupado</b> para conferir — o <b>fornecedor do banco precisa bater</b> com o do Conta Azul; se o banco não mostra o nome, monte à mão em <i>Extrato sem lançamento</i> → <i>vários lançamentos…</i>.
+      Um valor no banco que quita <b>vários lançamentos</b> do mesmo fornecedor (soma exata) vira <b>pagamento agrupado</b> para conferir — o <b>fornecedor do banco precisa bater</b> com o do Conta Azul; se o banco não mostra o nome (boleto), vale o fornecedor do <b>comprovante</b> da pasta; sem nenhum dos dois, monte à mão em <i>Extrato sem lançamento</i> → <i>vários lançamentos…</i>.
       Confiança <b>alta</b> (já marcada) só com nome batendo; <b>média</b> e <b>manual</b> vêm para conferir.<br>
       Comprovantes: o robô lê o texto dos PDFs e o nome dos arquivos (sem IA) e só <b>identifica</b> o comprovante de cada lançamento — anexe à mão no Conta Azul. A observação da baixa recebe a marca de baixa automática, mantendo o que já estava escrito.</p>
     <div id="msgRodar" class="msg"></div>
@@ -377,11 +377,16 @@ const idb = {
   }
 };
 
+let avisoPasta = '';   // aviso da última leitura da pasta (arquivos pulados, pasta sumida)
+let pulados = 0;
 async function listarPasta(dir, prefixo = '') {
   const out = [];
   for await (const [nome, h] of dir.entries()) {
     if (h.kind === 'directory') out.push(...await listarPasta(h, prefixo + nome + '/'));
-    else if (EXT_COMPROVANTE.test(nome)) out.push(await h.getFile());
+    else if (EXT_COMPROVANTE.test(nome)) {
+      // arquivo apagado no meio da leitura ou só na nuvem (OneDrive): pula
+      try { out.push(await h.getFile()); } catch { pulados++; }
+    }
   }
   return out;
 }
@@ -416,10 +421,23 @@ async function arquivosDaPasta() {
         (await pastaHandle.requestPermission({ mode: 'read' })) !== 'granted') {
       throw new Error('Sem permissão para ler a pasta de comprovantes.');
     }
-    const lista = await listarPasta(pastaHandle);
-    mostrarPasta(pastaHandle.name, lista.length);
-    return lista;
+    pulados = 0; avisoPasta = '';
+    try {
+      const lista = await listarPasta(pastaHandle);
+      mostrarPasta(pastaHandle.name, lista.length);
+      if (pulados) avisoPasta = `${pulados} arquivo(s) da pasta não puderam ser abertos (apagados agora ou só na nuvem do OneDrive) e foram pulados.`;
+      return lista;
+    } catch (e) {
+      // a pasta lembrada não existe mais (movida, renomeada ou apagada): segue sem comprovantes
+      const nome = pastaHandle.name;
+      pastaHandle = null;
+      try { await idb.set('pasta', null); } catch {}
+      mostrarPasta('', 0);
+      avisoPasta = `A pasta de comprovantes “${nome}” não foi encontrada (movida, renomeada ou apagada). A conciliação rodou sem comprovantes — clique em <b>Escolher pasta</b> e selecione-a de novo.`;
+      return [];
+    }
   }
+  avisoPasta = '';
   return pastaArquivos;
 }
 
@@ -580,7 +598,10 @@ async function rodar() {
     const arqs = await arquivosDaPasta();
     msg('msgRodar', 'info', 'Lendo extrato…');
     // FITID só é único dentro da conta — prefixa com a conta financeira
-    movimentos = Conciliacao.parseExtrato(f.name, await lerArquivo(f))
+    let textoExtrato;
+    try { textoExtrato = await lerArquivo(f); }
+    catch { throw new Error(`Não consegui abrir o extrato “${f.name}”: ele foi movido, renomeado ou apagado depois de escolhido. Clique em “Escolher arquivo” e selecione o extrato de novo.`); }
+    movimentos = Conciliacao.parseExtrato(f.name, textoExtrato)
       .map(m => ({ ...m, id: `${conta}:${m.id}` }));
     if (!movimentos.length) throw new Error('Nenhum movimento encontrado no arquivo.');
 
@@ -596,7 +617,14 @@ async function rodar() {
       api('conciliados', { fitids: movimentos.flatMap(m => [m.id, `${m.id}#1`]) })
     ]);
     jaConciliados = new Set(conciliados.map(f => String(f).replace(/#\d+$/, ''))); // grupo baixado = "id#1", "id#2"…
-    const pendentes = movimentos.filter(m => !jaConciliados.has(m.id));
+    // comprovantes antes da conciliação: o fornecedor do comprovante vale quando
+    // o banco não mostra o nome (boleto) — usado no pagamento agrupado
+    if (arqs.length) msg('msgRodar', 'info', `Lendo ${arqs.length} comprovante(s) da pasta…`);
+    comprovantes = arqs.length ? await lerComprovantes(arqs) : [];
+    const compPorMov = Conciliacao.comprovantesDosMovimentos(movimentos.filter(m => !jaConciliados.has(m.id)), comprovantes, { janelaDias: 3 });
+    const compId = Object.fromEntries(comprovantes.map(c => [c.id, c]));
+    const pendentes = movimentos.filter(m => !jaConciliados.has(m.id))
+      .map(m => compPorMov[m.id] ? { ...m, textoComprovante: compId[compPorMov[m.id]].texto } : m);
 
     resultado = Conciliacao.conciliar(pendentes, parcelas, { janelaDias: janela });
     selecionados.clear(); selLanc.clear();
@@ -604,8 +632,13 @@ async function rodar() {
     for (const k in retLanc) delete retLanc[k];
 
     for (const k in vinculo) delete vinculo[k];
-    comprovantes = arqs.length ? await lerComprovantes(arqs) : [];
     Object.assign(vinculo, Conciliacao.casarComprovantes(resultado.pares, comprovantes, { janelaDias: 3 }));
+    // pagamento agrupado achado pelo comprovante: liga o mesmo comprovante à linha
+    const usadosComp = new Set(Object.values(vinculo));
+    for (const p of resultado.pares) {
+      const c = compPorMov[p.movimento.id];
+      if (p.grupo && !vinculo[p.movimento.id] && c && !usadosComp.has(c)) { vinculo[p.movimento.id] = c; usadosComp.add(c); }
+    }
     Conciliacao.reforcarComComprovantes(resultado.pares, vinculo, comprovantes);
     resultado.pares.filter(p => p.confianca === 'alta').forEach(p => selecionados.add(p.movimento.id));
     const ilegiveis = comprovantes.filter(c => !c.valores.length).length;
@@ -616,7 +649,7 @@ async function rodar() {
       (agrupados ? `. ${agrupados} <b>pagamento(s) agrupado(s)</b> (um valor no banco quitando vários lançamentos) — confira antes de marcar` : '') +
       (jaConciliados.size ? `, ${jaConciliados.size} movimentos já conciliados antes foram ignorados` : '') +
       (comPossivel ? `. ${comPossivel} movimento(s) com valor igual mas <b>nome diferente</b> foram para <i>Extrato sem lançamento</i> para você conferir` : '') +
-      (comprovantes.length ? `. Comprovantes: ${Object.keys(vinculo).length} de ${comprovantes.length} ligados` + (ilegiveis ? `, ${ilegiveis} sem valor reconhecível (ex.: imagens sem valor no nome)` : '') : '') + '.');
+      (comprovantes.length ? `. Comprovantes: ${Object.keys(vinculo).length} de ${comprovantes.length} ligados` + (ilegiveis ? `, ${ilegiveis} sem valor reconhecível (ex.: imagens sem valor no nome)` : '') : '') + '.' + (avisoPasta ? `<br>⚠ ${avisoPasta}` : ''));
     $('resultado').style.display = '';
     trocarAba('pares');
   } catch (e) {
@@ -767,7 +800,9 @@ function abrirVarios(movId) {
 function nomeBanco(m) { return Conciliacao.nomeNoExtrato(m.historico); }
 function bateBanco(m, p) {
   const n = nomeBanco(m);
-  return n ? Conciliacao.nomeBate(n, p) : Conciliacao.similaridadeNome(m.historico, p.nome) >= 0.5;
+  return n ? Conciliacao.nomeBate(n, p)
+    : Math.max(Conciliacao.similaridadeNome(m.historico, p.nome),
+      m.textoComprovante ? Conciliacao.similaridadeNome(m.textoComprovante, p.nome) : 0) >= 0.5;
 }
 function variosLista(m) {
   const tipo = m.valor > 0 ? 'receber' : 'pagar';
@@ -781,7 +816,9 @@ function variosHtml(m) {
   return `<div class="multi">
     <div class="row" style="align-items:center">
       <b>Marque os lançamentos que este pagamento de ${brl(Math.abs(m.valor))} quita</b>
-      <span class="muted">${nomeBanco(m) ? `Fornecedor no banco: <b>${esc(nomeBanco(m).toUpperCase())}</b> — só lançamentos desse fornecedor.` : 'O banco não mostra o fornecedor: marque lançamentos de um único fornecedor.'}</span>
+      <span class="muted">${nomeBanco(m) ? `Fornecedor no banco: <b>${esc(nomeBanco(m).toUpperCase())}</b> — só lançamentos desse fornecedor.`
+        : m.textoComprovante ? 'O banco não mostra o fornecedor; os marcados com ✓ batem com o <b>comprovante</b> da pasta.'
+        : 'O banco não mostra o fornecedor e não há comprovante deste valor na pasta: marque lançamentos de um único fornecedor.'}</span>
       <input id="multiFiltro" placeholder="filtrar por nome ou descrição" value="${esc(multi.filtro)}" oninput="multi.filtro=this.value; $('multiItens').innerHTML = variosItens(resultado.semParcela.find(x => x.id === multi.mov))" style="min-width:220px">
     </div>
     <div id="multiItens" class="multi-itens">${variosItens(m)}</div>

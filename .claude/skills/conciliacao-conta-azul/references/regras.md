@@ -84,7 +84,7 @@ Roda depois dos pares 1:1 e de juros/desconto, só com o que sobrou.
 
 | Regra | Detalhe |
 |---|---|
-| Fornecedor | todos do mesmo contato, e o fornecedor do banco bate com ele (nome do PIX/TED, ou nome no histórico ≥ 50%); sem nome no extrato → não agrupa sozinho |
+| Fornecedor | todos do mesmo contato, e o fornecedor do banco bate com ele (nome do PIX/TED, ou nome no histórico ≥ 50%, ou — se o banco não mostra nome — fornecedor do comprovante ligado ao movimento ≥ 50%); sem nada disso → não agrupa sozinho |
 | Soma | exatamente o valor do banco (centavos), 2 ou mais lançamentos, cada um menor que o valor |
 | Datas | vencimentos até 31 dias da data do banco; entre combinações, a de datas mais próximas |
 | Busca | até 16 lançamentos mais próximos por contato, até 20 combinações |

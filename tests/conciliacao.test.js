@@ -328,17 +328,23 @@ test('agrupado: um PIX quita 3 notas do mesmo fornecedor (nome bate)', () => {
   assert.strictEqual(r.semParcela.length, 0);
 });
 
-test('agrupado: nome do PIX diferente do contato não agrupa; boleto sem nome agrupa pelo contato único', () => {
+test('agrupado: fornecedor do banco precisa bater com o do Conta Azul', () => {
   const parcelas = [
     { id: 'a', tipo: 'pagar', vencimento: '2026-10-05', valor: 500, nome: 'Alfa Ltda', descricao: '' },
     { id: 'b', tipo: 'pagar', vencimento: '2026-10-06', valor: 250, nome: 'Alfa Ltda', descricao: '' }
   ];
-  const pix = C.conciliar([{ id: 'm', data: '2026-10-06', valor: -750, historico: 'PIX ENVIADO / BETA SERVICOS' }], parcelas);
-  assert.strictEqual(pix.pares.length, 0);
-  const bol = C.conciliar([{ id: 'm', data: '2026-10-06', valor: -750, historico: 'PAGTO BOLETO' }], parcelas);
-  assert.strictEqual(bol.pares.length, 1);
-  assert.deepStrictEqual(bol.pares[0].parcelas.map(p => p.id), ['a', 'b']);
-  assert.strictEqual(bol.pares[0].confianca, 'media'); // contato único com combinação única
+  const agrupa = h => C.conciliar([{ id: 'm', data: '2026-10-06', valor: -750, historico: h }], parcelas).pares;
+  assert.strictEqual(agrupa('PIX ENVIADO / BETA SERVICOS').length, 0);      // PIX para outro fornecedor
+  assert.strictEqual(agrupa('PAGTO BOLETO').length, 0);                     // banco sem nome: só à mão
+  const ok = agrupa('PAG BOLETO ALFA LTDA');                               // nome no histórico do boleto
+  assert.deepStrictEqual(ok[0].parcelas.map(p => p.id), ['a', 'b']);
+  assert.strictEqual(ok[0].confianca, 'media');
+});
+
+test('agrupado: várias combinações possíveis no mesmo fornecedor vêm com confiança baixa', () => {
+  const P = (id, v) => ({ id, tipo: 'pagar', vencimento: '2026-10-05', valor: v, nome: 'Alfa Ltda', descricao: '' });
+  const r = C.conciliar([{ id: 'm', data: '2026-10-06', valor: -1000, historico: 'PIX ENVIADO / ALFA LTDA' }], [P('a', 500), P('b', 500), P('c', 500)]);
+  assert.strictEqual(r.pares[0].confianca, 'baixa');
 });
 
 test('agrupado: 1:1 exato tem prioridade e o agrupamento não reaproveita lançamentos', () => {

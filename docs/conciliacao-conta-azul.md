@@ -87,13 +87,15 @@ Ex.: um PIX de R$ 1.500 para a F F Distribuidora pagando três notas
 (R$ 500 + R$ 600 + R$ 400).
 
 - **Automático:** para movimentos que ficaram sem par, o robô procura
-  lançamentos em aberto do **mesmo contato** (até 31 dias do pagamento) cuja
-  **soma é exatamente** o valor do banco. Em PIX/TED o nome do extrato precisa
-  bater com o contato. Aparece em *Sugestões de baixa* com a etiqueta
+  lançamentos em aberto do **mesmo fornecedor** (até 31 dias do pagamento) cuja
+  **soma é exatamente** o valor do banco. O **fornecedor do banco precisa bater
+  com o do Conta Azul** (nome do PIX/TED ou nome que apareça no histórico do
+  boleto). Se o banco não mostra o fornecedor, o robô não agrupa sozinho. Aparece em *Sugestões de baixa* com a etiqueta
   **agrupado**, listando cada lançamento — vem **desmarcado** para conferir.
 - **À mão:** em *Extrato sem lançamento*, clique em **vários lançamentos…** na
   linha do movimento, marque os lançamentos (dá para filtrar por nome) e veja a
-  soma e a diferença. Diferença de até 15% vira **juros** (banco maior) ou
+  soma e a diferença. Os marcados têm que ser de **um único fornecedor** e, se o
+  banco mostra o nome, ele tem que bater (o robô avisa e não vincula). Diferença de até 15% vira **juros** (banco maior) ou
   **desconto** (banco menor) no maior lançamento do grupo.
 - **Baixa:** uma baixa para cada lançamento, na data do banco. Se alguma falhar,
   a linha mostra quantas foram feitas e **Dar baixa** de novo tenta só as que

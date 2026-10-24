@@ -84,10 +84,10 @@ Roda depois dos pares 1:1 e de juros/desconto, só com o que sobrou.
 
 | Regra | Detalhe |
 |---|---|
-| Contato | todos os lançamentos do grupo têm o mesmo contato; PIX/TED: nome do extrato bate com ele |
+| Fornecedor | todos do mesmo contato, e o fornecedor do banco bate com ele (nome do PIX/TED, ou nome no histórico ≥ 50%); sem nome no extrato → não agrupa sozinho |
 | Soma | exatamente o valor do banco (centavos), 2 ou mais lançamentos, cada um menor que o valor |
 | Datas | vencimentos até 31 dias da data do banco; entre combinações, a de datas mais próximas |
 | Busca | até 16 lançamentos mais próximos por contato, até 20 combinações |
-| Confiança | média se o nome bate ou se há uma única combinação num único contato; senão baixa |
-| Manual | diferença ≤ 15% da soma → juros (banco maior) / desconto (banco menor) no maior lançamento |
+| Confiança | média com uma única combinação; baixa se o mesmo fornecedor tem várias combinações possíveis |
+| Manual | um único fornecedor; nome do banco (se houver) tem que bater; diferença ≤ 15% → juros/desconto no maior lançamento |
 | Baixa | uma por lançamento, fitid `movimento#n`; reenvio só das partes que falharam |

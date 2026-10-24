@@ -201,8 +201,10 @@
   }
 
   // Para movimentos sem par: procura lançamentos do MESMO contato cuja soma bate
-  // exatamente com o valor do banco. Com nome no extrato (PIX/TED), o nome tem
-  // que bater com o contato. Nunca vem com confiança alta: é para conferir.
+  // exatamente com o valor do banco. O fornecedor/cliente do banco TEM que bater
+  // com o contato do Conta Azul: nome do PIX/TED, ou o nome que aparecer no
+  // histórico (ex.: "PAG BOLETO F F DISTRIBUIDORA"). Sem nome no extrato, não
+  // agrupa sozinho — fica para montar à mão. Nunca vem com confiança alta.
   function agruparPagamentos(movimentos, parcelas, opts) {
     const janela = (opts && opts.janelaGrupo) != null ? opts.janelaGrupo : 31;
     const cand = [];
@@ -221,8 +223,8 @@
       const opcoes = [];
       for (const lista of Object.values(porContato)) {
         if (lista.length < 2) continue;
-        if (nomeExt && !nomeBate(nomeExt, lista[0])) continue;
-        const nome = nomeExt ? 1 : similaridadeNome(m.historico, lista[0].nome);
+        const nome = nomeExt ? (nomeBate(nomeExt, lista[0]) ? 1 : 0) : similaridadeNome(m.historico, lista[0].nome);
+        if (nome < 0.5) continue; // fornecedor do banco ≠ contato do Conta Azul
         const perto = lista.sort((a, b) => diasEntre(m.data, a.vencimento) - diasEntre(m.data, b.vencimento)).slice(0, 16);
         const sols = combinacoesSoma(perto, cents, 20);
         if (!sols.length) continue;
@@ -233,8 +235,8 @@
       if (!opcoes.length) continue;
       opcoes.sort((a, b) => b.nome - a.nome || a.dias - b.dias);
       const o = opcoes[0];
-      const confiavel = o.nome >= 0.5 || (o.unica && opcoes.length === 1);
-      cand.push({ m, ...o, confianca: confiavel ? 'media' : 'baixa', score: (confiavel ? 100 : 0) + 20 * o.nome - o.dias });
+      // mais de uma combinação possível no mesmo fornecedor → baixa (conferir quais notas)
+      cand.push({ m, ...o, confianca: o.unica ? 'media' : 'baixa', score: (o.unica ? 100 : 0) + 20 * o.nome - o.dias });
     }
     cand.sort((a, b) => b.score - a.score);
     const usados = new Set(), grupos = [];

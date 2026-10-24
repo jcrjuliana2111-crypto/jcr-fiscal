@@ -81,6 +81,14 @@ em `conciliacao/` do Portal JCR) e configurar o secret `CONTA_AZUL_ANEXO_PATH` (
 `/v1/financeiro/eventos-financeiros/parcelas/{parcela_id}/anexos`) e, se
 precisar, `CONTA_AZUL_ANEXO_CAMPO` (padrão `file`).
 
+## Excluir sugestão
+
+Cada sugestão ainda não baixada tem **✕ excluir**: o movimento volta para
+*Extrato sem lançamento* (e os lançamentos para *Lançamentos sem extrato*) e o
+robô **não sugere mais aquele par** para o cliente nas próximas conciliações
+(fica guardado neste navegador). Vincular o mesmo par à mão libera de novo.
+**voltar a sugerir** (embaixo das sugestões) esquece as exclusões do cliente.
+
 ## Ver o que o robô leu dos comprovantes
 
 Botão **🔍 Ver o que o robô leu dos comprovantes** (bloco 2): mostra cada arquivo

@@ -273,7 +273,7 @@
       const nomeExt = nomeNoExtrato(m.historico);
       const porContato = {};
       for (const p of parcelas) {
-        if (p.tipo !== tipo || !(p.valor > 0) || Math.round(p.valor * 100) >= cents) continue;
+        if (p.tipo !== tipo || !(p.valor > 0) || Math.round(p.valor * 100) >= cents || rejeitado(opts, m, p)) continue;
         if (diasEntre(m.data, p.vencimento) > janela) continue;
         const k = tokens(p.nome).join(' ');
         if (!k) continue;
@@ -308,6 +308,9 @@
     return grupos;
   }
 
+  // sugestões que a pessoa excluiu: opts.rejeitados = Set("idMovimento|idParcela")
+  const rejeitado = (opts, m, p) => !!(opts && opts.rejeitados && opts.rejeitados.has(`${m.id}|${p.id}`));
+
   // movimentos: [{id, data, valor(+ entrada / - saída), historico}]
   // parcelas:   [{id, tipo:'receber'|'pagar', vencimento, valor, nome, descricao}]
   // Regras:
@@ -328,7 +331,7 @@
       const cents = Math.round(Math.abs(m.valor) * 100);
       const nomeExt = nomeNoExtrato(m.historico);
       for (const p of parcelas) {
-        if (p.tipo !== tipo || Math.round(p.valor * 100) !== cents) continue;
+        if (p.tipo !== tipo || Math.round(p.valor * 100) !== cents || rejeitado(opts, m, p)) continue;
         const dias = diasEntre(m.data, p.vencimento);
         if (dias > janela) continue;
         if (nomeExt && !nomeBate(nomeExt, p)) {
@@ -370,7 +373,7 @@
       const tipo = m.valor > 0 ? 'receber' : 'pagar';
       const nomeExt = nomeNoExtrato(m.historico);
       for (const p of parcelas) {
-        if (usadosP.has(p.id) || p.tipo !== tipo || !(p.valor > 0)) continue;
+        if (usadosP.has(p.id) || p.tipo !== tipo || !(p.valor > 0) || rejeitado(opts, m, p)) continue;
         const aj = ajusteDe(m, p);
         if (!aj || aj.valor > p.valor * margem) continue;
         const dias = diasEntre(m.data, p.vencimento);

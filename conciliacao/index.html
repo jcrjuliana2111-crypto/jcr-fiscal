@@ -71,6 +71,7 @@
   .multi-itens { max-height: 320px; overflow: auto; display: grid; gap: 4px; }
   .multi-item { display: grid; grid-template-columns: auto minmax(120px, 1.2fr) minmax(100px, 1fr) auto auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text); }
   .multi-item:hover { background: var(--surface); }
+  .sem-comp { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; background: rgba(255,184,79,.15); color: var(--warn); white-space: nowrap; }
   .empty { padding: 30px; text-align: center; color: var(--text2); }
   .pill.manual { background: rgba(79,124,255,.15); color: var(--accent); }
   .pill.desfeito { background: var(--surface2); color: var(--text2); }
@@ -731,6 +732,7 @@ function render() {
     ['Confiança alta', r.pares.filter(p => p.confianca === 'alta').length, 'color:var(--success)'],
     ['Sem lançamento', r.semParcela.filter(m => retLanc[m.id]?.status !== 'ok').length, 'color:var(--warn)'],
     ['Com comprovante', r.pares.filter(p => vinculo[p.movimento.id]).length, 'color:var(--accent2)'],
+    ['Sem comprovante', r.pares.filter(p => !vinculo[p.movimento.id]).length, 'color:var(--warn)'],
     ['Baixas feitas', feitos + lancados, 'color:var(--success)']
   ].map(([l, v, s]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value" style="${s}">${v}</div></div>`).join('');
 
@@ -1070,8 +1072,9 @@ async function baixarBoleto(parcelaId, btn) {
 function comprovanteHtml(movId, travado) {
   const c = comprovantes.find(x => x.id === vinculo[movId]);
   if (c) return `📎 ${esc(c.file.name)}${travado ? '' : `<span class="x" title="Remover" onclick="desvincular('${esc(movId)}')">✕</span>`}`;
-  if (travado) return '';
-  return `<label class="anexo-btn">＋ indicar<input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" onchange="vincularManual('${esc(movId)}', this.files[0])"></label>`;
+  const aviso = `<span class="sem-comp" title="Nenhum comprovante da pasta bateu com este pagamento (valor, data e nome)">⚠ sem comprovante</span>`;
+  if (travado) return aviso;
+  return `${aviso}<div><label class="anexo-btn">＋ indicar<input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" onchange="vincularManual('${esc(movId)}', this.files[0])"></label></div>`;
 }
 function vincularManual(movId, file) {
   if (!file) return;
@@ -1132,9 +1135,11 @@ async function darBaixa() {
   const comAj = lote.filter(p => p.ajuste).length;
   const grupos = lote.filter(p => p.grupo);
   const nLanc = lote.reduce((t, p) => t + (p.grupo ? p.parcelas.length : 1), 0);
+  const semComp = lote.filter(p => !vinculo[p.movimento.id]).length;
   if (!confirm(`Dar baixa em ${nLanc} lançamento(s) no Conta Azul, total ${brl(total)}` +
     (grupos.length ? ` — inclui ${grupos.length} pagamento(s) agrupado(s)` : '') +
-    (comAj ? ` (${comAj} com juros/multa/desconto)` : '') + `?\n\nIsso altera dados reais.`)) return;
+    (comAj ? ` (${comAj} com juros/multa/desconto)` : '') + `?` +
+    (semComp ? `\n\n⚠ ${semComp} sem comprovante encontrado na pasta.` : '') + `\n\nIsso altera dados reais.`)) return;
 
   $('btnBaixar').disabled = true;
   try {

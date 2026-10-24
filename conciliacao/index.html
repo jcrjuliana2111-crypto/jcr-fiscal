@@ -156,7 +156,7 @@
       <button class="btn btn-primary" id="btnRodar" onclick="rodar()">▶ Rodar conciliação</button>
     </div>
     <p class="muted" style="margin-top:10px">
-      <b>Regras:</b> valor igual ao centavo e data próxima. Em PIX/TED/DOC, o <b>nome do favorecido precisa bater</b> com o contato ou a descrição do lançamento — se não bater, o movimento vai para <i>Extrato sem lançamento</i> como “possível”, para você vincular à mão. Mesmo contato com valor um pouco diferente (até 15%) vira sugestão com <b>juros/multa ou desconto</b>.
+      <b>Regras:</b> valor igual ao centavo e data próxima. Em PIX/TED/DOC, o <b>nome do favorecido precisa bater</b> (pelo menos nome e sobrenome — um sobrenome só não basta) com o contato ou a descrição do lançamento — se não bater, o movimento vai para <i>Extrato sem lançamento</i> como “possível”, para você vincular à mão. Valor um pouco diferente (até 15%) vira sugestão com <b>juros/multa ou desconto</b> só quando o banco mostra o <b>mesmo fornecedor</b> do Conta Azul (descrição parecida não vale). Comprovante com nome de outra pessoa/empresa não é ligado.
       Um valor no banco que quita <b>vários lançamentos</b> do mesmo fornecedor (soma exata) vira <b>pagamento agrupado</b> para conferir — o <b>fornecedor do banco precisa bater</b> com o do Conta Azul; se o banco não mostra o nome (boleto), vale o fornecedor do <b>comprovante</b> da pasta; sem nenhum dos dois, monte à mão em <i>Extrato sem lançamento</i> → <i>vários lançamentos…</i>.
       Confiança <b>alta</b> (já marcada) só com nome batendo; <b>média</b> e <b>manual</b> vêm para conferir.<br>
       Comprovantes: o robô lê o texto dos PDFs e o nome dos arquivos (sem IA) e só <b>identifica</b> o comprovante de cada lançamento — anexe à mão no Conta Azul. A observação da baixa recebe a marca de baixa automática, mantendo o que já estava escrito.</p>
@@ -800,9 +800,8 @@ function abrirVarios(movId) {
 function nomeBanco(m) { return Conciliacao.nomeNoExtrato(m.historico); }
 function bateBanco(m, p) {
   const n = nomeBanco(m);
-  return n ? Conciliacao.nomeBate(n, p)
-    : Math.max(Conciliacao.similaridadeNome(m.historico, p.nome),
-      m.textoComprovante ? Conciliacao.similaridadeNome(m.textoComprovante, p.nome) : 0) >= 0.5;
+  return n ? Conciliacao.nomeBate(n, p, true)
+    : Conciliacao.nomeForte(m.historico, p.nome) || (!!m.textoComprovante && Conciliacao.nomeForte(m.textoComprovante, p.nome));
 }
 function variosLista(m) {
   const tipo = m.valor > 0 ? 'receber' : 'pagar';
@@ -852,7 +851,7 @@ function vincularVarios() {
   // o fornecedor tem que ser o mesmo em todos e bater com o do banco
   const contatos = [...new Set(sel.map(p => (p.nome || '').trim().toUpperCase()))];
   if (contatos.length > 1) return msg('msgRodar', 'erro', `Os lançamentos marcados são de fornecedores diferentes (${contatos.map(esc).join(', ')}). Um pagamento agrupado precisa ser de um único fornecedor.`);
-  if (nomeBanco(m) && !Conciliacao.nomeBate(nomeBanco(m), sel[0])) {
+  if (nomeBanco(m) && !Conciliacao.nomeBate(nomeBanco(m), sel[0], true)) {
     return msg('msgRodar', 'erro', `O fornecedor do banco (<b>${esc(nomeBanco(m).toUpperCase())}</b>) não é o mesmo do Conta Azul (<b>${esc(sel[0].nome || '—')}</b>). Confira o pagamento ou o cadastro do fornecedor.`);
   }
   if (sel.length === 1) { const id = sel[0].id; multi.mov = null; return vincularLancamento(m.id, id); }

@@ -397,3 +397,40 @@ test('comprovantesDosMovimentos: sem data só liga quando não há ambiguidade',
   assert.deepStrictEqual(C.comprovantesDosMovimentos([m('a', '2026-10-01')], c), { a: 'k' });
   assert.deepStrictEqual(C.comprovantesDosMovimentos([m('a', '2026-10-01'), m('b', '2026-10-02')], c), {});
 });
+
+// ---------- casos reais (out/2026): nomes que não têm nada a ver ----------
+test('juros/desconto: sobrenome igual ou cidade na descrição não bastam', () => {
+  const parcelas = [
+    { id: 'mi', tipo: 'pagar', vencimento: '2026-10-21', valor: 194.76, nome: 'michelle souza', descricao: 'Reembolso visita pacientes FAPES uber - pac João Carlos Ribeiro da Costa' },
+    { id: 'en', tipo: 'pagar', vencimento: '2026-10-20', valor: 2905.27, nome: 'ENERGISA-MG', descricao: '9/12 - CONTA LUZ NOVA FRIBURGO' }
+  ];
+  const movs = [
+    { id: 'p1', data: '2026-10-21', valor: -200, historico: 'DEBITO TRANSFERENCIA PIX ( DOC.: DEB PIX / SHEILA RODRIGUES DE SOUZA )' },
+    { id: 'p2', data: '2026-10-16', valor: -2891.29, historico: 'DEBITO PAGAMENTO PIX ( DOC.: PGTO PIX / MUNICIPIO DE NOVA FRIBURGO )' }
+  ];
+  const r = C.conciliar(movs, parcelas, { janelaDias: 5 });
+  assert.strictEqual(r.pares.length, 0);
+  assert.strictEqual(r.semParcela.length, 2);
+});
+
+test('nomeForte: precisa de nome e sobrenome; mesmo fornecedor com juros continua sugerido', () => {
+  assert.strictEqual(C.nomeForte('sheila rodrigues souza', 'michelle souza'), false);
+  assert.strictEqual(C.nomeForte('alana g rodrigues', 'Alana Goncalves Rodrigues'), true);
+  assert.strictEqual(C.nomeForte('municipio nova friburgo', 'ENERGISA-MG'), false);
+  assert.strictEqual(C.nomeForte('energisa minas gerais', 'ENERGISA-MG'), true);
+  const r = C.conciliar([{ id: 'm', data: '2026-10-21', valor: -200, historico: 'DEB PIX / MICHELLE SOUZA' }],
+    [{ id: 'mi', tipo: 'pagar', vencimento: '2026-10-21', valor: 194.76, nome: 'michelle souza', descricao: '' }]);
+  assert.deepStrictEqual(r.pares.map(p => [p.parcela.id, p.ajuste]), [['mi', { tipo: 'juros', valor: 5.24 }]]);
+});
+
+test('comprovante com nome de outra pessoa não é ligado', () => {
+  const comp = { id: 'k', ...C.dadosComprovante('', 'ELOA ANDREZA CRISTINA SOUZA NUNES R$ 200,00 PIX ENVIADO - Pagamento curinga - pac Daniel Batista.pdf') };
+  const par = { movimento: { id: 'm', data: '2026-10-21', valor: -200, historico: 'DEB PIX / SHEILA RODRIGUES DE SOUZA' },
+    parcela: { nome: 'Sheila Rodrigues de Souza', descricao: 'Reembolso', vencimento: '2026-10-21' } };
+  assert.deepStrictEqual(C.casarComprovantes([par], [comp]), {});
+  const certo = { id: 'k2', ...C.dadosComprovante('', 'SHEILA RODRIGUES DE SOUZA R$ 200,00 PIX ENVIADO - Reembolso.pdf') };
+  assert.deepStrictEqual(C.casarComprovantes([par], [comp, certo]), { m: 'k2' });
+  // comprovante sem nome (só valor/data) continua valendo
+  const semNome = { id: 'k3', ...C.dadosComprovante('', '2026-10-21 200,00.jpg') };
+  assert.deepStrictEqual(C.casarComprovantes([par], [semNome]), { m: 'k3' });
+});

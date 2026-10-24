@@ -91,3 +91,12 @@ Roda depois dos pares 1:1 e de juros/desconto, só com o que sobrou.
 | Confiança | média com uma única combinação; baixa se o mesmo fornecedor tem várias combinações possíveis |
 | Manual | um único fornecedor; nome do banco (se houver) tem que bater; diferença ≤ 15% → juros/desconto no maior lançamento |
 | Baixa | uma por lançamento, fitid `movimento#n`; reenvio só das partes que falharam |
+
+## Régua de nome (`nomeForte`, out/2026)
+
+Pedido da usuária depois de sugestões erradas ("SHEILA RODRIGUES DE SOUZA" × "michelle souza";
+"MUNICIPIO DE NOVA FRIBURGO" × "ENERGISA-MG" pela descrição "CONTA LUZ NOVA FRIBURGO"):
+
+- Nome bate só com **2+ palavras em comum** e pelo menos metade do nome; nome de uma palavra (≥ 4 letras) precisa aparecer. Sobrenome sozinho não basta.
+- **Juros/desconto** (valor diferente): só com o **contato** batendo com o nome do banco — descrição não conta.
+- **Comprovante** que traz nome (`temNome`) só é ligado se o nome for o do contato, o da descrição ou o do banco; comprovante sem nome (só valor/data) continua valendo.

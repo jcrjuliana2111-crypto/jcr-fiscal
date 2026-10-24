@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JCR · Comprovantes no Conta Azul",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Recebe do robô de conciliação (Portal JCR) os comprovantes das baixas e ajuda a anexá-los nos lançamentos do Conta Azul.",
   "permissions": [
     "storage",
@@ -23,6 +23,7 @@
         "https://*.contaazul.com/*"
       ],
       "js": [
+        "conciliacao-core.js",
         "contaazul.js"
       ],
       "run_at": "document_idle",

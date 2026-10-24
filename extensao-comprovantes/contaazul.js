@@ -230,16 +230,20 @@
   raiz.innerHTML = `<style>
     * { box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
     .chip { position: fixed; pointer-events: auto; cursor: grab; user-select: none; white-space: nowrap;
-      font-size: 12px; line-height: 18px; padding: 0 7px; border-radius: 99px; background: #fff; color: #1f6feb;
-      border: 1.5px solid #1f6feb; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
-    .chip.grande { font-size: 13px; line-height: 24px; padding: 0 10px; background: #1f6feb; color: #fff; }
+      width: 20px; height: 20px; border-radius: 50%; background: #1f6feb; display: grid; place-items: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+    .chip svg { width: 12px; height: 12px; }
+    .chip .n { position: absolute; top: -6px; right: -7px; background: #e5484d; color: #fff; font-size: 9px; line-height: 13px;
+      min-width: 13px; padding: 0 3px; border-radius: 99px; text-align: center; font-weight: 700; }
+    .chip.grande { width: auto; height: 26px; border-radius: 99px; padding: 0 12px; display: flex; gap: 6px; align-items: center;
+      font-size: 13px; color: #fff; }
     .chip:active { cursor: grabbing; }
     .aviso { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); pointer-events: none; background: #1c2230; color: #fff;
       font-size: 13px; padding: 8px 14px; border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.3); display: none; max-width: 90vw; }
   </style><div id="chips"></div><div class="aviso" id="aviso"></div>`;
   document.documentElement.appendChild(camada);
   const chipsEl = raiz.getElementById('chips');
-  let atual = null;          // lançamento em que você clicou por último (o que tem 📎)
+  let atual = null, atuais = [];          // lançamento em que você clicou por último (o que tem 📎)
   let arrastando = null;
   const colocados = new Set(); // colocados na janela de anexos, esperando o Salvar
 
@@ -253,10 +257,13 @@
   const eNosso = el => el === host || el === camada;
 
   // linha do lançamento: sobe a partir do valor enquanto continuar com "cara de linha" (baixa)
+  // linha da lista ou cartão da conciliação: sobe enquanto continuar sendo "um lançamento só"
+  // (até ~320px de altura e no máximo 3 valores em R$: total, a pagar, juros/desconto)
+  const qtdValores = t => (String(t).match(/\d,\d{2}(?!\d)/g) || []).length;
   function linhaDe(el) {
     let l = el;
-    for (let k = 0, p = el.parentElement; k < 8 && p && p !== document.body; k++, p = p.parentElement) {
-      if (p.getBoundingClientRect().height > 130) break;
+    for (let k = 0, p = el.parentElement; k < 12 && p && p !== document.body; k++, p = p.parentElement) {
+      if (p.getBoundingClientRect().height > 320 || qtdValores(p.innerText) > 3) break;
       l = p;
     }
     return l;
@@ -326,18 +333,26 @@
       const r = rg.getBoundingClientRect(); // só o texto do valor (a célula pode ser bem mais larga)
       const linha = linhaDe(el), txt = norm(linha.innerText);
       // só mostra o 📎 quando o nome do favorecido também está na linha (valor sozinho engana)
-      const daqui = porValor.get(m[2]).filter(c => c.bate(txt)).slice(0, 2);
-      daqui.forEach((c, k) => achados.push({ it: c.it, el, linha, r, k }));
+      // um ícone só por lançamento (o valor aparece em Total e em A pagar): fica no primeiro
+      let a = achados.find(x => x.linha === linha || x.linha.contains(linha) || linha.contains(x.linha));
+      for (const c of porValor.get(m[2]).filter(c => c.bate(txt))) {
+        if (!a) achados.push(a = { linha, el, r, its: [] });
+        if (!a.its.includes(c.it)) a.its.push(c.it);
+      }
     }
+    for (const a of achados) a.it = a.its[0];
     return achados;
   }
 
   let ultimos = [];
   const acharItem = id => itens.find(i => i.id === id) || ultimos.find(i => i.id === id) || (atual && atual.id === id ? atual : null);
-  function chipHtml(it, cls, x, y) {
-    if (!ultimos.includes(it)) ultimos.push(it);
+  const CLIPE = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.7 3.7 0 0 1 5.2 5.2l-9.2 9.2a1.8 1.8 0 0 1-2.6-2.6l8.5-8.5"/></svg>';
+  function chipHtml(it, cls, x, y, todos) {
+    for (const i of (todos || [it])) if (!ultimos.includes(i)) ultimos.push(i);
+    const lista = (todos || [it]).map(i => i.arquivo).join('\n');
+    const n = todos && todos.length > 1 ? `<span class="n">${todos.length}</span>` : '';
     return `<div class="chip ${cls}" draggable="true" data-id="${esc(it.id)}" style="left:${Math.round(x)}px;top:${Math.round(y)}px"
-      title="${esc(it.arquivo)} — arraste até o campo de anexo do Conta Azul (ou clique com a janela de anexos aberta)">📎${cls.includes('grande') ? ' ' + esc(it.contato || it.arquivo) + ' · ' + brl(Math.abs(it.valor)) : ''}</div>`;
+      title="${esc(lista)}\n\nArraste até o campo de anexo do Conta Azul (ou clique com a janela Inserir anexos aberta)">${CLIPE}${n}${cls.includes('grande') ? esc(it.contato || it.arquivo) + ' · ' + brl(Math.abs(it.valor)) : ''}</div>`;
   }
 
   let linhas = [];
@@ -348,14 +363,14 @@
     try {
       for (const a of acharNaTela()) {
         linhas.push(a);
-        html += chipHtml(a.it, '', Math.max(2, a.r.left - 34 - a.k * 32), a.r.top + a.r.height / 2 - 10); // à esquerda do valor, para não cobrir botões
+        html += chipHtml(a.it, '', Math.max(2, a.r.left - 26), a.r.top + a.r.height / 2 - 10, a.its); // à esquerda do valor, para não cobrir botões
       }
       // janela "Inserir anexos" aberta: mostra os comprovantes do lançamento ao lado do título
       const jan = janelaAnexos();
       if (jan) {
         const pend = itens.filter(i => i.status !== 'feito' && i.dataUrl);
         const at = atual && (atual.origem === 'pasta' ? (usados.has(atual.pastaId) ? null : atual) : pend.find(i => i.id === atual.id));
-        const sug = [at, ...pend.filter(i => pontuacao(i) >= 2)].filter((i, k, arr) => i && arr.findIndex(x => x && x.id === i.id) === k && (i.origem === 'pasta' || i.status !== 'feito')).slice(0, 3);
+        const sug = [at, ...atuais.filter(i => i.origem === 'pasta' && !usados.has(i.pastaId)), ...pend.filter(i => pontuacao(i) >= 2)].filter((i, k, arr) => i && arr.findIndex(x => x && x.id === i.id) === k && (i.origem === 'pasta' || i.status !== 'feito')).slice(0, 3);
         const tit = [...jan.querySelectorAll('*')].find(el => el.children.length === 0 && /^\s*inserir anexos\s*$/i.test(el.textContent || ''));
         let r = (tit || jan).getBoundingClientRect();
         if (tit) { const rg = document.createRange(); rg.selectNodeContents(tit); r = rg.getBoundingClientRect(); }
@@ -375,7 +390,7 @@
     if (eNosso(e.target)) return;
     if (!janelaAnexos()) desenhar(); // a tela pode ter mudado desde o último ciclo
     const a = linhas.find(x => x.linha.contains(e.target));
-    if (a) atual = a.it;
+    if (a) { atual = a.it; atuais = a.its; }
     // Salvar da janela de anexos: os comprovantes colocados nela saem da lista
     const b = e.target.closest && e.target.closest('button, [role=button]');
     const jan = janelaAnexos();

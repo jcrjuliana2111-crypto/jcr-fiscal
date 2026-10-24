@@ -200,11 +200,44 @@
     return sols;
   }
 
+  // Liga cada comprovante da pasta a um movimento do extrato (antes da conciliação):
+  // valor do movimento entre os valores do comprovante e, se o comprovante tiver
+  // data de pagamento, até `janelaDias` da data do banco. Comprovante sem data só
+  // vale se for a única opção dos dois lados. Retorna { idMovimento: idComprovante }.
+  function comprovantesDosMovimentos(movimentos, comprovantes, opts) {
+    const janela = (opts && opts.janelaDias) != null ? opts.janelaDias : 3;
+    const cand = [];
+    for (const m of movimentos) {
+      const cents = Math.round(Math.abs(m.valor) * 100);
+      for (const c of comprovantes) {
+        if (!c.valores || !c.valores.includes(cents)) continue;
+        let dias = null;
+        if (c.datas && c.datas.length) {
+          dias = Math.min(...c.datas.map(d => diasEntre(m.data, d)));
+          if (dias > janela) continue;
+        }
+        cand.push({ m: m.id, c: c.id, semData: dias == null, score: dias == null ? -janela - 1 : -dias });
+      }
+    }
+    const nM = {}, nC = {};
+    for (const x of cand) { nM[x.m] = (nM[x.m] || 0) + 1; nC[x.c] = (nC[x.c] || 0) + 1; }
+    cand.sort((a, b) => b.score - a.score);
+    const usadosM = new Set(), usadosC = new Set(), out = {};
+    for (const x of cand) {
+      if (usadosM.has(x.m) || usadosC.has(x.c)) continue;
+      if (x.semData && (nM[x.m] > 1 || nC[x.c] > 1)) continue;
+      usadosM.add(x.m); usadosC.add(x.c); out[x.m] = x.c;
+    }
+    return out;
+  }
+
   // Para movimentos sem par: procura lançamentos do MESMO contato cuja soma bate
   // exatamente com o valor do banco. O fornecedor/cliente do banco TEM que bater
   // com o contato do Conta Azul: nome do PIX/TED, ou o nome que aparecer no
-  // histórico (ex.: "PAG BOLETO F F DISTRIBUIDORA"). Sem nome no extrato, não
-  // agrupa sozinho — fica para montar à mão. Nunca vem com confiança alta.
+  // histórico (ex.: "PAG BOLETO F F DISTRIBUIDORA"). Quando o banco não mostra o
+  // nome (boleto), vale o fornecedor do comprovante ligado ao movimento
+  // (`m.textoComprovante`). Sem nenhum dos dois, não agrupa sozinho — fica para
+  // montar à mão. Nunca vem com confiança alta.
   function agruparPagamentos(movimentos, parcelas, opts) {
     const janela = (opts && opts.janelaGrupo) != null ? opts.janelaGrupo : 31;
     const cand = [];
@@ -223,7 +256,8 @@
       const opcoes = [];
       for (const lista of Object.values(porContato)) {
         if (lista.length < 2) continue;
-        const nome = nomeExt ? (nomeBate(nomeExt, lista[0]) ? 1 : 0) : similaridadeNome(m.historico, lista[0].nome);
+        const nome = nomeExt ? (nomeBate(nomeExt, lista[0]) ? 1 : 0)
+          : Math.max(similaridadeNome(m.historico, lista[0].nome), m.textoComprovante ? similaridadeNome(m.textoComprovante, lista[0].nome) : 0);
         if (nome < 0.5) continue; // fornecedor do banco ≠ contato do Conta Azul
         const perto = lista.sort((a, b) => diasEntre(m.data, a.vencimento) - diasEntre(m.data, b.vencimento)).slice(0, 16);
         const sols = combinacoesSoma(perto, cents, 20);
@@ -614,7 +648,7 @@
 
   const api = { parseValorBR, parseData, parseOFX, parseCSV, parseExtrato, similaridadeNome, conciliar, dadosComprovante, casarComprovantes,
     nomeNoExtrato, nomeBate, ajusteDe, montarPar, reforcarComComprovantes, resumoFechamento,
-    dadosLinhaDigitavel, parseDDA, conferirDDA, montarGrupo, agruparPagamentos };
+    dadosLinhaDigitavel, parseDDA, conferirDDA, montarGrupo, agruparPagamentos, comprovantesDosMovimentos };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Conciliacao = api;
 })(this);

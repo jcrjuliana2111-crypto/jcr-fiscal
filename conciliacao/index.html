@@ -157,7 +157,7 @@
     </div>
     <p class="muted" style="margin-top:10px">
       <b>Regras:</b> valor igual ao centavo e data próxima. Em PIX/TED/DOC, o <b>nome do favorecido precisa bater</b> com o contato ou a descrição do lançamento — se não bater, o movimento vai para <i>Extrato sem lançamento</i> como “possível”, para você vincular à mão. Mesmo contato com valor um pouco diferente (até 15%) vira sugestão com <b>juros/multa ou desconto</b>.
-      Um valor no banco que quita <b>vários lançamentos</b> do mesmo fornecedor (soma exata) vira <b>pagamento agrupado</b> para conferir — o <b>fornecedor do banco precisa bater</b> com o do Conta Azul; se o banco não mostra o nome, monte à mão em <i>Extrato sem lançamento</i> → <i>vários lançamentos…</i>.
+      Um valor no banco que quita <b>vários lançamentos</b> do mesmo fornecedor (soma exata) vira <b>pagamento agrupado</b> para conferir — o <b>fornecedor do banco precisa bater</b> com o do Conta Azul; se o banco não mostra o nome (boleto), vale o fornecedor do <b>comprovante</b> da pasta; sem nenhum dos dois, monte à mão em <i>Extrato sem lançamento</i> → <i>vários lançamentos…</i>.
       Confiança <b>alta</b> (já marcada) só com nome batendo; <b>média</b> e <b>manual</b> vêm para conferir.<br>
       Comprovantes: o robô lê o texto dos PDFs e o nome dos arquivos (sem IA) e só <b>identifica</b> o comprovante de cada lançamento — anexe à mão no Conta Azul. A observação da baixa recebe a marca de baixa automática, mantendo o que já estava escrito.</p>
     <div id="msgRodar" class="msg"></div>
@@ -596,7 +596,14 @@ async function rodar() {
       api('conciliados', { fitids: movimentos.flatMap(m => [m.id, `${m.id}#1`]) })
     ]);
     jaConciliados = new Set(conciliados.map(f => String(f).replace(/#\d+$/, ''))); // grupo baixado = "id#1", "id#2"…
-    const pendentes = movimentos.filter(m => !jaConciliados.has(m.id));
+    // comprovantes antes da conciliação: o fornecedor do comprovante vale quando
+    // o banco não mostra o nome (boleto) — usado no pagamento agrupado
+    if (arqs.length) msg('msgRodar', 'info', `Lendo ${arqs.length} comprovante(s) da pasta…`);
+    comprovantes = arqs.length ? await lerComprovantes(arqs) : [];
+    const compPorMov = Conciliacao.comprovantesDosMovimentos(movimentos.filter(m => !jaConciliados.has(m.id)), comprovantes, { janelaDias: 3 });
+    const compId = Object.fromEntries(comprovantes.map(c => [c.id, c]));
+    const pendentes = movimentos.filter(m => !jaConciliados.has(m.id))
+      .map(m => compPorMov[m.id] ? { ...m, textoComprovante: compId[compPorMov[m.id]].texto } : m);
 
     resultado = Conciliacao.conciliar(pendentes, parcelas, { janelaDias: janela });
     selecionados.clear(); selLanc.clear();
@@ -604,8 +611,13 @@ async function rodar() {
     for (const k in retLanc) delete retLanc[k];
 
     for (const k in vinculo) delete vinculo[k];
-    comprovantes = arqs.length ? await lerComprovantes(arqs) : [];
     Object.assign(vinculo, Conciliacao.casarComprovantes(resultado.pares, comprovantes, { janelaDias: 3 }));
+    // pagamento agrupado achado pelo comprovante: liga o mesmo comprovante à linha
+    const usadosComp = new Set(Object.values(vinculo));
+    for (const p of resultado.pares) {
+      const c = compPorMov[p.movimento.id];
+      if (p.grupo && !vinculo[p.movimento.id] && c && !usadosComp.has(c)) { vinculo[p.movimento.id] = c; usadosComp.add(c); }
+    }
     Conciliacao.reforcarComComprovantes(resultado.pares, vinculo, comprovantes);
     resultado.pares.filter(p => p.confianca === 'alta').forEach(p => selecionados.add(p.movimento.id));
     const ilegiveis = comprovantes.filter(c => !c.valores.length).length;
@@ -767,7 +779,9 @@ function abrirVarios(movId) {
 function nomeBanco(m) { return Conciliacao.nomeNoExtrato(m.historico); }
 function bateBanco(m, p) {
   const n = nomeBanco(m);
-  return n ? Conciliacao.nomeBate(n, p) : Conciliacao.similaridadeNome(m.historico, p.nome) >= 0.5;
+  return n ? Conciliacao.nomeBate(n, p)
+    : Math.max(Conciliacao.similaridadeNome(m.historico, p.nome),
+      m.textoComprovante ? Conciliacao.similaridadeNome(m.textoComprovante, p.nome) : 0) >= 0.5;
 }
 function variosLista(m) {
   const tipo = m.valor > 0 ? 'receber' : 'pagar';
@@ -781,7 +795,9 @@ function variosHtml(m) {
   return `<div class="multi">
     <div class="row" style="align-items:center">
       <b>Marque os lançamentos que este pagamento de ${brl(Math.abs(m.valor))} quita</b>
-      <span class="muted">${nomeBanco(m) ? `Fornecedor no banco: <b>${esc(nomeBanco(m).toUpperCase())}</b> — só lançamentos desse fornecedor.` : 'O banco não mostra o fornecedor: marque lançamentos de um único fornecedor.'}</span>
+      <span class="muted">${nomeBanco(m) ? `Fornecedor no banco: <b>${esc(nomeBanco(m).toUpperCase())}</b> — só lançamentos desse fornecedor.`
+        : m.textoComprovante ? 'O banco não mostra o fornecedor; os marcados com ✓ batem com o <b>comprovante</b> da pasta.'
+        : 'O banco não mostra o fornecedor e não há comprovante deste valor na pasta: marque lançamentos de um único fornecedor.'}</span>
       <input id="multiFiltro" placeholder="filtrar por nome ou descrição" value="${esc(multi.filtro)}" oninput="multi.filtro=this.value; $('multiItens').innerHTML = variosItens(resultado.semParcela.find(x => x.id === multi.mov))" style="min-width:220px">
     </div>
     <div id="multiItens" class="multi-itens">${variosItens(m)}</div>

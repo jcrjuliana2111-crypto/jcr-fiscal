@@ -90,7 +90,9 @@ Ex.: um PIX de R$ 1.500 para a F F Distribuidora pagando três notas
   lançamentos em aberto do **mesmo fornecedor** (até 31 dias do pagamento) cuja
   **soma é exatamente** o valor do banco. O **fornecedor do banco precisa bater
   com o do Conta Azul** (nome do PIX/TED ou nome que apareça no histórico do
-  boleto). Se o banco não mostra o fornecedor, o robô não agrupa sozinho. Aparece em *Sugestões de baixa* com a etiqueta
+  boleto). Se o banco não mostra o fornecedor, vale o fornecedor do
+  **comprovante** da pasta com o mesmo valor (e data de pagamento até 3 dias);
+  sem nenhum dos dois, o robô não agrupa sozinho. Aparece em *Sugestões de baixa* com a etiqueta
   **agrupado**, listando cada lançamento — vem **desmarcado** para conferir.
 - **À mão:** em *Extrato sem lançamento*, clique em **vários lançamentos…** na
   linha do movimento, marque os lançamentos (dá para filtrar por nome) e veja a

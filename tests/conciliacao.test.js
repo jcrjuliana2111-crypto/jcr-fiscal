@@ -371,3 +371,29 @@ test('montarGrupo: diferença vira juros/desconto no maior lançamento', () => {
   assert.strictEqual(g.ajusteEm, 'b');
   assert.strictEqual(g.confianca, 'manual');
 });
+
+test('agrupado: boleto sem nome no banco usa o fornecedor do comprovante', () => {
+  const parcelas = [
+    { id: 'a', tipo: 'pagar', vencimento: '2026-10-05', valor: 500, nome: 'F F Distribuidora de Produtos', descricao: 'NF 1' },
+    { id: 'b', tipo: 'pagar', vencimento: '2026-10-08', valor: 1000, nome: 'F F Distribuidora de Produtos', descricao: 'NF 2' },
+    { id: 'c', tipo: 'pagar', vencimento: '2026-10-08', valor: 1000, nome: 'Alfa Ltda', descricao: 'X' },
+    { id: 'd', tipo: 'pagar', vencimento: '2026-10-08', valor: 500, nome: 'Alfa Ltda', descricao: 'Y' }
+  ];
+  const mov = { id: 'm', data: '2026-10-09', valor: -1500, historico: 'PAGTO BOLETO' };
+  const comp = { id: 'k', ...C.dadosComprovante('Data do pagamento: 09/10/2026 Valor pago: R$ 1.500,00',
+    'FORNECEDOR F F DISTRIBUIDORA DE PRODUTOS R$ 1.500,00 V 081026.pdf') };
+  const mapa = C.comprovantesDosMovimentos([mov], [comp]);
+  assert.deepStrictEqual(mapa, { m: 'k' });
+  // sem comprovante: não agrupa (dois fornecedores têm 500 + 1000)
+  assert.strictEqual(C.conciliar([mov], parcelas).pares.length, 0);
+  // com o comprovante: agrupa as notas da F F
+  const r = C.conciliar([{ ...mov, textoComprovante: comp.texto }], parcelas);
+  assert.deepStrictEqual(r.pares[0].parcelas.map(p => p.id), ['a', 'b']);
+});
+
+test('comprovantesDosMovimentos: sem data só liga quando não há ambiguidade', () => {
+  const c = [{ id: 'k', valores: [50000], datas: [], vencimentos: [], texto: 'X' }];
+  const m = (id, d) => ({ id, data: d, valor: -500, historico: '' });
+  assert.deepStrictEqual(C.comprovantesDosMovimentos([m('a', '2026-10-01')], c), { a: 'k' });
+  assert.deepStrictEqual(C.comprovantesDosMovimentos([m('a', '2026-10-01'), m('b', '2026-10-02')], c), {});
+});

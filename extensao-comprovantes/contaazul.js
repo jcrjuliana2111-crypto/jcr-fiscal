@@ -474,6 +474,159 @@
     requestAnimationFrame(seguir);
   })();
 
+
+  // ---------- Conciliações pendentes: marca os pares que batem e ajuda a achar/filtrar ----------
+  const barra = document.createElement('div');
+  barra.style.cssText = 'position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:2147483646;display:none';
+  const rb = barra.attachShadow({ mode: 'open' });
+  rb.innerHTML = `<style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; }
+    .b { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; background: #fff; border: 1px solid #c9d2df; border-radius: 10px;
+      padding: 6px 8px; box-shadow: 0 6px 20px rgba(0,0,0,.18); max-width: calc(100vw - 24px); }
+    button { border: 1px solid #c9d2df; background: #f6f8fb; border-radius: 7px; padding: 4px 9px; cursor: pointer; }
+    button.on { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+    button.pri { background: #127a3a; color: #fff; border-color: #127a3a; }
+    input { border: 1px solid #c9d2df; border-radius: 7px; padding: 4px 8px; width: 170px; }
+    .v { color: #127a3a; font-weight: 700; } .a { color: #9a6700; font-weight: 700; } .x { color: #b42318; font-weight: 700; }
+  </style>
+  <div class="b"><b>Conciliação JCR</b>
+    <button data-f="" class="on">Todos <span id="nT"></span></button>
+    <button data-f="bate">✓ Batem <span class="v" id="nV"></span></button>
+    <button data-f="conferir">⚠ Conferir <span class="a" id="nA"></span></button>
+    <button data-f="nome">✕ Nome diferente <span class="x" id="nX"></span></button>
+    <input id="busca" placeholder="🔎 nome ou valor">
+    <button class="pri" id="marcar" title="Marca a caixinha dos pares que batem (visíveis). Depois clique em Conciliar no topo do Conta Azul.">☑ Marcar os que batem</button>
+  </div>`;
+  document.documentElement.appendChild(barra);
+  const selos = document.createElement('div');
+  selos.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483644';
+  const rs = selos.attachShadow({ mode: 'open' });
+  rs.innerHTML = `<style>
+    .s { position: fixed; font: 600 11px system-ui, 'Segoe UI', sans-serif; padding: 2px 7px; border-radius: 99px; white-space: nowrap; transform: translateX(-50%);
+      box-shadow: 0 1px 3px rgba(0,0,0,.2); pointer-events: auto; cursor: help; }
+    .bate { background: #dcfce7; color: #127a3a; border: 1px solid #86efac; }
+    .conferir { background: #fff4d6; color: #9a6700; border: 1px solid #f5d27a; }
+    .nome { background: #fee4e2; color: #b42318; border: 1px solid #fca5a5; }
+  </style><div id="lista"></div>`;
+  document.documentElement.appendChild(selos);
+  let filtroConc = '', paresConc = [];
+  const escondidos = new Set();
+
+  const moneyRe = /(-?)\s*(?:R\$\s*)?(-?)(\d{1,3}(?:\.\d{3})*,\d{2})(?!\d)/;
+  const centavos = t => { const m = moneyRe.exec(t || ''); return m ? Math.round(Number(m[3].replace(/\./g, '').replace(',', '.')) * 100) * (m[1] || m[2] ? -1 : 1) : null; };
+  const primeiraData = t => { const m = /(\d{2})\/(\d{2})\/(\d{4})/.exec(t || ''); return m ? `${m[3]}-${m[2]}-${m[1]}` : null; };
+
+  function botoesConciliar() {
+    return [...document.querySelectorAll('button, a, [role=button]')].filter(b =>
+      /^\s*conciliar\s*$/i.test(b.textContent || '') && !eNosso(b) && b.getBoundingClientRect().width > 0);
+  }
+  // cartões = blocos de um lançamento só (mesma regra dos ícones: até 320px e 3 valores)
+  function cartoes() {
+    const set = new Set();
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+      if (!/\d,\d{2}(?!\d)/.test(n.nodeValue) || !n.parentElement) continue;
+      const c = linhaDe(n.parentElement);
+      if (c.getBoundingClientRect().height >= 60) set.add(c);
+    }
+    return [...set];
+  }
+  function lerPares() {
+    const bts = botoesConciliar();
+    if (bts.length < 1 || !/concilia/i.test(document.body.innerText.slice(0, 20000))) return [];
+    const cs = cartoes().map(c => ({ c, r: c.getBoundingClientRect() }));
+    const out = [];
+    for (const b of bts) {
+      const rb = b.getBoundingClientRect(), y = rb.top + rb.height / 2;
+      const noY = x => x.r.top <= y && x.r.bottom >= y;
+      const banco = cs.filter(x => noY(x) && x.r.right <= rb.left + 4).sort((a, b) => b.r.right - a.r.right)[0];
+      const ca = cs.filter(x => noY(x) && x.r.left >= rb.right - 4).sort((a, b) => a.r.left - b.r.left)[0];
+      if (!banco || !ca) continue;
+      // texto do cartão sem os botões (Arquivar, Editar…), que não fazem parte do nome
+      const semBotoes = el => [...el.querySelectorAll('button, [role=button]')].reduce((t, x) => t.replace(x.innerText, ' '), el.innerText);
+      const tb = semBotoes(banco.c), tc = semBotoes(ca.c);
+      const vb = centavos(tb), vc = centavos(tc), db = primeiraData(tb), dc = primeiraData(tc);
+      const forn = ((/(?:fornecedor|cliente)\s*:\s*([^\n]+?)(?:\s{2,}|\s*categoria\s*:|\n|$)/i.exec(tc) || [])[1] || '').trim();
+      const C = window.Conciliacao;
+      const nomeB = C.nomeNoExtrato(tb);
+      const valorOk = vb !== null && vb === vc;
+      const dataOk = db && dc ? diasEntre(db, dc) <= 3 : true;
+      let st, motivo;
+      // comprovante da pasta com o mesmo valor e o nome do fornecedor confirma quando o banco não mostra nome
+      const comp = !nomeB && pasta && forn ? pasta.itens.find(p => p.valores.includes(Math.abs(vb)) && C.nomeForte(p.texto, forn)) : null;
+      if (!valorOk) { st = 'nome'; motivo = 'valor diferente'; }
+      else if (nomeB && forn && !C.nomeForte(nomeB, forn) && !C.nomeForte(tb, forn)) { st = 'nome'; motivo = `banco: ${nomeB} × Conta Azul: ${forn}`; }
+      else if (!dataOk) { st = 'conferir'; motivo = 'datas distantes'; }
+      else if (nomeB && forn) { st = 'bate'; motivo = 'valor, data e nome batem'; }
+      else if (comp) { st = 'bate'; motivo = `banco sem nome; comprovante ${comp.arquivo} confirma`; }
+      else { st = 'conferir'; motivo = forn ? 'o banco não mostra o nome (boleto?) — confira' : 'sem fornecedor no Conta Azul'; }
+      out.push({ b, banco: banco.c, ca: ca.c, st, motivo, txt: norm(tb + ' ' + tc) });
+    }
+    return out;
+  }
+  // esconde o par inteiro: o bloco comum aos dois cartões (se tiver só este par) ou cada parte
+  function partes(p) {
+    let a = p.banco.parentElement;
+    while (a && !(a.contains(p.ca) && a.contains(p.b))) a = a.parentElement;
+    if (a && a !== document.body && botoesConciliar().filter(x => a.contains(x)).length === 1) return [a];
+    let meio = p.b; while (meio.parentElement && meio.parentElement.getBoundingClientRect().width < 220 && !meio.parentElement.contains(p.banco)) meio = meio.parentElement;
+    return [p.banco, p.ca, meio];
+  }
+  function aplicarFiltro() {
+    const q = norm(rb.getElementById('busca').value.trim());
+    const num = q.replace(/[^\d,]/g, '');
+    for (const el of escondidos) el.style.display = '';
+    escondidos.clear();
+    for (const p of paresConc) {
+      const ok = (!filtroConc || p.st === filtroConc) && (!q || (num && /\d/.test(num) ? p.txt.includes(num) : q.split(/\s+/).every(w => p.txt.includes(w))));
+      p.oculto = !ok;
+      if (!ok) for (const el of (p.els || (p.els = partes(p)))) { el.style.display = 'none'; escondidos.add(el); }
+    }
+  }
+  function atualizarConc() {
+    if (arrastando) return;
+    // lê só os pares à mostra; os escondidos pelo filtro ficam com a leitura anterior
+    let vis = [];
+    try { vis = lerPares(); } catch (e) { vis = []; }
+    const ocultos = paresConc.filter(p => p.oculto && p.b.isConnected && !vis.some(q => q.b === p.b));
+    paresConc = [...vis, ...ocultos];
+    barra.style.display = paresConc.length ? '' : 'none';
+    selos.style.display = paresConc.length ? '' : 'none';
+    const n = st => paresConc.filter(p => p.st === st).length;
+    rb.getElementById('nT').textContent = paresConc.length;
+    rb.getElementById('nV').textContent = n('bate'); rb.getElementById('nA').textContent = n('conferir'); rb.getElementById('nX').textContent = n('nome');
+    const TXT = { bate: '✓ bate', conferir: '⚠ conferir', nome: '✕ nome diferente' };
+    const html = paresConc.map((p, k) => `<div class="s ${p.st}" data-k="${k}" title="${esc(p.motivo)}">${TXT[p.st]}</div>`).join('');
+    if (rs.getElementById('lista').innerHTML !== html) rs.getElementById('lista').innerHTML = html;
+    if (filtroConc || rb.getElementById('busca').value) aplicarFiltro();
+  }
+  (function seguirSelos() {
+    const ls = rs.getElementById('lista').children;
+    for (let k = 0; k < ls.length && k < paresConc.length; k++) {
+      const r = paresConc[k].b.getBoundingClientRect();
+      const fora = r.width === 0 || r.bottom < 0 || r.top > innerHeight;
+      ls[k].style.display = fora ? 'none' : '';
+      if (!fora) { ls[k].style.left = Math.round(r.left + r.width / 2) + 'px'; ls[k].style.top = Math.round(r.top - 46) + 'px'; }
+    }
+    requestAnimationFrame(seguirSelos);
+  })();
+  rb.querySelectorAll('button[data-f]').forEach(bt => bt.addEventListener('click', () => {
+    filtroConc = bt.dataset.f;
+    rb.querySelectorAll('button[data-f]').forEach(x => x.classList.toggle('on', x === bt));
+    aplicarFiltro();
+  }));
+  rb.getElementById('busca').addEventListener('input', aplicarFiltro);
+  rb.getElementById('marcar').addEventListener('click', () => {
+    let n = 0;
+    for (const p of paresConc.filter(p => p.st === 'bate' && !p.oculto)) {
+      const cx = p.banco.querySelector('input[type=checkbox], [role=checkbox]');
+      const marcado = cx && (cx.checked || cx.getAttribute('aria-checked') === 'true');
+      if (cx && !marcado) { cx.click(); n++; }
+    }
+    aviso(n ? `${n} par(es) marcados. Confira e clique em "Conciliar" no topo do Conta Azul.` : 'Nenhum par novo para marcar.');
+  });
+  setInterval(atualizarConc, 2000);
+
   $('abrirPasta').addEventListener('click', () => chrome.runtime.sendMessage({ tipo: 'abrirPasta' }));
   $('fab').addEventListener('click', () => { $('painel').classList.toggle('aberto'); render(); });
   $('fechar').addEventListener('click', () => $('painel').classList.remove('aberto'));

@@ -150,6 +150,7 @@
       <label>Pasta de comprovantes (opcional)
         <span style="display:flex;gap:8px;align-items:center">
           <button type="button" class="btn btn-outline" onclick="escolherPasta()">📁 Escolher pasta</button>
+          <button type="button" class="btn btn-outline" onclick="limparPasta()" title="Esquece a pasta: a conciliação roda sem comprovantes">✕ Limpar</button>
           <span id="pastaInfo" class="muted">nenhuma</span>
         </span>
         <input type="file" id="pastaInput" webkitdirectory multiple style="display:none">
@@ -410,6 +411,15 @@ async function listarPasta(dir, prefixo = '') {
     }
   }
   return out;
+}
+
+// esquece a pasta escolhida (e a lembrada no navegador): roda sem comprovantes
+async function limparPasta() {
+  pastaHandle = null; pastaArquivos = []; comprovantes = [];
+  try { await idb.set('pasta', null); } catch {}
+  $('pastaInput').value = '';
+  mostrarPasta('', 0);
+  msg('msgRodar', 'info', 'Pasta de comprovantes limpa. A conciliação vai rodar sem comprovantes.');
 }
 
 function mostrarPasta(nome, qtd) {

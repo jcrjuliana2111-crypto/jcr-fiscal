@@ -14,6 +14,7 @@ Site único do escritório, com login, reunindo todas as ferramentas.
 | `gclik.html` | Gestão Fiscal: clientes, tarefas, obrigações, agenda, honorários, IRPF, fechamento |
 | `notificacoes/` | Controle de Notificações Fiscais (antigo repositório `controle-fiscal`) |
 | `conciliacao/` | Robô de conciliação bancária com o Conta Azul (BPO Financeiro) — ver `docs/conciliacao-conta-azul.md` |
+| `contas-pagar/` | Contas a pagar do dia (BPO Financeiro): contas em aberto do Conta Azul (mesma chave/cliente da Conciliação) ou importadas da planilha do escritório, marcação do que paga, saldos dos bancos (sobra/falta com e sem limite), alertas (protesto, vencida, duplicada, não lançada), planilha do dia (.xlsx), resumo para o cliente e lista para o Gerador de lista Pix. Dados ficam no navegador, por cliente e dia |
 | `pix-lote/` | Gerador de lista Pix (BPO Financeiro): converte a planilha de pagamentos no layout da extensão "Pix em lote - Unicred (preencher)". Também confere a lista com o PDF do banco (Transações Pendentes ou Extrato): conferidos, faltando, valor diferente e fora da lista. Histórico fica só no navegador |
 | `supabase/` | Edge Function `conta-azul` e migrações do robô de conciliação (projeto `qftusjwnlyjokilcjuzb`) |
 | `automacoes/` | Fluxos do **n8n** (ex.: alerta diário de prazos por e-mail) — ver `automacoes/README.md` |

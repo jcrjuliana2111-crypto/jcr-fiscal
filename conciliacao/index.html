@@ -205,8 +205,6 @@
       <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-outline" onclick="mostrarResumo()">📋 Resumo do fechamento</button>
         <button class="btn btn-outline" onclick="exportarCSV()">↓ Exportar CSV</button>
-        <button class="btn btn-outline" id="btnExtensao" onclick="mandarParaExtensao()" title="Manda para a extensão do Chrome os comprovantes das baixas feitas, para anexar no Conta Azul">📎 Mandar comprovantes para a extensão</button>
-        <a class="btn btn-outline" href="../extensao-comprovantes/instalar.bat" download title="Instala a extensão em Documents\Extensoes e deixa ela se atualizar sozinha">⬇ Instalar extensão</a>
         <button class="btn btn-success" id="btnBaixar" onclick="darBaixa()">✓ Dar baixa nos selecionados</button>
       </div>
     </div>
@@ -1266,49 +1264,6 @@ async function darBaixa() {
     msg('msgRodar', 'erro', esc(e.message));
   } finally {
     $('btnBaixar').disabled = false;
-  }
-}
-
-// ---- extensão do Chrome: comprovantes para anexar no Conta Azul ----
-let extensaoPronta = false;
-window.addEventListener('message', ev => {
-  if (ev.source !== window || !ev.data) return;
-  if (ev.data.tipo === 'jcr-extensao-pronta') extensaoPronta = true;
-  if (ev.data.tipo === 'jcr-comprovantes-ok') {
-    msg('msgRodar', 'ok', `${ev.data.recebidos} comprovante(s) enviados para a extensão (${ev.data.total} pendente(s) lá). No Conta Azul, use o botão <b>📎 Comprovantes</b> no canto da tela.`);
-  }
-});
-window.postMessage({ tipo: 'jcr-extensao-ping' }, '*');
-
-function arquivoParaDataUrl(file) {
-  return new Promise((ok, erro) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => erro(r.error); r.readAsDataURL(file); });
-}
-
-async function mandarParaExtensao() {
-  if (!resultado) return msg('msgRodar', 'erro', 'Rode a conciliação e dê baixa primeiro.');
-  const baixados = resultado.pares.filter(p => retornos[p.movimento.id]?.status === 'ok' && vinculo[p.movimento.id]);
-  if (!baixados.length) return msg('msgRodar', 'erro', 'Nenhuma baixa feita nesta tela tem comprovante ligado. Dê baixa primeiro (e confira a coluna Comprovante).');
-  if (!extensaoPronta) {
-    return msg('msgRodar', 'erro', 'A extensão “JCR · Comprovantes no Conta Azul” não foi encontrada neste navegador. Instale (veja docs/extensao-comprovantes.md) e recarregue esta página com Ctrl+F5.');
-  }
-  try {
-    const itens = [];
-    for (const p of baixados) {
-      const c = comprovantes.find(x => x.id === vinculo[p.movimento.id]);
-      if (!c) continue;
-      const lancs = p.grupo ? p.parcelas : [p.parcela];
-      itens.push({
-        id: `${cliente()}|${p.movimento.id}`,
-        cliente: nomeCliente(), contato: p.parcela.nome || '',
-        descricao: lancs.map(x => x.descricao).filter(Boolean).join(' + '),
-        valor: Math.abs(p.movimento.valor), data: p.movimento.data, vencimento: p.parcela.vencimento,
-        arquivo: c.file.name, dataUrl: await arquivoParaDataUrl(c.file)
-      });
-    }
-    msg('msgRodar', 'info', `Enviando ${itens.length} comprovante(s) para a extensão…`);
-    window.postMessage({ tipo: 'jcr-comprovantes', itens }, '*');
-  } catch (e) {
-    msg('msgRodar', 'erro', 'Não consegui ler um dos comprovantes: ' + esc(e.message) + ' Escolha a pasta de novo e tente outra vez.');
   }
 }
 

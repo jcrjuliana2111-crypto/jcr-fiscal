@@ -447,3 +447,14 @@ test('sugestão excluída não volta a ser sugerida (1:1, juros e agrupado)', ()
   const r3 = C.conciliar([m], parcelas, { rejeitados: new Set(['m|x', 'm|y', 'm|a']) });
   assert.strictEqual(r3.pares.length, 0);
 });
+
+test('lançamentos iguais (mesmo valor, contato e vencimento): avisa e prefere a competência do mês', () => {
+  const m = { id: 'm', data: '2026-10-23', valor: -323, historico: 'DEBITO TRANSFERENCIA PIX ( DOC.: DEB PIX / CARLOS ROBERTO DE OLIVEIRA SANTOS )' };
+  const P = (id, comp) => ({ id, tipo: 'pagar', vencimento: '2026-10-23', valor: 323, nome: 'Carlos Roberto de Oliveira Santos', descricao: 'PAGAMENTO PLANTÃO EXTRA', competencia: comp });
+  const r = C.conciliar([m], [P('ago', '2026-08-01'), P('out', '2026-10-01'), P('set', '2026-09-01')], { janelaDias: 5 });
+  assert.strictEqual(r.pares[0].parcela.id, 'out');
+  assert.deepStrictEqual(r.pares[0].gemeos.map(x => x.id).sort(), ['ago', 'set']);
+  assert.notStrictEqual(r.pares[0].confianca, 'alta'); // não vem marcado: precisa conferir
+  // sem gêmeos continua alta
+  assert.strictEqual(C.conciliar([m], [P('out', '2026-10-01')], { janelaDias: 5 }).pares[0].confianca, 'alta');
+});

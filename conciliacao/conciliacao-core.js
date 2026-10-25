@@ -340,7 +340,9 @@
         }
         const nome = Math.max(similaridadeNome(m.historico, p.nome), similaridadeNome(m.historico, p.descricao) * 0.8,
           nomeExt ? 1 : 0);
-        const score = 60 + 20 * (1 - dias / (janela + 1)) + 20 * nome;
+        // desempate entre lançamentos iguais: competência mais perto da data do banco
+        const comp = p.competencia ? Math.min(12, Math.abs(diasEntre(m.data, p.competencia.slice(0, 7) + '-15')) / 30) : 0;
+        const score = 60 + 20 * (1 - dias / (janela + 1)) + 20 * nome - comp * 0.5;
         cand.push({ m, p, dias, nome, score, nomeExt: !!nomeExt });
       }
     }
@@ -364,6 +366,16 @@
         similaridade: Math.round(c.nome * 100) / 100,
         score: Math.round(c.score), confianca, ajuste: null
       });
+    }
+
+    // lançamentos "gêmeos" (mesmo tipo, valor, contato e vencimento na janela): o robô não tem como
+    // saber qual é o certo — não vem marcado e a tela pede para escolher
+    const chaveNome = p => tokens(p.nome).sort().join(' ');
+    for (const par of pares) {
+      const p = par.parcela, m = par.movimento;
+      const gemeos = parcelas.filter(q => q.id !== p.id && q.tipo === p.tipo && Math.round(q.valor * 100) === Math.round(p.valor * 100) &&
+        chaveNome(q) === chaveNome(p) && diasEntre(m.data, q.vencimento) <= janela && !rejeitado(opts, m, q));
+      if (gemeos.length) { par.gemeos = gemeos; if (par.confianca === 'alta') par.confianca = 'media'; }
     }
 
     // 3. juros / multa / desconto: mesmo contato, valor um pouco diferente

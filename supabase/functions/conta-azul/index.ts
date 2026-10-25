@@ -111,6 +111,7 @@ async function listarParcelas(cliente: string, tipo: 'receber' | 'pagar', de: st
         total: Number(i.total ?? i.valor ?? i.nao_pago ?? 0),
         nome: i.cliente?.nome ?? i.fornecedor?.nome ?? i.contato?.nome ?? '',
         descricao: i.descricao ?? '',
+        competencia: String(i.data_competencia ?? i.competencia ?? '').slice(0, 10),
         status: i.status,
       });
     }

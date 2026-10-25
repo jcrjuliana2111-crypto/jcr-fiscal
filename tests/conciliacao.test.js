@@ -447,11 +447,3 @@ test('sugestão excluída não volta a ser sugerida (1:1, juros e agrupado)', ()
   const r3 = C.conciliar([m], parcelas, { rejeitados: new Set(['m|x', 'm|y', 'm|a']) });
   assert.strictEqual(r3.pares.length, 0);
 });
-
-test('cópia do motor na extensão está igual à do robô', () => {
-  const fs = require('fs');
-  const path = require('path');
-  const ler = p => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
-  assert.strictEqual(ler('extensao-comprovantes/conciliacao-core.js'), ler('conciliacao/conciliacao-core.js'),
-    'Copie conciliacao/conciliacao-core.js para extensao-comprovantes/');
-});

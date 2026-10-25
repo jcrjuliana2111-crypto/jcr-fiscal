@@ -207,3 +207,14 @@ faça login no Conta Azul e autorize. O token é renovado automaticamente.
 ```bash
 node --test tests/*.test.js
 ```
+
+## Filtros na tela de resultados
+
+Acima da tabela: **Buscar** (nome, descrição, histórico ou valor), **Tipo**
+(pagar/receber), **De/Até** (data do banco; em "Lançamentos sem extrato", o
+vencimento) e **Situação** (confiança, agrupado, juros/desconto, com/sem
+comprovante, marcados, já baixados, com erro, "possível"). "Marcar todos" marca
+só o que está aparecendo; se houver marcados escondidos pelo filtro, a tela avisa.
+
+A pasta de comprovantes é opcional: sem pasta, ou sem permissão para lê-la, a
+conciliação roda sem comprovantes e avisa.

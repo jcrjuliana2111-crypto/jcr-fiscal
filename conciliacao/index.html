@@ -220,6 +220,24 @@
       <button class="btn btn-outline" onclick="$('resumoCard').style.display='none'">Fechar</button>
     </div>
   </div>
+  <div class="toolbar" id="filtros" style="display:none;border-radius:12px;margin-bottom:8px;border:1px solid var(--border)">
+    <label>🔎 Buscar <input id="fTxt" placeholder="nome, descrição, histórico ou valor" oninput="filtrar()"></label>
+    <label style="min-width:140px">Tipo
+      <select id="fTipo" onchange="filtrar()"><option value="">Todos</option><option value="pagar">Pagar (saídas)</option><option value="receber">Receber (entradas)</option></select></label>
+    <label style="min-width:140px">De <input type="date" id="fDe" onchange="filtrar()"></label>
+    <label style="min-width:140px">Até <input type="date" id="fAte" onchange="filtrar()"></label>
+    <label style="min-width:190px">Situação
+      <select id="fSit" onchange="filtrar()">
+        <option value="">Todas</option>
+        <option value="alta">Confiança alta</option><option value="media">Confiança média</option><option value="baixa">Confiança baixa</option>
+        <option value="agrupado">Pagamento agrupado</option><option value="ajuste">Com juros/desconto</option>
+        <option value="comComp">Com comprovante</option><option value="semComp">Sem comprovante</option>
+        <option value="marcados">Marcados</option><option value="baixados">Já baixados</option><option value="naoBaixados">Ainda não baixados</option><option value="erro">Com erro</option>
+        <option value="possivel">Com "possível" (extrato sem lançamento)</option>
+      </select></label>
+    <button class="btn btn-outline" onclick="limparFiltros()">Limpar</button>
+    <span class="muted" id="fInfo" style="align-self:center"></span>
+  </div>
   <div class="table-wrap" id="tabela" style="display:none"></div>
 </main>
 
@@ -422,9 +440,14 @@ $('pastaInput').addEventListener('change', e => {
 // pega os arquivos atuais da pasta (relê a pasta a cada conciliação)
 async function arquivosDaPasta() {
   if (pastaHandle) {
-    if ((await pastaHandle.queryPermission({ mode: 'read' })) !== 'granted' &&
-        (await pastaHandle.requestPermission({ mode: 'read' })) !== 'granted') {
-      throw new Error('Sem permissão para ler a pasta de comprovantes.');
+    let ok = false;
+    try {
+      ok = (await pastaHandle.queryPermission({ mode: 'read' })) === 'granted' ||
+           (await pastaHandle.requestPermission({ mode: 'read' })) === 'granted';
+    } catch { ok = false; }
+    if (!ok) { // a pasta é opcional: sem permissão, roda sem comprovantes e avisa
+      avisoPasta = 'Sem permissão para ler a pasta de comprovantes: a conciliação rodou sem comprovantes. Para usá-los, clique em <b>Rodar</b> de novo e aceite o pedido do navegador.';
+      return [];
     }
     pulados = 0; avisoPasta = '';
     try {
@@ -721,9 +744,71 @@ function trocarAba(a) {
 
 function valorHtml(v) { return `<span class="mono ${v >= 0 ? 'pos' : 'neg'}">${brl(v)}</span>`; }
 
+// ---- filtros da tela de resultados ----
+const normF = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function filtroAtual() {
+  return { txt: normF($('fTxt').value.trim()), tipo: $('fTipo').value, de: $('fDe').value, ate: $('fAte').value, sit: $('fSit').value };
+}
+function filtrosAtivos() { const f = filtroAtual(); return !!(f.txt || f.tipo || f.de || f.ate || f.sit); }
+// texto de busca: aceita "1.234,56", "1234,56" ou "1234.56"
+function bateTexto(f, partes, valores) {
+  if (!f.txt) return true;
+  const alvo = normF(partes.join(' '));
+  const num = f.txt.replace(/[^\d,.]/g, '');
+  if (num && /\d/.test(num) && valores.some(v => { const b = brl(Math.abs(v)); return normF(b).includes(f.txt) || b.replace(/[^\d,]/g, '').includes(num.replace(/\./g, '')) || String(Math.abs(v).toFixed(2)).includes(num.replace(',', '.')); })) return true;
+  return f.txt.split(/\s+/).every(w => alvo.includes(w));
+}
+const bateTipo = (f, valor) => !f.tipo || (f.tipo === 'receber' ? valor > 0 : valor < 0);
+const bateData = (f, d) => (!f.de || d >= f.de) && (!f.ate || d <= f.ate);
+function filtrarPares(pares) {
+  const f = filtroAtual();
+  return pares.filter(p => {
+    const m = p.movimento, lancs = p.grupo ? p.parcelas : [p.parcela], ret = retornos[m.id];
+    if (!bateTipo(f, m.valor) || !bateData(f, m.data)) return false;
+    if (!bateTexto(f, [m.historico, ...lancs.flatMap(x => [x.nome, x.descricao])], [m.valor, ...lancs.map(x => x.valor)])) return false;
+    switch (f.sit) {
+      case 'alta': case 'media': case 'baixa': return p.confianca === f.sit;
+      case 'agrupado': return !!p.grupo;
+      case 'ajuste': return !!p.ajuste;
+      case 'comComp': return !!vinculo[m.id];
+      case 'semComp': return !vinculo[m.id];
+      case 'marcados': return selecionados.has(m.id);
+      case 'baixados': return ret?.status === 'ok';
+      case 'naoBaixados': return ret?.status !== 'ok';
+      case 'erro': return ret?.status === 'erro';
+      case 'possivel': return false;
+    }
+    return true;
+  });
+}
+function filtrarSemParcela(lista) {
+  const f = filtroAtual();
+  return lista.filter(m => {
+    const ret = retLanc[m.id];
+    if (!bateTipo(f, m.valor) || !bateData(f, m.data)) return false;
+    if (!bateTexto(f, [m.historico, ...(m.possiveis || []).map(x => x.parcela.nome)], [m.valor])) return false;
+    switch (f.sit) {
+      case 'possivel': return !!(m.possiveis && m.possiveis.length);
+      case 'marcados': return selLanc.has(m.id);
+      case 'baixados': return ret?.status === 'ok';
+      case 'naoBaixados': return ret?.status !== 'ok';
+      case 'erro': return ret?.status === 'erro';
+      case '': return true;
+    }
+    return false;
+  });
+}
+function filtrarSemMov(lista) {
+  const f = filtroAtual();
+  return lista.filter(p => (!f.tipo || p.tipo === f.tipo) && bateData(f, p.vencimento) &&
+    bateTexto(f, [p.nome, p.descricao], [p.valor]) && !f.sit);
+}
+function filtrar() { render(); }
+function limparFiltros() { ['fTxt', 'fDe', 'fAte'].forEach(id => $(id).value = ''); $('fTipo').value = ''; $('fSit').value = ''; render(); }
+
 function render() {
   $('tabela').style.display = '';
-  if (aba === 'historico') return renderHistorico();
+  if (aba === 'historico') { $('filtros').style.display = 'none'; return renderHistorico(); }
   const r = resultado;
   if (!r) { $('tabela').innerHTML = '<div class="empty">Rode a conciliação primeiro.</div>'; return; }
   const feitos = Object.values(retornos).filter(x => x.status === 'ok').length;
@@ -739,6 +824,11 @@ function render() {
   ].map(([l, v, s]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value" style="${s}">${v}</div></div>`).join('');
 
   $('btnBaixar').style.display = aba === 'pares' ? '' : 'none';
+  $('filtros').style.display = '';
+  const total = aba === 'pares' ? r.pares.length : aba === 'semParcela' ? r.semParcela.length : r.parcelasSemMovimento.length;
+  const vis = aba === 'pares' ? filtrarPares(r.pares).length : aba === 'semParcela' ? filtrarSemParcela(r.semParcela).length : filtrarSemMov(r.parcelasSemMovimento).length;
+  const ocultosSel = aba === 'pares' ? [...selecionados].filter(id => !filtrarPares(r.pares).some(p => p.movimento.id === id)).length : 0;
+  $('fInfo').innerHTML = filtrosAtivos() ? `mostrando <b>${vis}</b> de ${total}` + (ocultosSel ? ` · <span style="color:var(--warn)">${ocultosSel} marcado(s) escondido(s) pelo filtro também entram na baixa</span>` : '') : '';
   let html = '';
   if (aba === 'pares') html = renderPares(r);
   else if (aba === 'semParcela') html = renderSemParcela(r);
@@ -750,11 +840,14 @@ function renderPares(r) {
   const nRej = rejeitados().length;
   const rodape = nRej ? `<div class="muted" style="padding:8px 12px">${nRej} sugestão(ões) excluída(s) não aparecem mais para este cliente · <button class="link" onclick="esquecerExcluidas()">voltar a sugerir</button></div>` : '';
   if (!r.pares.length) return '<div class="empty">Nenhuma sugestão de baixa.</div>' + rodape;
+  const pares = filtrarPares(r.pares);
+  if (!pares.length) return '<div class="empty">Nada com esses filtros.</div>' + rodape;
   return rodape + `<table><thead><tr>
     <th><input type="checkbox" onchange="marcarTodos(this.checked)"></th>
     <th>Data banco</th><th>Histórico do extrato</th><th>Valor</th>
     <th>Lançamento Conta Azul</th><th>Vencimento</th><th>Confiança</th><th>Comprovante</th><th>Resultado</th></tr></thead><tbody>` +
-    r.pares.map((p, i) => {
+    pares.map(p => {
+      const i = r.pares.indexOf(p);
       const ret = retornos[p.movimento.id];
       const travado = ret && ret.status === 'ok';
       const aj = p.ajuste ? `<div class="ajuste">${p.ajuste.tipo === 'desconto' ? '− desconto' :
@@ -806,8 +899,8 @@ function opcoesVinculo(m) {
 }
 
 function renderSemParcela(r) {
-  const lista = r.semParcela;
-  if (!lista.length) return '<div class="empty">Todos os movimentos têm sugestão.</div>';
+  if (!r.semParcela.length) return '<div class="empty">Todos os movimentos têm sugestão.</div>';
+  const lista = filtrarSemParcela(r.semParcela);
   const dir = direcaoSel();
   const cats = categoriasCache[dir === 'entrada' ? 'RECEITA' : 'DESPESA'];
   const conts = contatosCache[dir] || [];
@@ -826,6 +919,7 @@ function renderSemParcela(r) {
       </select></label>
     <button class="btn btn-primary" onclick="lancarSelecionados()">＋ Lançar selecionados</button>
   </div>`;
+  if (!lista.length) return toolbar + '<div class="empty">Nada com esses filtros.</div>';
   return toolbar + `<table><thead><tr><th></th><th>Data</th><th>Histórico</th><th>Valor</th><th>Vincular a um lançamento existente</th><th>Resultado</th></tr></thead><tbody>` +
     lista.map(m => {
       const ret = retLanc[m.id];
@@ -1048,7 +1142,7 @@ function renderSemMov(r) {
   if (!r.parcelasSemMovimento.length) return '<div class="empty">Nenhum lançamento em aberto sobrando no período.</div>';
   const hoje = new Date().toISOString().slice(0, 10);
   return `<table><thead><tr><th>Vencimento</th><th>Tipo</th><th>Contato</th><th>Descrição</th><th>Valor</th><th></th></tr></thead><tbody>` +
-    r.parcelasSemMovimento.slice().sort((a, b) => a.vencimento.localeCompare(b.vencimento)).map(p => `<tr>
+    filtrarSemMov(r.parcelasSemMovimento).sort((a, b) => a.vencimento.localeCompare(b.vencimento)).map(p => `<tr>
       <td class="mono">${fmtData(p.vencimento)}${p.vencimento < hoje ? '<div class="muted" style="color:var(--danger)">vencido</div>' : ''}</td>
       <td>${p.tipo === 'receber' ? 'A receber' : 'A pagar'}</td>
       <td>${esc(p.nome)}</td><td>${esc(p.descricao)}</td><td>${valorHtml(p.tipo === 'receber' ? p.valor : -p.valor)}</td>
@@ -1089,7 +1183,7 @@ function desvincular(movId) { delete vinculo[movId]; render(); }
 
 function marcar(id, on) { on ? selecionados.add(id) : selecionados.delete(id); }
 function marcarTodos(on) {
-  resultado.pares.forEach(p => {
+  filtrarPares(resultado.pares).forEach(p => {
     if (retornos[p.movimento.id]?.status === 'ok') return;
     on ? selecionados.add(p.movimento.id) : selecionados.delete(p.movimento.id);
   });

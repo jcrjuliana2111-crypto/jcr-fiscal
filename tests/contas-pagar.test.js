@@ -57,3 +57,15 @@ test('resumo e lista Pix só com as marcadas', () => {
   assert.match(res, /Falta: R\$\s?6,00/);
   assert.strictEqual(C.listaPix(itens, '2026-10-23').split('\n').length, 2);
 });
+
+test('fechar o dia: baixa as marcadas, reagenda as previstas até hoje e passa as manuais para o próximo dia útil', () => {
+  const it = (id, o) => ({ id, origem: 'ca', credor: id, vencimento: '2026-10-23', valor: 10, valorPagar: 10, pagar: false, ...o });
+  const itens = [it('pagar', { pagar: true }), it('naoMarcada'), it('futura', { previsao: '2026-10-28' }), it('jaBaixada', { pagar: true, baixa: { status: 'ok' } }),
+    it('zero', { pagar: true, valorPagar: 0 }), { id: 'm1', origem: 'manual', credor: 'x', pagar: false, valorPagar: 5 }, { id: 'm2', origem: 'manual', credor: 'y', pagar: true, valorPagar: 5 }];
+  const p = C.planoFechamento(itens, '2026-10-23'); // sexta-feira
+  assert.deepStrictEqual(p.baixar.map(i => i.id), ['pagar']);
+  assert.deepStrictEqual(p.reagendar.map(i => i.id), ['naoMarcada', 'zero']);
+  assert.deepStrictEqual(p.manuaisAmanha.map(i => i.id), ['m1']);
+  assert.deepStrictEqual(p.manuaisPagos.map(i => i.id), ['m2']);
+  assert.strictEqual(p.amanha, '2026-10-26'); // segunda
+});

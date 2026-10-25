@@ -145,7 +145,24 @@
     return { itens: [...doCA, ...sobra], juntadas: manuais.length - sobra.length };
   }
 
-  const api = { mesmoCredor, mesmaConta, juntar, limiteDisponivel, norm, valor, data, dias, situacao, alertas, ordenar, totais, resumo, listaPix, lerPlanilha, brl, dt };
+  // próximo dia útil (pula sábado e domingo)
+  function proximoDiaUtil(iso) {
+    const d = new Date(iso + 'T12:00:00');
+    do { d.setDate(d.getDate() + 1); } while (d.getDay() === 0 || d.getDay() === 6);
+    return data(d);
+  }
+  // fechamento do dia: o que baixar no Conta Azul, o que reagendar e o que passa para a lista de amanhã
+  function planoFechamento(itens, hoje) {
+    const ca = itens.filter(i => i.origem === 'ca' && !(i.baixa && i.baixa.status === 'ok'));
+    const baixar = ca.filter(i => i.pagar && valor(i.valorPagar) > 0);
+    const programadaAteHoje = i => (i.previsao || i.vencimento || hoje) <= hoje;
+    const reagendar = ca.filter(i => !baixar.includes(i) && programadaAteHoje(i));
+    const manuais = itens.filter(i => i.origem !== 'ca');
+    return { baixar, reagendar, manuaisPagos: manuais.filter(i => i.pagar && valor(i.valorPagar) > 0),
+      manuaisAmanha: manuais.filter(i => !(i.pagar && valor(i.valorPagar) > 0)), amanha: proximoDiaUtil(hoje) };
+  }
+
+  const api = { proximoDiaUtil, planoFechamento, mesmoCredor, mesmaConta, juntar, limiteDisponivel, norm, valor, data, dias, situacao, alertas, ordenar, totais, resumo, listaPix, lerPlanilha, brl, dt };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ContasPagar = api;
 })(this);

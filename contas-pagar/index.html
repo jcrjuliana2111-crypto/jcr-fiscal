@@ -61,6 +61,9 @@
   .link.danger { color: var(--danger); }
   .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 12px; }
   .pos { color: var(--success); } .neg { color: var(--danger); }
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tab { padding: 7px 12px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); cursor: pointer; font-size: 13px; }
+  .tab.active { border-color: var(--accent); color: var(--text); }
   textarea.saida { width: 100%; min-height: 160px; font-family: var(--mono); font-size: 12px; margin-top: 10px; }
   @media (max-width: 700px) { header { padding: 0 16px; } main { padding: 16px; } }
 </style>
@@ -160,6 +163,25 @@
   </div>
 
   <div class="card">
+    <h2>DDA · o que falta lançar</h2>
+    <div class="row">
+      <label>Relatório de DDA do banco (PDF)
+        <input type="file" id="ddaArquivo" accept=".pdf"></label>
+      <button class="btn btn-primary" id="btnDda" onclick="lerDDA()">▶ Conferir DDA</button>
+      <button class="btn btn-outline" id="btnDdaTodos" style="display:none" onclick="ddaParaLista()">＋ Pôr todos os que faltam na lista do dia</button>
+    </div>
+    <p class="muted" style="margin-top:10px">Lê o PDF no navegador (sem IA) e procura cada boleto nas contas a pagar do Conta Azul (em aberto e pagas):
+      <b>Lançado</b> (valor, vencimento até 3 dias e fornecedor batem) · <b>Provável</b> (valor e vencimento batem, nome diferente) ·
+      <b>Divergente</b> (mesmo fornecedor, valor ou vencimento diferente) · <b>Falta lançar</b> (nada parecido). A linha digitável dos boletos
+      encontrados vai para a conta na lista, para copiar na hora de pagar.</p>
+    <div class="msg" id="msgDda"></div>
+    <div id="ddaBox" style="display:none;margin-top:14px">
+      <div class="tabs" id="ddaTabs"></div>
+      <div class="table-wrap" id="ddaTabela"></div>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>4 · Enviar e pagar</h2>
     <div class="row">
       <button class="btn btn-success" onclick="exportarExcel()">⬇ Planilha do dia (.xlsx)</button>
@@ -205,6 +227,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="contas-pagar-core.js"></script>
+<script src="../conciliacao/conciliacao-core.js"></script>
 <script>
 const FN_URL = 'https://qftusjwnlyjokilcjuzb.supabase.co/functions/v1/conta-azul';
 const C = window.ContasPagar;
@@ -499,7 +522,7 @@ function render() {
           contasFin.length ? `<select style="width:100%;padding:5px 8px;font-size:12px" onchange="editar('${i.id}', 'contaFin', this)">${opcoesBanco(i.contaFin, `<option value="">${$('contaPadrao').value ? 'padrão: ' + esc(nomeBanco($('contaPadrao').value)) : '— escolha —'}</option>`)}</select>`
           : '<span class="muted">verifique a chave</span>'}${man && i.pagar ? '<div class="av info">baixe à mão no Conta Azul</div>' : ''}</td>
         <td style="min-width:150px">${campo(i, 'obs', 'list="obsSugestoes" placeholder="ex.: negociado"')}${i.nota ? `<div class="av medio">${esc(i.nota)}</div>` : ''}</td>
-        <td style="min-width:150px">${campo(i, 'pix', 'placeholder="CPF, CNPJ, celular, e-mail…"')}</td>
+        <td style="min-width:150px">${campo(i, 'pix', 'placeholder="CPF, CNPJ, celular, e-mail…"')}${i.linha ? `<div class="av info">boleto DDA · <button class="link" onclick="copiarTexto('${esc(i.linha)}')">copiar linha digitável</button></div>` : ''}</td>
         <td style="min-width:150px">${av.map(a => `<div class="av ${a.nivel}">${esc(a.txt)}</div>`).join('')}</td>
         <td>${man ? `<button class="link danger" onclick="apagar('${i.id}')">✕</button>` : ''}</td>
       </tr>`;
@@ -557,6 +580,111 @@ async function fecharDia() {
       `${plano.manuaisAmanha.length} conta(s) manuais passadas para amanhã.`);
   } catch (e) { msg('erro', esc(e.message)); }
   finally { $('btnFechar').disabled = false; }
+}
+
+// ---------- DDA ----------
+let dda = [], ddaFiltro = 'falta';
+const DDA_TXT = { falta: 'Falta lançar', divergente: 'Divergente', provavel: 'Provável', lancado: 'Lançado' };
+async function carregarPdfJs() {
+  if (window.pdfjsLib) return;
+  await new Promise((ok, erro) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    sc.onload = ok; sc.onerror = () => erro(new Error('Não foi possível carregar o leitor de PDF.'));
+    document.head.appendChild(sc);
+  });
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+// linhas de texto do PDF (junta os pedaços na mesma altura, da esquerda para a direita)
+async function linhasPdf(file) {
+  await carregarPdfJs();
+  const pdf = await window.pdfjsLib.getDocument({ data: await file.arrayBuffer(), verbosity: 0 }).promise;
+  const out = [];
+  for (let n = 1; n <= pdf.numPages; n++) {
+    const grupos = [];
+    for (const it of (await (await pdf.getPage(n)).getTextContent()).items.filter(x => x.str && x.str.trim())) {
+      const y = it.transform[5];
+      let g = grupos.find(g => Math.abs(g.y - y) <= 2.5);
+      if (!g) grupos.push(g = { y, itens: [] });
+      g.itens.push({ x: it.transform[4], str: it.str });
+    }
+    grupos.sort((a, b) => b.y - a.y);
+    for (const g of grupos) out.push(g.itens.sort((a, b) => a.x - b.x).map(t => t.str.trim()).join('  '));
+  }
+  return out;
+}
+async function lerDDA() {
+  const f = $('ddaArquivo').files[0];
+  if (!f) return msgDda('erro', 'Escolha o PDF do DDA.');
+  $('btnDda').disabled = true;
+  try {
+    msgDda('info', 'Lendo o PDF…');
+    const linhas = await linhasPdf(f);
+    const boletos = Conciliacao.parseDDA(linhas);
+    if (!boletos.length) throw new Error(linhas.join('').trim()
+      ? 'Não encontrei boletos neste PDF. Se for outro modelo de relatório, envie um exemplo para ajustarmos o leitor.'
+      : 'Este PDF não tem texto (parece escaneado). Baixe o relatório do DDA em PDF de texto.');
+    const datas = boletos.map(b => b.vencimento).filter(Boolean).sort();
+    const de = somar(datas[0] || dia(), -31), ate = somar(datas[datas.length - 1] || dia(), 31);
+    msgDda('info', `${boletos.length} boleto(s) lidos. Buscando no Conta Azul (${C.dt(de)} a ${C.dt(ate)})…`);
+    const parcelas = await api('parcelas', { de, ate, tipos: ['pagar'], todos: true });
+    dda = Conciliacao.conferirDDA(boletos, parcelas, { janelaDias: 3 });
+    // boleto encontrado: a linha digitável vai para a conta que está na lista
+    let comLinha = 0;
+    for (const x of dda) {
+      if (!x.parcela || !x.boleto.linha) continue;
+      const i = itens.find(it => it.id === x.parcela.id);
+      if (i && !i.linha) { i.linha = x.boleto.linha; comLinha++; }
+    }
+    if (comLinha) { salvar(); render(); }
+    const n = st => dda.filter(x => x.situacao === st).length;
+    const soma = dda.filter(x => x.situacao === 'falta').reduce((t, x) => t + x.boleto.valor, 0);
+    msgDda(n('falta') ? 'erro' : 'ok', `${boletos.length} boleto(s) no DDA: <b>${n('falta')} sem lançamento (${C.brl(soma)})</b>, ${n('divergente')} divergente(s), ${n('provavel')} provável(is), ${n('lancado')} lançado(s).` +
+      (comLinha ? ` Linha digitável colocada em ${comLinha} conta(s) da lista.` : ''));
+    $('ddaBox').style.display = '';
+    filtroDda(n('falta') ? 'falta' : 'todos');
+  } catch (e) { msgDda('erro', esc(e.message)); }
+  finally { $('btnDda').disabled = false; }
+}
+function msgDda(tipo, html) { const el = $('msgDda'); el.className = `msg show ${tipo}`; el.innerHTML = html; }
+function filtroDda(f) { ddaFiltro = f; renderDDA(); }
+const naLista = x => itens.some(i => i.ddaLinha && i.ddaLinha === (x.boleto.linha || x.boleto.id) || (x.parcela && i.id === x.parcela.id));
+function renderDDA() {
+  const qtd = st => dda.filter(x => st === 'todos' || x.situacao === st).length;
+  $('ddaTabs').innerHTML = ['falta', 'divergente', 'provavel', 'lancado', 'todos'].map(f =>
+    `<div class="tab ${f === ddaFiltro ? 'active' : ''}" onclick="filtroDda('${f}')">${f === 'todos' ? 'Todos' : DDA_TXT[f]} (${qtd(f)})</div>`).join('');
+  const faltam = dda.filter(x => x.situacao === 'falta' && !naLista(x)).length;
+  $('btnDdaTodos').style.display = faltam ? '' : 'none';
+  const lista = dda.filter(x => ddaFiltro === 'todos' || x.situacao === ddaFiltro).sort((a, b) => String(a.boleto.vencimento).localeCompare(String(b.boleto.vencimento)));
+  if (!lista.length) { $('ddaTabela').innerHTML = '<div class="muted" style="padding:14px">Nada nesta lista.</div>'; return; }
+  $('ddaTabela').innerHTML = `<table><thead><tr><th>Vencimento</th><th>Beneficiário (DDA)</th><th class="num">Valor</th><th>Situação</th><th>No Conta Azul</th><th></th></tr></thead><tbody>` +
+    lista.map(x => {
+      const b = x.boleto, p = x.parcela, k = dda.indexOf(x);
+      const ca = p ? `${esc(p.nome || '—')}<div class="muted">${esc(p.descricao || '')} · venc. ${C.dt(p.vencimento)} · ${C.brl(p.total ?? p.valor)} · ${p.status === 'RECEBIDO' ? 'pago' : 'em aberto'}</div>` : '<span class="muted">—</span>';
+      return `<tr><td class="mono">${C.dt(b.vencimento)}</td>
+        <td>${esc(b.beneficiario || '—')}${b.documento ? `<div class="muted">${esc(b.documento)}</div>` : ''}${b.linha ? `<div class="muted mono" style="font-size:11px">${esc(b.linha)}</div>` : ''}</td>
+        <td class="num mono">${C.brl(b.valor)}</td>
+        <td><span class="pill ${x.situacao === 'lancado' ? 'ok' : x.situacao === 'falta' ? 'off' : ''}">${DDA_TXT[x.situacao]}</span></td>
+        <td>${ca}</td>
+        <td>${x.situacao === 'falta' ? (naLista(x) ? '<span class="muted">na lista ✓</span>' : `<button class="link" onclick="ddaParaLista(${k})">＋ pôr na lista do dia</button>`) : ''}
+          ${b.linha ? `<div><button class="link" onclick="copiarTexto('${esc(b.linha)}')">copiar linha</button></div>` : ''}</td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+// boleto do DDA sem lançamento: entra na lista do dia como conta manual (lembrete de lançar no Conta Azul)
+function ddaParaLista(k) {
+  const alvos = k == null ? dda.filter(x => x.situacao === 'falta' && !naLista(x)) : [dda[k]];
+  for (const x of alvos) {
+    const b = x.boleto;
+    itens.push({ id: novoId(), origem: 'manual', credor: b.beneficiario || 'Boleto DDA', vencimento: b.vencimento || dia(), previsao: b.vencimento || dia(),
+      descricao: `Boleto DDA${b.documento ? ' · ' + b.documento : ''}`, valor: b.valor, pagar: (b.vencimento || dia()) <= dia(), valorPagar: b.valor,
+      obs: '', pix: pixDe(b.beneficiario), nota: 'DDA: falta lançar no Conta Azul', linha: b.linha || '', ddaLinha: b.linha || b.id });
+  }
+  salvar(); render(); renderDDA();
+  msg('ok', `${alvos.length} boleto(s) do DDA colocados na lista do dia (como “não está no Conta Azul” — lance-os lá).`);
+}
+async function copiarTexto(t) {
+  try { await navigator.clipboard.writeText(t); msg('ok', 'Linha digitável copiada.'); }
+  catch { prompt('Copie a linha digitável:', t); }
 }
 
 // ---------- saídas ----------

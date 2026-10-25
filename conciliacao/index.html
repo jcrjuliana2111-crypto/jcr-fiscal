@@ -859,13 +859,45 @@ function renderPares(r) {
         <td class="mono">${fmtData(p.movimento.data)}</td>
         <td>${esc(p.movimento.historico)}</td>
         <td>${valorHtml(p.movimento.valor)}${aj}</td>
-        <td>${p.grupo ? grupoHtml(p) : `${esc(p.parcela.nome || '—')}<div class="muted">${p.parcela.tipo === 'receber' ? 'A receber' : 'A pagar'} · ${esc(p.parcela.descricao)}</div>`}</td>
+        <td>${p.grupo ? grupoHtml(p) : `${esc(p.parcela.nome || '—')}<div class="muted">${p.parcela.tipo === 'receber' ? 'A receber' : 'A pagar'} · ${esc(p.parcela.descricao)}${compTxt(p.parcela)}</div>${gemeosHtml(p, i, travado)}`}</td>
         <td class="mono">${p.grupo ? `${fmtData(p.parcelas[0].vencimento)}${p.parcelas.length > 1 ? `<div class="muted">a ${fmtData(p.parcelas[p.parcelas.length - 1].vencimento)}</div>` : ''}` : `${fmtData(p.parcela.vencimento)}<div class="muted">${p.dias} dia(s)</div>`}</td>
         <td><span class="pill ${p.confianca}">${p.confianca}</span>${travado ? '' : `<div><button class="link danger" title="Tirar esta sugestão: o movimento volta para Extrato sem lançamento" onclick="excluirSugestao('${esc(p.movimento.id)}')">✕ excluir</button></div>`}</td>
         <td>${comprovanteHtml(p.movimento.id, travado)}</td>
         <td>${retornoHtml(ret, p.movimento.id)}</td>
       </tr>`;
     }).join('') + '</tbody></table>';
+}
+
+// competência do lançamento (ex.: "comp. 08/2026")
+const compTxt = x => x.competencia ? ` · comp. ${x.competencia.slice(5, 7)}/${x.competencia.slice(0, 4)}` : '';
+// lançamentos iguais em aberto (mesmo valor, contato e vencimento): escolher qual baixar
+function gemeosHtml(p, i, travado) {
+  if (!p.gemeos || !p.gemeos.length || travado) return '';
+  const ops = [p.parcela, ...p.gemeos].map(x => {
+    const outro = resultado.pares.find(q => q !== p && q.parcela && q.parcela.id === x.id);
+    return `<option value="${esc(x.id)}" ${x.id === p.parcela.id ? 'selected' : ''}>venc. ${fmtData(x.vencimento)}${compTxt(x)} · ${esc(x.descricao || '—')}${outro ? ` (sugerido p/ ${fmtData(outro.movimento.data)})` : ''}</option>`;
+  }).join('');
+  return `<div class="possivel">⚠ ${p.gemeos.length + 1} lançamentos iguais em aberto (mesmo valor e contato) — confira qual baixar:
+    <select onchange="trocarParcela(${i}, this.value)" style="max-width:100%">${ops}</select></div>`;
+}
+function trocarParcela(i, id) {
+  const p = resultado.pares[i];
+  const grupo = [p.parcela, ...p.gemeos];
+  const nova = grupo.find(x => x.id === id);
+  if (!nova || nova.id === p.parcela.id) return;
+  const antiga = p.parcela;
+  const outro = resultado.pares.find(q => q !== p && q.parcela && q.parcela.id === id && !q.grupo);
+  if (outro) { // troca entre as duas sugestões
+    outro.parcela = antiga;
+    if (outro.gemeos) outro.gemeos = [...new Set([...outro.gemeos, nova])].filter(x => x.id !== antiga.id);
+  } else {
+    resultado.parcelasSemMovimento = resultado.parcelasSemMovimento.filter(x => x.id !== id);
+    resultado.parcelasSemMovimento.push(antiga);
+  }
+  p.parcela = nova;
+  p.gemeos = grupo.filter(x => x.id !== nova.id);
+  p.dias = Math.round(Math.abs(new Date(p.movimento.data) - new Date(nova.vencimento)) / 864e5);
+  render();
 }
 
 function grupoHtml(p) {

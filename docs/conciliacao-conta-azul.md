@@ -211,3 +211,13 @@ só o que está aparecendo; se houver marcados escondidos pelo filtro, a tela av
 
 A pasta de comprovantes é opcional: sem pasta, ou sem permissão para lê-la, a
 conciliação roda sem comprovantes e avisa.
+
+## Lançamentos iguais (mesmo valor, contato e vencimento)
+
+Quando há mais de um lançamento em aberto com o mesmo valor, o mesmo contato e
+vencimento dentro da tolerância (ex.: três "PAGAMENTO PLANTÃO EXTRA" de R$ 323,00
+do Carlos com vencimento 23/10, competências 08, 09 e 10/2026), o robô:
+
+- escolhe o de **competência mais perto da data do banco**;
+- **não deixa marcado** (confiança média) e mostra "⚠ N lançamentos iguais em
+  aberto" com uma lista (vencimento · competência · descrição) para trocar.

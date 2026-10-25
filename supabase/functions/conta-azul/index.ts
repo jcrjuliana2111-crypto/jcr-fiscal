@@ -112,6 +112,7 @@ async function listarParcelas(cliente: string, tipo: 'receber' | 'pagar', de: st
         nome: i.cliente?.nome ?? i.fornecedor?.nome ?? i.contato?.nome ?? '',
         descricao: i.descricao ?? '',
         competencia: String(i.data_competencia ?? i.competencia ?? '').slice(0, 10),
+        previsao: String(i.data_pagamento_previsto ?? i.data_previsao_pagamento ?? i.data_prevista ?? '').slice(0, 10),
         status: i.status,
       });
     }
@@ -256,6 +257,21 @@ async function lancar(cliente: string, l: Lancamento) {
   }
 }
 
+// ---------- previsão de pagamento (contas a pagar do dia) ----------
+async function alterarPrevisao(cliente: string, parcelaId: string, data: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data || '')) throw new Error('Data de previsão inválida.');
+  const path = `/v1/financeiro/eventos-financeiros/parcelas/${parcelaId}`;
+  const parcela = await ca(cliente, path);
+  const body: Record<string, unknown> = { data_pagamento_previsto: data };
+  if (parcela?.versao != null) body.versao = parcela.versao;
+  await ca(cliente, path, { method: 'PATCH', body: JSON.stringify(body) });
+  // confere se o Conta Azul gravou mesmo
+  const depois = await ca(cliente, path);
+  const gravada = String(depois?.data_pagamento_previsto ?? '').slice(0, 10);
+  if (gravada && gravada !== data) throw new Error(`O Conta Azul aceitou, mas a previsão ficou ${gravada}.`);
+  return { parcela_id: parcelaId, status: 'ok', previsao: gravada || data };
+}
+
 // ---------- desfazer ----------
 async function desfazer(cliente: string, fitid: string) {
   const { data: row } = await db.from('conciliacao_log').select('*')
@@ -396,6 +412,14 @@ Deno.serve(async (req) => {
       }
       case 'desfazer':
         return json(await desfazer(cliente, p.fitid));
+      case 'previsao': {
+        const out = [];
+        for (const x of (p.itens ?? []) as { parcela_id: string; data: string }[]) {
+          try { out.push(await alterarPrevisao(cliente, x.parcela_id, x.data)); }
+          catch (e) { out.push({ parcela_id: x.parcela_id, status: 'erro', erro: String((e as Error).message ?? e) }); }
+        }
+        return json(out);
+      }
       case 'historico': {
         const { data, error } = await db.from('conciliacao_log')
           .select('fitid, registro, tipo, data, valor, historico, status, erro, ajuste, anexo, created_at, desfeito_em')

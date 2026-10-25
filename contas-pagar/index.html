@@ -157,6 +157,30 @@
       <a class="btn btn-outline" id="abrirPix" href="../pix-lote/" target="_blank" style="display:none">Abrir Gerador de lista Pix ›</a>
     </div>
   </div>
+
+  <div class="card">
+    <h2>5 · Fechar o dia</h2>
+    <div class="row">
+      <label>Baixar pela conta (padrão)
+        <select id="contaPadrao" onchange="store.set('cp_conta_' + cliente(), this.value)"><option value="">— verifique a chave —</option></select></label>
+      <label>Forma de pagamento
+        <select id="metodo" onchange="store.set('cp_metodo', this.value)">
+          <option value="PIX_PAGAMENTO_INSTANTANEO">PIX</option>
+          <option value="TRANSFERENCIA_BANCARIA">Transferência</option>
+          <option value="BOLETO_BANCARIO">Boleto</option>
+          <option value="DEBITO_AUTOMATICO">Débito automático</option>
+          <option value="CARTAO_CREDITO">Cartão de crédito</option>
+          <option value="DINHEIRO">Dinheiro</option>
+          <option value="OUTRO">Outro</option>
+        </select></label>
+      <button class="btn btn-success" id="btnFechar" onclick="fecharDia()">✓ Fechar o dia</button>
+    </div>
+    <p class="muted" style="margin-top:10px">
+      Dá <b>baixa no Conta Azul</b> das contas marcadas (data do dia, valor “A pagar”, conta escolhida na linha ou a padrão) e
+      <b>reagenda para o próximo dia útil</b> a previsão das que não foram baixadas (previstas até hoje). Contas que não estão no Conta Azul
+      não pagas passam para a lista de amanhã. Nada acontece sem a sua confirmação.
+    </p>
+  </div>
 </main>
 
 <datalist id="obsSugestoes">
@@ -206,10 +230,20 @@ async function verificar() {
     $('statusCA').className = 'pill ' + (c && c.conectado ? 'ok' : 'off');
     $('statusCA').textContent = c && c.conectado ? 'Conta Azul conectado' : 'não conectado';
     carregar();
+    if (c && c.conectado) carregarContas();
   } catch (e) {
     $('statusCA').className = 'pill off'; $('statusCA').textContent = 'chave inválida?';
     msg('erro', esc(e.message));
   }
+}
+let contasFin = [];
+async function carregarContas() {
+  try {
+    contasFin = await api('contas-financeiras');
+    const salva = store.get('cp_conta_' + cliente()) || store.get('robo_conta_' + cliente()) || '';
+    $('contaPadrao').innerHTML = '<option value="">— escolha —</option>' + contasFin.map(c => `<option value="${esc(c.id)}" ${c.id === salva ? 'selected' : ''}>${esc(c.nome)}</option>`).join('');
+    render();
+  } catch (e) { msg('erro', 'Contas financeiras: ' + esc(e.message)); }
 }
 function trocarCliente() { store.set('robo_cliente', cliente()); verificar(); }
 function trocarDia() { carregar(); }
@@ -249,7 +283,7 @@ async function buscarCA() {
     const doCA = parcelas.map(p => {
       const velho = antes.get(p.id);
       const base = { id: p.id, origem: 'ca', credor: p.nome || '—', vencimento: p.vencimento, descricao: p.descricao || '',
-        valor: p.valor, competencia: p.competencia || '' };
+        valor: p.valor, competencia: p.competencia || '', previsao: p.previsao || velho?.previsao || p.vencimento };
       // mantém o que você já marcou/editou nesta conta
       return velho ? { ...velho, ...base } : { ...base, pagar: p.vencimento <= dia(), valorPagar: p.valor, obs: '', pix: pixDe(p.nome), nota: '' };
     });
@@ -285,7 +319,7 @@ async function importarPlanilha(f) {
 }
 
 function novaConta() {
-  itens.push({ id: novoId(), origem: 'manual', credor: '', vencimento: dia(), descricao: '', valor: 0, pagar: true, valorPagar: 0, obs: '', pix: '', nota: '' });
+  itens.push({ id: novoId(), origem: 'manual', credor: '', vencimento: dia(), previsao: dia(), descricao: '', valor: 0, pagar: true, valorPagar: 0, obs: '', pix: '', nota: '' });
   $('fTxt').value = ''; $('fSit').value = '';
   salvar(); render();
   const ins = document.querySelectorAll('#tabela input[data-c=credor]'); if (ins.length) ins[ins.length - 1].focus();
@@ -308,6 +342,22 @@ function limparDia() {
 }
 
 // ---------- edição ----------
+async function editarPrevisao(id, el) {
+  const i = itens.find(x => x.id === id); if (!i || !el.value) return;
+  i.previsao = el.value;
+  // previsão para outro dia: sai da marcação de hoje
+  if (el.value > dia() && i.pagar) { i.pagar = false; const tr = el.closest('tr'); tr.classList.add('nao'); tr.querySelector('input[type=checkbox]').checked = false; renderStats(); }
+  salvar();
+  if (i.origem !== 'ca') return;
+  const st = el.parentElement.querySelector('.prevSt');
+  st.className = 'prevSt av info'; st.textContent = 'enviando ao Conta Azul…';
+  try {
+    const [r] = await api('previsao', { itens: [{ parcela_id: i.id, data: el.value }] });
+    i.prevStatus = r.status === 'ok' ? 'ok' : r.erro; salvar();
+    st.className = 'prevSt av ' + (r.status === 'ok' ? 'info' : 'alto');
+    st.textContent = r.status === 'ok' ? '✓ no Conta Azul' : 'erro: ' + r.erro;
+  } catch (e) { i.prevStatus = e.message; salvar(); st.className = 'prevSt av alto'; st.textContent = 'erro: ' + e.message; }
+}
 function editar(id, campo, el) {
   const i = itens.find(x => x.id === id); if (!i) return;
   if (campo === 'pagar') i.pagar = el.checked;
@@ -381,23 +431,80 @@ function render() {
   if (!itens.length) { $('tabela').innerHTML = '<div class="muted" style="padding:16px">Nenhuma conta ainda. Busque no Conta Azul, importe a planilha ou adicione à mão.</div>'; return; }
   const SIT = { vencido: s => `<span class="pill off">vencida ${s.dias}d</span>`, hoje: () => '<span class="pill ok">vence hoje</span>', 'a-vencer': s => `<span class="pill">em ${s.dias}d</span>`, 'sem-data': () => '' };
   const campo = (i, c, extra = '') => `<input value="${esc(i[c])}" data-c="${c}" onchange="editar('${i.id}', '${c}', this)" ${extra}>`;
-  $('tabela').innerHTML = `<table><thead><tr><th>Pagar</th><th>Credor</th><th>Vencimento</th><th>Descrição</th><th class="num">Em aberto</th><th class="num">A pagar</th><th>Observação</th><th>PIX / chave</th><th>Avisos</th><th></th></tr></thead><tbody>` +
+  $('tabela').innerHTML = `<table><thead><tr><th>Pagar</th><th>Credor</th><th>Vencimento</th><th>Previsão</th><th>Descrição</th><th class="num">Em aberto</th><th class="num">A pagar</th><th>Observação</th><th>PIX / chave</th><th>Avisos</th><th></th></tr></thead><tbody>` +
     lista.map(i => {
-      const s = C.situacao(i, d), man = i.origem === 'manual';
+      const s = C.situacao(i, d), man = i.origem === 'manual', baixado = i.baixa && i.baixa.status === 'ok';
       const av = C.alertas(i, itens, d);
       return `<tr class="${i.pagar ? '' : 'nao'}">
-        <td><input type="checkbox" style="width:auto" ${i.pagar ? 'checked' : ''} onchange="editar('${i.id}', 'pagar', this)"></td>
+        <td><input type="checkbox" style="width:auto" ${i.pagar ? 'checked' : ''} ${baixado ? 'disabled' : ''} onchange="editar('${i.id}', 'pagar', this)"></td>
         <td style="min-width:180px">${man ? campo(i, 'credor', 'placeholder="credor"') : esc(i.credor)}</td>
         <td class="mono">${man ? `<input type="date" value="${esc(i.vencimento)}" onchange="editar('${i.id}', 'vencimento', this)">` : C.dt(i.vencimento)}<div>${SIT[s.tipo](s)}</div>${i.competencia ? `<div class="muted">comp. ${i.competencia.slice(5, 7)}/${i.competencia.slice(0, 4)}</div>` : ''}</td>
+        <td style="min-width:140px"><input type="date" value="${esc(i.previsao || i.vencimento || '')}" onchange="editarPrevisao('${i.id}', this)" ${baixado ? 'disabled' : ''}>
+          <div class="prevSt av ${i.prevStatus && i.prevStatus !== 'ok' ? 'alto' : 'info'}">${i.prevStatus === 'ok' ? '✓ no Conta Azul' : i.prevStatus ? 'erro: ' + esc(i.prevStatus) : ''}</div></td>
         <td style="min-width:200px">${man ? campo(i, 'descricao', 'placeholder="descrição"') : esc(i.descricao)}</td>
         <td class="num mono">${man ? `<input class="num" value="${Number(i.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}" onchange="editar('${i.id}', 'valor', this)">` : C.brl(i.valor)}</td>
-        <td class="num" style="min-width:110px"><input class="num" value="${Number(i.valorPagar).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}" onchange="editar('${i.id}', 'valorPagar', this)"></td>
+        <td class="num" style="min-width:130px"><input class="num" value="${Number(i.valorPagar).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}" onchange="editar('${i.id}', 'valorPagar', this)" ${baixado ? 'disabled' : ''}>
+          ${!man && contasFin.length && !baixado ? `<select style="margin-top:4px;padding:4px;font-size:11px;width:100%" title="Conta da baixa" onchange="editar('${i.id}', 'contaFin', this)"><option value="">conta padrão</option>${contasFin.map(c => `<option value="${esc(c.id)}" ${c.id === i.contaFin ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}</select>` : ''}
+          ${baixado ? '<div><span class="pill ok">baixado ✓</span></div>' : i.baixa && i.baixa.status === 'erro' ? `<div class="av alto">baixa: ${esc(i.baixa.erro)}</div>` : ''}</td>
         <td style="min-width:150px">${campo(i, 'obs', 'list="obsSugestoes" placeholder="ex.: negociado"')}${i.nota ? `<div class="av medio">${esc(i.nota)}</div>` : ''}</td>
         <td style="min-width:150px">${campo(i, 'pix', 'placeholder="CPF, CNPJ, celular, e-mail…"')}</td>
         <td style="min-width:150px">${av.map(a => `<div class="av ${a.nivel}">${esc(a.txt)}</div>`).join('')}</td>
         <td>${man ? `<button class="link danger" onclick="apagar('${i.id}')">✕</button>` : ''}</td>
       </tr>`;
     }).join('') + '</tbody></table>';
+}
+
+// ---------- fechar o dia: baixa as marcadas e reagenda as outras ----------
+async function fecharDia() {
+  const d = dia(), plano = C.planoFechamento(itens, d), padrao = $('contaPadrao').value;
+  const semConta = plano.baixar.filter(i => !i.contaFin && !padrao);
+  if (semConta.length) return msg('erro', 'Escolha a conta padrão da baixa (ou a conta em cada linha marcada).');
+  const total = plano.baixar.reduce((t, i) => t + C.valor(i.valorPagar), 0);
+  const nomeConta = id => (contasFin.find(c => c.id === id) || {}).nome || '?';
+  if (!plano.baixar.length && !plano.reagendar.length && !plano.manuaisAmanha.length) return msg('info', 'Nada para fechar neste dia.');
+  if (!confirm(`Fechar o dia ${C.dt(d)}?\n\n` +
+    `• Dar BAIXA no Conta Azul de ${plano.baixar.length} conta(s), total ${C.brl(total)}, data ${C.dt(d)}, conta ${padrao ? nomeConta(padrao) : '(da linha)'}.\n` +
+    `• Reagendar para ${C.dt(plano.amanha)} a previsão de ${plano.reagendar.length} conta(s) não baixadas.\n` +
+    `• Passar ${plano.manuaisAmanha.length} conta(s) que não estão no Conta Azul para a lista de ${C.dt(plano.amanha)}.` +
+    (plano.manuaisPagos.length ? `\n\n${plano.manuaisPagos.length} conta(s) marcadas não estão no Conta Azul: lance e baixe lá à mão.` : ''))) return;
+  $('btnFechar').disabled = true;
+  try {
+    let ok = 0, erros = 0;
+    if (plano.baixar.length) {
+      msg('info', `Dando baixa em ${plano.baixar.length} conta(s)…`);
+      const res = await api('baixar', { baixas: plano.baixar.map(i => ({
+        fitid: `cp:${i.id}:${d}`, parcela_id: i.id, tipo: 'pagar', data: d, valor: C.valor(i.valorPagar),
+        conta_financeira: i.contaFin || padrao, metodo_pagamento: $('metodo').value,
+        historico: `Contas a pagar do dia ${C.dt(d)} - ${i.credor}` })) });
+      for (const r of res) {
+        const i = itens.find(x => `cp:${x.id}:${d}` === r.fitid); if (!i) continue;
+        i.baixa = r.status === 'ignorado' ? { status: 'ok' } : { status: r.status, erro: r.erro };
+        r.status === 'erro' ? erros++ : ok++;
+      }
+      salvar(); render();
+    }
+    // não baixadas (inclusive as que deram erro na baixa): previsão para o próximo dia útil
+    const reag = [...plano.reagendar, ...plano.baixar.filter(i => !(i.baixa && i.baixa.status === 'ok'))];
+    let reOk = 0, reErro = '';
+    if (reag.length) {
+      msg('info', `Reagendando ${reag.length} conta(s) para ${C.dt(plano.amanha)}…`);
+      const res = await api('previsao', { itens: reag.map(i => ({ parcela_id: i.id, data: plano.amanha })) });
+      for (const r of res) {
+        const i = itens.find(x => x.id === r.parcela_id); if (!i) continue;
+        if (r.status === 'ok') { i.previsao = plano.amanha; i.prevStatus = 'ok'; reOk++; } else { i.prevStatus = r.erro; reErro = r.erro; }
+      }
+    }
+    // contas fora do Conta Azul não pagas: entram na lista do próximo dia
+    const kAmanha = `cp_${cliente()}_${plano.amanha}`;
+    const listaAmanha = store.json(kAmanha, []);
+    for (const m of plano.manuaisAmanha) if (!listaAmanha.some(x => x.id === m.id)) listaAmanha.push({ ...m, previsao: plano.amanha });
+    store.set(kAmanha, JSON.stringify(listaAmanha));
+    salvar(); render();
+    msg(erros || reErro ? 'erro' : 'ok', `Dia fechado: ${ok} baixa(s) feitas${erros ? `, <b>${erros} com erro</b> (veja na coluna A pagar)` : ''}; ` +
+      `${reOk} de ${reag.length} conta(s) reagendadas para ${C.dt(plano.amanha)}${reErro ? ` — o Conta Azul recusou: ${esc(reErro)}` : ''}; ` +
+      `${plano.manuaisAmanha.length} conta(s) manuais passadas para amanhã.`);
+  } catch (e) { msg('erro', esc(e.message)); }
+  finally { $('btnFechar').disabled = false; }
 }
 
 // ---------- saídas ----------
@@ -441,6 +548,7 @@ function exportarExcel() {
 
 // ---------- início ----------
 $('roboKey').value = store.get('robo_key') || '';
+if (store.get('cp_metodo')) $('metodo').value = store.get('cp_metodo');
 $('dia').value = hojeISO();
 $('desde').value = somar(hojeISO(), -120);
 $('ate').value = hojeISO();

@@ -77,7 +77,7 @@
     const sel = ordenar(itens.filter(i => i.pagar), hoje);
     const t = totais(itens, saldos);
     const linhas = [`*Contas a pagar ${dt(hoje)}*${cliente ? ' — ' + cliente : ''}`, ''];
-    for (const i of sel) linhas.push(`• ${i.credor} — ${i.descricao || ''} — venc. ${dt(i.vencimento)} — *${brl(i.valorPagar)}*${i.obs ? ` (${i.obs})` : ''}`);
+    for (const i of sel) linhas.push(`• ${i.credor} — ${i.descricao || ''} — venc. ${dt(i.vencimento)} — *${brl(i.valorPagar)}*${i.banco ? ` — ${i.banco}` : ''}${i.obs ? ` (${i.obs})` : ''}`);
     linhas.push('', `Total: *${brl(t.pagar)}* (${t.qtd} conta(s))`, `Saldo disponível: ${brl(t.semLimite)}`);
     if (t.limiteDisp) linhas.push(`Limite disponível: ${brl(t.limiteDisp)}`);
     linhas.push(t.sobraSemLimite >= 0 ? `Sobra: ${brl(t.sobraSemLimite)}` :

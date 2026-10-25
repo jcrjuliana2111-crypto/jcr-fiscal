@@ -136,9 +136,24 @@
           <option value="">Todas</option><option value="vencido">Vencidas</option><option value="hoje">Vencem no dia</option>
           <option value="a-vencer">A vencer</option><option value="marcadas">Marcadas para pagar</option><option value="naoMarcadas">Não marcadas</option>
           <option value="alerta">Com alerta (protesto, duplicada…)</option><option value="semPix">Marcadas sem PIX</option>
+          <option value="semBanco">Marcadas sem banco</option><option value="baixadas">Já baixadas</option><option value="naoBaixadas">Ainda não baixadas</option>
         </select></label>
+      <label>Banco de pagamento
+        <select id="fBanco" onchange="render()"><option value="">Todos</option></select></label>
+      <label>Origem
+        <select id="fOrig" onchange="render()"><option value="">Todas</option><option value="ca">Conta Azul</option><option value="manual">Não está no Conta Azul</option></select></label>
+      <label style="min-width:130px">Vencimento de <input type="date" id="fVencDe" onchange="render()"></label>
+      <label style="min-width:130px">até <input type="date" id="fVencAte" onchange="render()"></label>
+      <label style="min-width:130px">Previsão de <input type="date" id="fPrevDe" onchange="render()"></label>
+      <label style="min-width:130px">até <input type="date" id="fPrevAte" onchange="render()"></label>
+      <button class="btn btn-outline" onclick="limparFiltros()">Limpar filtros</button>
+    </div>
+    <div class="toolbar">
       <button class="btn btn-outline" onclick="marcarVisiveis(true)">☑ Marcar visíveis</button>
       <button class="btn btn-outline" onclick="marcarVisiveis(false)">☐ Desmarcar visíveis</button>
+      <label>Banco para as visíveis
+        <select id="bancoLote"><option value="">— escolha —</option></select></label>
+      <button class="btn btn-outline" onclick="aplicarBanco()">Aplicar</button>
       <span class="muted" id="fInfo" style="align-self:center"></span>
     </div>
     <div class="table-wrap" id="tabela"></div>
@@ -162,7 +177,7 @@
     <h2>5 · Fechar o dia</h2>
     <div class="row">
       <label>Baixar pela conta (padrão)
-        <select id="contaPadrao" onchange="store.set('cp_conta_' + cliente(), this.value)"><option value="">— verifique a chave —</option></select></label>
+        <select id="contaPadrao" onchange="store.set('cp_conta_' + cliente(), this.value); render()"><option value="">— verifique a chave —</option></select></label>
       <label>Forma de pagamento
         <select id="metodo" onchange="store.set('cp_metodo', this.value)">
           <option value="PIX_PAGAMENTO_INSTANTANEO">PIX</option>
@@ -242,6 +257,7 @@ async function carregarContas() {
     contasFin = await api('contas-financeiras');
     const salva = store.get('cp_conta_' + cliente()) || store.get('robo_conta_' + cliente()) || '';
     $('contaPadrao').innerHTML = '<option value="">— escolha —</option>' + contasFin.map(c => `<option value="${esc(c.id)}" ${c.id === salva ? 'selected' : ''}>${esc(c.nome)}</option>`).join('');
+    atualizarSelectsBanco();
     render();
   } catch (e) { msg('erro', 'Contas financeiras: ' + esc(e.message)); }
 }
@@ -382,8 +398,33 @@ function novoBanco() { saldos.push({ banco: '', conta: '', limite: 0, utilizado:
 function apagarBanco(k) { saldos.splice(k, 1); salvar(); renderSaldos(); renderStats(); }
 
 // ---------- tela ----------
+const nomeBanco = id => (contasFin.find(c => c.id === id) || {}).nome || '';
+const bancoDe = i => i.contaFin || $('contaPadrao').value || '';
+function opcoesBanco(sel, primeira) {
+  return primeira + contasFin.map(c => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.nome)}</option>`).join('');
+}
+function atualizarSelectsBanco() {
+  const f = $('fBanco').value;
+  $('fBanco').innerHTML = opcoesBanco(f, '<option value="">Todos</option><option value="_sem">Sem banco</option>');
+  $('bancoLote').innerHTML = opcoesBanco($('bancoLote').value, '<option value="">— escolha —</option><option value="_padrao">(voltar à conta padrão)</option>');
+}
+function aplicarBanco() {
+  const b = $('bancoLote').value;
+  if (!b) return msg('erro', 'Escolha o banco para aplicar.');
+  const lista = visiveis().filter(i => !(i.baixa && i.baixa.status === 'ok'));
+  for (const i of lista) i.contaFin = b === '_padrao' ? '' : b;
+  salvar(); render();
+  msg('ok', `Banco ${b === '_padrao' ? 'padrão' : '“' + esc(nomeBanco(b)) + '”'} aplicado a ${lista.length} conta(s) visíveis.`);
+}
+function limparFiltros() {
+  for (const id of ['fTxt', 'fVencDe', 'fVencAte', 'fPrevDe', 'fPrevAte']) $(id).value = '';
+  for (const id of ['fSit', 'fBanco', 'fOrig']) $(id).value = '';
+  render();
+}
 function visiveis() {
   const q = C.norm($('fTxt').value), sit = $('fSit').value, d = dia();
+  const fb = $('fBanco').value, fo = $('fOrig').value;
+  const vd = $('fVencDe').value, va = $('fVencAte').value, pd = $('fPrevDe').value, pa = $('fPrevAte').value;
   const num = q.replace(/[^\d,]/g, '');
   return C.ordenar(itens, d).filter(i => {
     if (q) {
@@ -391,8 +432,17 @@ function visiveis() {
       const vs = [i.valor, i.valorPagar].map(v => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
       if (!(num && /\d/.test(num) && vs.some(v => v.replace(/\./g, '').includes(num.replace(/\./g, '')))) && !q.split(/\s+/).every(w => alvo.includes(w))) return false;
     }
+    if (fo && (fo === 'ca') !== (i.origem === 'ca')) return false;
+    if (fb && (fb === '_sem' ? !!bancoDe(i) : bancoDe(i) !== fb)) return false;
+    if ((vd && (i.vencimento || '') < vd) || (va && (i.vencimento || '9') > va)) return false;
+    const pv = i.previsao || i.vencimento || '';
+    if ((pd && pv < pd) || (pa && (pv || '9') > pa)) return false;
     const s = C.situacao(i, d).tipo;
+    const baixada = !!(i.baixa && i.baixa.status === 'ok');
     switch (sit) {
+      case 'semBanco': return i.pagar && !bancoDe(i);
+      case 'baixadas': return baixada;
+      case 'naoBaixadas': return !baixada;
       case 'vencido': case 'hoje': case 'a-vencer': return s === sit;
       case 'marcadas': return i.pagar;
       case 'naoMarcadas': return !i.pagar;
@@ -431,7 +481,7 @@ function render() {
   if (!itens.length) { $('tabela').innerHTML = '<div class="muted" style="padding:16px">Nenhuma conta ainda. Busque no Conta Azul, importe a planilha ou adicione à mão.</div>'; return; }
   const SIT = { vencido: s => `<span class="pill off">vencida ${s.dias}d</span>`, hoje: () => '<span class="pill ok">vence hoje</span>', 'a-vencer': s => `<span class="pill">em ${s.dias}d</span>`, 'sem-data': () => '' };
   const campo = (i, c, extra = '') => `<input value="${esc(i[c])}" data-c="${c}" onchange="editar('${i.id}', '${c}', this)" ${extra}>`;
-  $('tabela').innerHTML = `<table><thead><tr><th>Pagar</th><th>Credor</th><th>Vencimento</th><th>Previsão</th><th>Descrição</th><th class="num">Em aberto</th><th class="num">A pagar</th><th>Observação</th><th>PIX / chave</th><th>Avisos</th><th></th></tr></thead><tbody>` +
+  $('tabela').innerHTML = `<table><thead><tr><th>Pagar</th><th>Credor</th><th>Vencimento</th><th>Previsão</th><th>Descrição</th><th class="num">Em aberto</th><th class="num">A pagar</th><th>Banco de pagamento</th><th>Observação</th><th>PIX / chave</th><th>Avisos</th><th></th></tr></thead><tbody>` +
     lista.map(i => {
       const s = C.situacao(i, d), man = i.origem === 'manual', baixado = i.baixa && i.baixa.status === 'ok';
       const av = C.alertas(i, itens, d);
@@ -444,8 +494,10 @@ function render() {
         <td style="min-width:200px">${man ? campo(i, 'descricao', 'placeholder="descrição"') : esc(i.descricao)}</td>
         <td class="num mono">${man ? `<input class="num" value="${Number(i.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}" onchange="editar('${i.id}', 'valor', this)">` : C.brl(i.valor)}</td>
         <td class="num" style="min-width:130px"><input class="num" value="${Number(i.valorPagar).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}" onchange="editar('${i.id}', 'valorPagar', this)" ${baixado ? 'disabled' : ''}>
-          ${!man && contasFin.length && !baixado ? `<select style="margin-top:4px;padding:4px;font-size:11px;width:100%" title="Conta da baixa" onchange="editar('${i.id}', 'contaFin', this)"><option value="">conta padrão</option>${contasFin.map(c => `<option value="${esc(c.id)}" ${c.id === i.contaFin ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}</select>` : ''}
           ${baixado ? '<div><span class="pill ok">baixado ✓</span></div>' : i.baixa && i.baixa.status === 'erro' ? `<div class="av alto">baixa: ${esc(i.baixa.erro)}</div>` : ''}</td>
+        <td style="min-width:170px">${baixado ? esc(nomeBanco(i.contaFin) || nomeBanco($('contaPadrao').value)) :
+          contasFin.length ? `<select style="width:100%;padding:5px 8px;font-size:12px" onchange="editar('${i.id}', 'contaFin', this)">${opcoesBanco(i.contaFin, `<option value="">${$('contaPadrao').value ? 'padrão: ' + esc(nomeBanco($('contaPadrao').value)) : '— escolha —'}</option>`)}</select>`
+          : '<span class="muted">verifique a chave</span>'}${man && i.pagar ? '<div class="av info">baixe à mão no Conta Azul</div>' : ''}</td>
         <td style="min-width:150px">${campo(i, 'obs', 'list="obsSugestoes" placeholder="ex.: negociado"')}${i.nota ? `<div class="av medio">${esc(i.nota)}</div>` : ''}</td>
         <td style="min-width:150px">${campo(i, 'pix', 'placeholder="CPF, CNPJ, celular, e-mail…"')}</td>
         <td style="min-width:150px">${av.map(a => `<div class="av ${a.nivel}">${esc(a.txt)}</div>`).join('')}</td>
@@ -512,7 +564,7 @@ function mostrarSaida(txt, pix) {
   $('saida').style.display = ''; $('saidaAcoes').style.display = ''; $('saida').value = txt;
   $('abrirPix').style.display = pix ? '' : 'none';
 }
-function mostrarResumo() { mostrarSaida(C.resumo(itens, saldos, dia(), $('cliente').selectedOptions[0]?.textContent.replace(' (não conectado)', '') || '')); }
+function mostrarResumo() { mostrarSaida(C.resumo(itens.map(i => ({ ...i, banco: nomeBanco(bancoDe(i)) })), saldos, dia(), $('cliente').selectedOptions[0]?.textContent.replace(' (não conectado)', '') || '')); }
 function mostrarPix() {
   const sem = itens.filter(i => i.pagar && !i.pix).length;
   mostrarSaida(C.listaPix(itens, dia()), true);
@@ -526,12 +578,12 @@ async function copiarSaida() {
 function exportarExcel() {
   const d = dia(), t = C.totais(itens, saldos);
   const sel = C.ordenar(itens.filter(i => i.pagar), d);
-  const aoa = [['Nome do Credor', 'Vencimento', 'Observação', 'Descrição', 'Valor', 'PIX', 'Nota', `SALDO disponível ${C.dt(d)}`, t.comLimite, null,
+  const aoa = [['Nome do Credor', 'Vencimento', 'Observação', 'Descrição', 'Valor', 'PIX', 'Banco / nota', `SALDO disponível ${C.dt(d)}`, t.comLimite, null,
     'Banco', 'Conta', 'Limite (Especial)', 'Limite Especial Utilizado', 'Limite Especial Disponível', 'Saldo Disponível (sem utilização de limite)']];
   const n = Math.max(sel.length, saldos.length + 3, 3);
   for (let k = 0; k < n; k++) {
     const i = sel[k], b = saldos[k];
-    const lin = i ? [i.credor, C.dt(i.vencimento), i.obs || '', i.descricao || '', C.valor(i.valorPagar), i.pix || '', i.nota || ''] : [null, null, null, null, null, null, null];
+    const lin = i ? [i.credor, C.dt(i.vencimento), i.obs || '', i.descricao || '', C.valor(i.valorPagar), i.pix || '', [nomeBanco(bancoDe(i)), i.nota].filter(Boolean).join(' · ')] : [null, null, null, null, null, null, null];
     lin.push(k === 0 ? `CONTAS ${C.dt(d)}` : k === 1 ? 'TOTAL' : null, k === 0 ? t.pagar : k === 1 ? t.sobraComLimite : null, null);
     if (b) lin.push(b.banco, b.conta, C.valor(b.limite), C.valor(b.utilizado), C.limiteDisponivel(b), C.valor(b.saldo));
     else if (k === saldos.length) lin.push(null, null, null, null, t.limiteDisp, t.semLimite);

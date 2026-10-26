@@ -15,6 +15,7 @@ Site único do escritório, com login, reunindo todas as ferramentas.
 | `notificacoes/` | Controle de Notificações Fiscais (antigo repositório `controle-fiscal`) |
 | `conciliacao/` | Robô de conciliação bancária com o Conta Azul (BPO Financeiro) — ver `docs/conciliacao-conta-azul.md` |
 | `contas-pagar/` | Contas a pagar do dia (BPO Financeiro): contas em aberto do Conta Azul (mesma chave/cliente da Conciliação) ou importadas da planilha do escritório, marcação do que paga, saldos dos bancos (sobra/falta com e sem limite), alertas (protesto, vencida, duplicada, não lançada), planilha do dia (.xlsx), resumo para o cliente e lista para o Gerador de lista Pix. Dados ficam no navegador, por cliente e dia |
+| `financeiro/` | **Financeiro JCR** (só o escritório, sem Conta Azul): contas a pagar com repetição mensal e baixa em lote, receitas avulsas, categorias ligadas à DRE, contas bancárias, fluxo de caixa (realizado e previsto) e DRE por competência ou caixa. Receitas de honorários vêm do Gestão Fiscal (escritório JCR) |
 | `pix-lote/` | Gerador de lista Pix (BPO Financeiro): converte a planilha de pagamentos no layout da extensão "Pix em lote - Unicred (preencher)". Também confere a lista com o PDF do banco (Transações Pendentes ou Extrato): conferidos, faltando, valor diferente e fora da lista. Histórico fica só no navegador |
 | `supabase/` | Edge Function `conta-azul` e migrações do robô de conciliação (projeto `qftusjwnlyjokilcjuzb`) |
 | `automacoes/` | Fluxos do **n8n** (ex.: alerta diário de prazos por e-mail) — ver `automacoes/README.md` |
@@ -44,6 +45,7 @@ que já existem e as automações a criar.
 |---|---|
 | Gestão Fiscal | Supabase `onecnoicxqjhgolqncjj` (tabelas `gclik_*`, `irpf_clientes`) |
 | JCR Entregas | Supabase `onecnoicxqjhgolqncjj` (tabelas `ent_*`, bucket `entregas`, Edge Function `entregas-portal`) — SQL em `supabase/gestao/` |
+| Financeiro JCR | Supabase `onecnoicxqjhgolqncjj` (tabelas `fin_categorias`, `fin_contas_bancarias`, `fin_lancamentos`) — SQL em `supabase/gestao/20261026120000_financeiro_jcr.sql` |
 | Notificações | Supabase `qftusjwnlyjokilcjuzb` (Edge Function `smart-handler`) |
 | Conciliação Conta Azul | Supabase `qftusjwnlyjokilcjuzb` (Edge Function `conta-azul`, tabelas `conta_azul_conexoes` e `conciliacao_log`) — protegida pela `ROBO_KEY` |
 | Clientes, Conhecimento, Ferramentas extras, Pomodoro, Hub | Navegador (`localStorage`) do endereço `jcrjuliana2111-crypto.github.io` |

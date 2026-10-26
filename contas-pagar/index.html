@@ -160,6 +160,9 @@
       <label>Previsão para as visíveis
         <input type="date" id="prevLote"></label>
       <button class="btn btn-outline" id="btnPrevLote" onclick="aplicarPrevisao()">Aplicar previsão</button>
+      <label>Pago em
+        <input type="date" id="dataBaixa"></label>
+      <button class="btn btn-success" id="btnBaixarSel" onclick="baixarMarcadas()" title="Dá baixa no Conta Azul das contas marcadas que estão aparecendo">✓ Dar baixa nas marcadas visíveis</button>
       <button class="btn btn-outline" onclick="$('colarBox').style.display = $('colarBox').style.display ? '' : 'none'">📋 Colar lista da planilha</button>
       <span class="muted" id="fInfo" style="align-self:center"></span>
     </div>
@@ -577,6 +580,42 @@ function render() {
 }
 
 // ---------- fechar o dia: baixa as marcadas e reagenda as outras ----------
+// baixa como pago só das contas marcadas que estão aparecendo (sem reagendar nada)
+async function baixarMarcadas() {
+  const data = $('dataBaixa').value || dia(), padrao = $('contaPadrao').value;
+  const vis = visiveis();
+  const lista = vis.filter(i => i.origem === 'ca' && i.pagar && C.valor(i.valorPagar) > 0 && !(i.baixa && i.baixa.status === 'ok'));
+  const fora = vis.filter(i => i.origem !== 'ca' && i.pagar).length;
+  if (!lista.length) return msg('erro', 'Nenhuma conta do Conta Azul marcada (e ainda não baixada) entre as visíveis.' + (fora ? ` ${fora} marcada(s) não estão no Conta Azul — baixe à mão lá.` : ''));
+  if (lista.some(i => !i.contaFin) && !padrao) return msg('erro', 'Escolha a conta padrão da baixa (bloco 5) ou o banco em cada linha marcada.');
+  const total = lista.reduce((t, i) => t + C.valor(i.valorPagar), 0);
+  const porBanco = {};
+  for (const i of lista) { const n = nomeBanco(i.contaFin || padrao) || '?'; porBanco[n] = (porBanco[n] || 0) + C.valor(i.valorPagar); }
+  if (!confirm(`Dar BAIXA como pago no Conta Azul de ${lista.length} conta(s), total ${C.brl(total)}, pagas em ${C.dt(data)}?\n\n` +
+    Object.entries(porBanco).map(([b, v]) => `• ${b}: ${C.brl(v)}`).join('\n') +
+    `\nForma de pagamento: ${$('metodo').selectedOptions[0].textContent}` + (fora ? `\n\n${fora} marcada(s) não estão no Conta Azul e ficam de fora.` : ''))) return;
+  $('btnBaixarSel').disabled = true;
+  try {
+    let ok = 0, erros = 0;
+    for (let k = 0; k < lista.length; k += 15) { // em partes, para não estourar o tempo da função
+      msg('info', `Dando baixa… ${k}/${lista.length}`);
+      const parte = lista.slice(k, k + 15);
+      const res = await api('baixar', { baixas: parte.map(i => ({
+        fitid: `cp:${i.id}:${data}`, parcela_id: i.id, tipo: 'pagar', data, valor: C.valor(i.valorPagar),
+        conta_financeira: i.contaFin || padrao, metodo_pagamento: $('metodo').value,
+        historico: `Contas a pagar ${C.dt(data)} - ${i.credor}` })) });
+      for (const r of res) {
+        const i = itens.find(x => `cp:${x.id}:${data}` === r.fitid); if (!i) continue;
+        i.baixa = r.status === 'ignorado' ? { status: 'ok' } : { status: r.status, erro: r.erro };
+        r.status === 'erro' ? erros++ : ok++;
+      }
+      salvar();
+    }
+    render();
+    msg(erros ? 'erro' : 'ok', `${ok} conta(s) baixadas como pagas em ${C.dt(data)}` + (erros ? `; <b>${erros} com erro</b> (veja na coluna A pagar)` : '') + '.');
+  } catch (e) { salvar(); render(); msg('erro', esc(e.message)); }
+  finally { $('btnBaixarSel').disabled = false; }
+}
 async function fecharDia() {
   const d = dia(), plano = C.planoFechamento(itens, d), padrao = $('contaPadrao').value;
   const semConta = plano.baixar.filter(i => !i.contaFin && !padrao);
@@ -791,6 +830,7 @@ $('dia').value = hojeISO();
 $('desde').value = somar(hojeISO(), -120);
 $('ate').value = hojeISO();
 $('prevLote').value = hojeISO();
+$('dataBaixa').value = hojeISO();
 $('dia').addEventListener('change', () => { $('ate').value = $('dia').value; });
 carregar();
 if ($('roboKey').value) verificar();

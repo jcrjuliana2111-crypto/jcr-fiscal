@@ -132,6 +132,7 @@
       <div class="tab active" data-tab="dre" onclick="trocarAba('dre')">📈 DRE</div>
       <div class="tab" data-tab="fluxo" onclick="trocarAba('fluxo')">💧 Fluxo de caixa</div>
       <div class="tab" data-tab="balanco" onclick="trocarAba('balanco')">⚖️ Balanço gerencial</div>
+      <div class="tab" data-tab="despesas" onclick="trocarAba('despesas')">📉 Despesas mês a mês</div>
       <div class="tab" data-tab="mapa" onclick="trocarAba('mapa')">🗂️ Categorias da DRE</div>
       <span style="margin-left:auto" class="row">
         <button class="btn btn-outline" onclick="exportarExcel()">⬇ Excel</button>
@@ -329,6 +330,7 @@ function render() {
   if (aba === 'dre') renderDRE(a, b);
   else if (aba === 'fluxo') renderFluxo(a, b);
   else if (aba === 'balanco') renderBalanco(a, b);
+  else if (aba === 'despesas') renderDespesas(a);
   else renderMapa(a);
 }
 
@@ -458,6 +460,49 @@ function renderBalanco(a, b) {
 }
 
 // ---------- mapa de categorias ----------
+// ---------- despesas mês a mês ----------
+function renderDespesas(a) {
+  const reg = $('regime').value, D = R.despesasMensais(eventos, mapa(), a.de, a.ate, reg), n = D.meses.length;
+  const nome = id => R.GRUPOS.find(g => g.id === id).nome.replace('(−) ', '');
+  const total = D.totalPorMes.reduce((t, v) => t + v, 0), media = n ? total / n : 0;
+  const maior = D.totalPorMes.reduce((m, v, k) => v > m.v ? { v, k } : m, { v: -1, k: 0 });
+  const ult = D.totalPorMes[n - 1] || 0, pen = n > 1 ? D.totalPorMes[n - 2] : null;
+  $('stats').innerHTML = [
+    ['Despesas no período', brl(total), `${n} mês(es) · ${reg === 'caixa' ? 'pagas' : 'por competência'}`],
+    ['Média mensal', brl(media), ''],
+    ['Mês mais caro', n ? brl(maior.v) : '—', n ? D.rotulos[maior.k] : ''],
+    ['Último mês × anterior', brl(ult), pen != null ? `${D.rotulos[n - 2]}: ${brl(pen)} (${pct(R.variacao(ult, pen).pct)})` : 'escolha 2 meses ou mais']
+  ].map(([l, v, sub]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value">${v}</div><div class="stat-sub">${esc(sub)}</div></div>`).join('');
+  const ordem = Object.entries(D.grupos).filter(([id]) => id !== 'fora').sort((x, y) => y[1].porMes.reduce((t, v) => t + v, 0) - x[1].porMes.reduce((t, v) => t + v, 0));
+  // célula: destaca o mês que passou 20% da média da linha
+  const celulas = lista => { const m = lista.reduce((t, v) => t + v, 0) / (lista.length || 1);
+    return lista.map(v => `<td class="num" ${m && v > m * 1.2 ? 'style="color:var(--warn)" title="mais de 20% acima da média"' : ''}>${v ? brl(v) : '—'}</td>`).join(''); };
+  const fim = lista => { const t = lista.reduce((s, v) => s + v, 0), u = lista[n - 1], p = n > 1 ? lista[n - 2] : null, vr = p != null ? R.variacao(u, p) : null;
+    return `<td class="num"><b>${brl(t)}</b></td><td class="num">${brl(t / (n || 1))}</td><td class="num ${vr && vr.valor > 0 ? 'neg' : vr && vr.valor < 0 ? 'pos' : ''}">${vr ? pct(vr.pct) : '—'}</td>`; };
+  let html = `<div class="table-wrap"><table><thead><tr><th>Despesa</th>${D.rotulos.map(r => `<th class="num">${r}</th>`).join('')}<th class="num">Total</th><th class="num">Média</th><th class="num">Últ. × ant.</th></tr></thead><tbody>`;
+  for (const [id, g] of ordem) {
+    const k = 'd:' + id, aberto = abertos.has(k);
+    html += `<tr class="grupo" onclick="abrir('${k}')"><td>${aberto ? '▾' : '▸'} ${esc(nome(id))}</td>${celulas(g.porMes)}${fim(g.porMes)}</tr>`;
+    if (aberto) for (const [c, l] of Object.entries(g.categorias).sort((x, y) => y[1].reduce((t, v) => t + v, 0) - x[1].reduce((t, v) => t + v, 0)))
+      html += `<tr class="cat"><td>${esc(c)}</td>${celulas(l)}${fim(l)}</tr>`;
+  }
+  html += `<tr class="total"><td>Total das despesas</td>${D.totalPorMes.map(v => `<td class="num">${brl(v)}</td>`).join('')}${fim(D.totalPorMes)}</tr>`;
+  if (D.grupos.fora) html += `<tr class="cat"><td style="padding-left:12px">Fora da DRE (empréstimos, transferências…) — não soma</td>${celulas(D.grupos.fora.porMes)}${fim(D.grupos.fora.porMes)}</tr>`;
+  html += `</tbody></table></div><p class="muted" style="margin-top:8px">Clique num grupo para ver as categorias. Em amarelo: mês mais de 20% acima da média da linha. ` +
+    `Para comparar vários meses, escolha <b>Últimos 12 meses</b>, <b>Ano atual</b> ou um período personalizado. Os grupos seguem a aba <b>Categorias da DRE</b>.</p>`;
+  $('conteudo').innerHTML = html;
+  const cores = ['#ff5f5f', '#ffb84f', '#4f8ef7', '#22d3ee', '#a78bfa', '#4fcf8a', '#f472b6', '#94a3b8'];
+  grafico('Despesas por mês (por grupo)', { type: 'bar', data: { labels: D.rotulos, datasets: [
+    ...ordem.map(([id, g], k) => ({ label: nome(id), data: g.porMes, backgroundColor: cores[k % cores.length], stack: 'd' })),
+    { label: 'Média', data: D.meses.map(() => Math.round(media * 100) / 100), type: 'line', borderColor: '#e8eaf2', borderDash: [5, 5], pointRadius: 0 }] },
+    options: { scales: { x: { stacked: true }, y: { stacked: true, ticks: { callback: v => Number(v).toLocaleString('pt-BR', { notation: 'compact' }) } } } } });
+  const cats = [];
+  for (const [id, g] of ordem) for (const [c, l] of Object.entries(g.categorias)) cats.push({ c, l, t: l.reduce((s, v) => s + v, 0) });
+  const top = cats.sort((x, y) => y.t - x.t).slice(0, 6);
+  if (top.length && n > 1) grafico('Maiores categorias mês a mês', { type: 'line', data: { labels: D.rotulos,
+    datasets: top.map((x, k) => ({ label: x.c, data: x.l, borderColor: cores[k], backgroundColor: cores[k], tension: .3 })) } });
+}
+
 function renderMapa(a) {
   $('stats').innerHTML = '';
   const m = mapa(), reg = $('regime').value;
@@ -500,6 +545,14 @@ function exportarExcel() {
   const linhasB = [['Disponível (bancos)', 'disponivel'], ['A receber a vencer', 'receberAVencer'], ['A receber vencidas', 'receberVencido'], ['Total do ativo', 'ativo'],
     ['A pagar a vencer', 'pagarAVencer'], ['A pagar vencidas', 'pagarVencido'], ['Total do passivo', 'passivo'], ['PL gerencial', 'pl']];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Balanço gerencial', bA.data, ...(bB ? [bB.data] : [])], ...linhasB.map(([n, k]) => [n, bA[k], ...(bB ? [bB[k]] : [])])]), 'Balanço');
+  const DM = R.despesasMensais(eventos, m, a.de, a.ate, reg);
+  const linhasDM = [['Despesa', ...DM.rotulos, 'Total']];
+  for (const [id, g] of Object.entries(DM.grupos)) {
+    linhasDM.push([R.GRUPOS.find(x => x.id === id).nome, ...g.porMes, g.porMes.reduce((t, v) => t + v, 0)]);
+    for (const [c, l] of Object.entries(g.categorias)) linhasDM.push(['   ' + c, ...l, l.reduce((t, v) => t + v, 0)]);
+  }
+  linhasDM.push(['Total das despesas', ...DM.totalPorMes, DM.totalPorMes.reduce((t, v) => t + v, 0)]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(linhasDM), 'Despesas mês a mês');
   XLSX.writeFile(wb, `relatorios_${cliente()}_${a.de}_${a.ate}.xlsx`);
 }
 

@@ -62,3 +62,19 @@ test('saldo numa data e balanço gerencial', () => {
     [11000, 5000, 4900, 0, 16000, 4900, 11100]);
   assert.deepStrictEqual(R.variacao(120, 100), { valor: 20, pct: 20 });
 });
+
+test('despesas mês a mês por grupo e categoria', () => {
+  const evs = [
+    ev('a', 'pagar', 'Folha de pagamento', { competencia: '2026-08-30', total: 4000 }),
+    ev('b', 'pagar', 'Folha de pagamento', { competencia: '2026-09-30', total: 4200 }),
+    ev('c', 'pagar', 'Aluguel', { competencia: '2026-09-05', total: 1000 }),
+    ev('d', 'pagar', 'Empréstimo capital de giro', { competencia: '2026-09-21', total: 2000 }),
+    ev('e', 'receber', 'Vendas', { competencia: '2026-09-21', total: 9000 })
+  ];
+  const d = R.despesasMensais(evs, {}, '2026-08-01', '2026-09-30', 'competencia');
+  assert.deepStrictEqual(d.meses, ['2026-08', '2026-09']);
+  assert.deepStrictEqual(d.grupos.pessoal.porMes, [4000, 4200]);
+  assert.deepStrictEqual(d.grupos.administrativas.categorias.Aluguel, [0, 1000]);
+  assert.deepStrictEqual(d.totalPorMes, [4000, 5200]); // empréstimo (fora da DRE) não soma
+  assert.deepStrictEqual(d.grupos.fora.porMes, [0, 2000]);
+});

@@ -60,8 +60,8 @@
 
   const valorMov = m => +(m.status === 'pago' && m.valor_pago != null ? m.valor_pago : m.valor) || 0;
 
-  // Honorário do Gestão Fiscal → movimento. O Gestão Fiscal não guarda a data do recebimento:
-  // honorário pago entra no caixa na data de vencimento.
+  // Honorário do Gestão Fiscal → movimento. Pago entra no caixa na data do recebimento
+  // (data_pagamento, gravada pelo Financeiro JCR); se foi marcado como pago no Gestão Fiscal, no vencimento.
   function deHonorario(h) {
     const st = String(h.status || '').toLowerCase();
     const status = st === 'pago' || st === 'recebido' ? 'pago' : st === 'cancelado' ? 'cancelado' : 'aberto';
@@ -70,7 +70,7 @@
       descricao: [h.servico || h.tipo || 'Honorário', h.nome_cliente].filter(Boolean).join(' — '),
       valor: +h.valor || 0, valor_pago: null, status,
       vencimento: h.vencimento, competencia: h.competencia || (h.vencimento || '').slice(0, 7),
-      data_pagamento: status === 'pago' ? h.vencimento : null,
+      data_pagamento: status === 'pago' ? (h.data_pagamento || h.vencimento) : null,
     };
   }
 

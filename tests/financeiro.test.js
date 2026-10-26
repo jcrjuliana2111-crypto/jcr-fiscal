@@ -29,6 +29,7 @@ test('honorário vira receita; pago entra na data de vencimento', () => {
   assert.strictEqual(h.competencia, '2026-04');
   assert.strictEqual(h.descricao, 'Mensalidade — ACME');
   assert.strictEqual(F.deHonorario({ status: 'Pendente', valor: 1, vencimento: '2026-05-10' }).status, 'aberto');
+  assert.strictEqual(F.deHonorario({ status: 'Pago', valor: 1, vencimento: '2026-05-10', data_pagamento: '2026-05-14' }).data_pagamento, '2026-05-14');
 });
 
 test('fluxo de caixa: realizado, previsto e saldo', () => {

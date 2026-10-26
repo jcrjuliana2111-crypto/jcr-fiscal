@@ -139,7 +139,7 @@
           <option value="">Todas</option><option value="vencido">Vencidas</option><option value="hoje">Vencem no dia</option>
           <option value="a-vencer">A vencer</option><option value="marcadas">Marcadas para pagar</option><option value="naoMarcadas">Não marcadas</option>
           <option value="alerta">Com alerta (protesto, duplicada…)</option><option value="semPix">Marcadas sem PIX</option>
-          <option value="semBanco">Marcadas sem banco</option><option value="baixadas">Já baixadas</option><option value="naoBaixadas">Ainda não baixadas</option>
+          <option value="colados">Da lista colada</option><option value="semBanco">Marcadas sem banco</option><option value="baixadas">Já baixadas</option><option value="naoBaixadas">Ainda não baixadas</option>
         </select></label>
       <label>Banco de pagamento
         <select id="fBanco" onchange="render()"><option value="">Todos</option></select></label>
@@ -157,7 +157,19 @@
       <label>Banco para as visíveis
         <select id="bancoLote"><option value="">— escolha —</option></select></label>
       <button class="btn btn-outline" onclick="aplicarBanco()">Aplicar</button>
+      <label>Previsão para as visíveis
+        <input type="date" id="prevLote"></label>
+      <button class="btn btn-outline" id="btnPrevLote" onclick="aplicarPrevisao()">Aplicar previsão</button>
+      <button class="btn btn-outline" onclick="$('colarBox').style.display = $('colarBox').style.display ? '' : 'none'">📋 Colar lista da planilha</button>
       <span class="muted" id="fInfo" style="align-self:center"></span>
+    </div>
+    <div id="colarBox" style="display:none;margin-bottom:12px">
+      <p class="muted">Cole as linhas copiadas do Excel <b>com a linha de títulos</b> (Nome do fornecedor · Data de vencimento · … · Valor).
+        A ferramenta acha cada uma na lista (mesmo fornecedor, valor e vencimento) e mostra só elas — aí use <b>Previsão para as visíveis</b>, marcar etc.</p>
+      <textarea id="colarTxt" style="width:100%;min-height:120px;font-family:var(--mono);font-size:12px"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn btn-primary" onclick="localizarColados()">Localizar na lista</button>
+        <button class="link" onclick="limparColados()">limpar seleção da lista colada</button></div>
+      <div class="muted" id="colarInfo" style="margin-top:8px"></div>
     </div>
     <div class="table-wrap" id="tabela"></div>
   </div>
@@ -439,6 +451,53 @@ function aplicarBanco() {
   salvar(); render();
   msg('ok', `Banco ${b === '_padrao' ? 'padrão' : '“' + esc(nomeBanco(b)) + '”'} aplicado a ${lista.length} conta(s) visíveis.`);
 }
+// lista colada da planilha: acha as mesmas contas na lista (fornecedor parecido, valor e vencimento até 5 dias)
+let colados = new Set();
+function localizarColados() {
+  const linhas = $('colarTxt').value.split(/\r?\n/).filter(l => l.trim()).map(l => l.split('\t'));
+  const r = C.lerPlanilha(linhas);
+  if (!r.itens.length) return $('colarInfo').innerHTML = '<span class="neg">Não achei a linha de títulos (precisa ter o nome do fornecedor/credor, vencimento e valor).</span>';
+  colados = new Set();
+  const naoAchou = [];
+  for (const x of r.itens) {
+    const alvo = itens.find(i => !colados.has(i.id) && C.mesmaConta(i, x)) ||
+      itens.find(i => !colados.has(i.id) && C.mesmoCredor(i.credor, x.credor) && C.valor(i.valor) === C.valor(x.valor));
+    if (alvo) colados.add(alvo.id); else naoAchou.push(x);
+  }
+  $('fSit').value = 'colados'; render();
+  $('colarInfo').innerHTML = `<b>${colados.size}</b> de ${r.itens.length} encontradas na lista (agora só elas aparecem).` +
+    (naoAchou.length ? `<div class="neg" style="margin-top:4px">Não encontradas (${naoAchou.length}) — busque no Conta Azul com um período maior, ou não estão lançadas:</div>` +
+      naoAchou.map(x => `<div>• ${esc(x.credor)} · venc. ${C.dt(x.vencimento)} · ${C.brl(x.valor)}</div>`).join('') : '');
+}
+function limparColados() { colados = new Set(); if ($('fSit').value === 'colados') $('fSit').value = ''; $('colarInfo').textContent = ''; render(); }
+
+// previsão de pagamento para todas as visíveis: só a previsão (o vencimento não muda)
+async function aplicarPrevisao() {
+  const data = $('prevLote').value;
+  if (!data) return msg('erro', 'Escolha a data da previsão.');
+  const lista = visiveis().filter(i => !(i.baixa && i.baixa.status === 'ok'));
+  if (!lista.length) return msg('erro', 'Nenhuma conta visível.');
+  const ca = lista.filter(i => i.origem === 'ca');
+  if (!confirm(`Colocar a previsão de pagamento em ${C.dt(data)} para ${lista.length} conta(s)?\n${ca.length} serão alteradas no Conta Azul (só a previsão — o vencimento não muda).`)) return;
+  $('btnPrevLote').disabled = true;
+  try {
+    for (const i of lista) { i.previsao = data; if (data > dia() && i.pagar) i.pagar = false; }
+    let ok = 0, erro = '';
+    for (let k = 0; k < ca.length; k += 20) { // em partes, para não estourar o tempo da função
+      msg('info', `Enviando previsões ao Conta Azul… ${k}/${ca.length}`);
+      const res = await api('previsao', { itens: ca.slice(k, k + 20).map(i => ({ parcela_id: i.id, data })) });
+      for (const r of res) {
+        const i = itens.find(x => x.id === r.parcela_id); if (!i) continue;
+        i.prevStatus = r.status === 'ok' ? 'ok' : r.erro;
+        if (r.status === 'ok') ok++; else erro = r.erro;
+      }
+    }
+    salvar(); render();
+    msg(erro ? 'erro' : 'ok', `Previsão ${C.dt(data)}: ${ok} de ${ca.length} alterada(s) no Conta Azul` + (lista.length > ca.length ? `; ${lista.length - ca.length} conta(s) fora do Conta Azul só na lista` : '') +
+      (erro ? `. O Conta Azul recusou alguma: ${esc(erro)}` : '.'));
+  } catch (e) { salvar(); render(); msg('erro', esc(e.message)); }
+  finally { $('btnPrevLote').disabled = false; }
+}
 function limparFiltros() {
   for (const id of ['fTxt', 'fVencDe', 'fVencAte', 'fPrevDe', 'fPrevAte']) $(id).value = '';
   for (const id of ['fSit', 'fBanco', 'fOrig']) $(id).value = '';
@@ -464,6 +523,7 @@ function visiveis() {
     const baixada = !!(i.baixa && i.baixa.status === 'ok');
     switch (sit) {
       case 'semBanco': return i.pagar && !bancoDe(i);
+      case 'colados': return colados.has(i.id);
       case 'baixadas': return baixada;
       case 'naoBaixadas': return !baixada;
       case 'vencido': case 'hoje': case 'a-vencer': return s === sit;
@@ -749,6 +809,7 @@ if (store.get('cp_metodo')) $('metodo').value = store.get('cp_metodo');
 $('dia').value = hojeISO();
 $('desde').value = somar(hojeISO(), -120);
 $('ate').value = hojeISO();
+$('prevLote').value = hojeISO();
 $('dia').addEventListener('change', () => { $('ate').value = $('dia').value; });
 carregar();
 if ($('roboKey').value) verificar();

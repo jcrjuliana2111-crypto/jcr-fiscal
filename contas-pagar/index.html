@@ -226,7 +226,7 @@
     </div>
     <p class="muted" style="margin-top:10px">
       Dá <b>baixa no Conta Azul</b> das contas marcadas (data do dia, valor “A pagar”, conta escolhida na linha ou a padrão) e
-      <b>reagenda para o próximo dia útil</b> a previsão das que não foram baixadas (previstas até hoje). Contas que não estão no Conta Azul
+      <b>reagenda para o próximo dia útil</b> a previsão das que não foram baixadas (previstas até hoje) — a previsão fica guardada aqui na ferramenta, por cliente (a API do Conta Azul não permite mudar a previsão sem mudar o vencimento). Contas que não estão no Conta Azul
       não pagas passam para a lista de amanhã. Nada acontece sem a sua confirmação.
     </p>
   </div>
@@ -320,6 +320,14 @@ function diasSalvos() {
   try { for (let k = 0; k < localStorage.length; k++) { const n = localStorage.key(k); if (n.startsWith(pre) && /\d{4}-\d{2}-\d{2}$/.test(n)) out.push(n.slice(pre.length)); } } catch {}
   return out.sort();
 }
+// previsões de pagamento ficam na ferramenta (a API do Conta Azul só tem a previsão = vencimento)
+const kPrev = () => `cp_${cliente()}_previsoes`;
+const previsaoGuardada = id => store.json(kPrev(), {})[id] || '';
+function guardarPrevisao(lista, data) {
+  const m = store.json(kPrev(), {});
+  for (const i of lista) { if (data) m[i.id] = data; else delete m[i.id]; }
+  store.set(kPrev(), JSON.stringify(m));
+}
 const pixDe = credor => store.json(kPix(), {})[C.norm(credor)] || '';
 const novoId = () => 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
@@ -334,9 +342,9 @@ async function buscarCA() {
     const doCA = parcelas.map(p => {
       const velho = antes.get(p.id);
       const base = { id: p.id, origem: 'ca', credor: p.nome || '—', vencimento: p.vencimento, descricao: p.descricao || '',
-        valor: p.valor, competencia: p.competencia || '', previsao: p.previsao || velho?.previsao || p.vencimento };
+        valor: p.valor, competencia: p.competencia || '', previsao: previsaoGuardada(p.id) || velho?.previsao || p.vencimento };
       // mantém o que você já marcou/editou nesta conta
-      return velho ? { ...velho, ...base } : { ...base, pagar: p.vencimento <= dia(), valorPagar: p.valor, obs: '', pix: pixDe(p.nome), nota: '' };
+      return velho ? { ...velho, ...base } : { ...base, pagar: base.previsao <= dia(), valorPagar: p.valor, obs: '', pix: pixDe(p.nome), nota: '' };
     });
     const ids = new Set(doCA.map(i => i.id));
     const saiu = itens.filter(i => i.origem === 'ca' && !ids.has(i.id)).length;
@@ -398,16 +406,10 @@ async function editarPrevisao(id, el) {
   i.previsao = el.value;
   // previsão para outro dia: sai da marcação de hoje
   if (el.value > dia() && i.pagar) { i.pagar = false; const tr = el.closest('tr'); tr.classList.add('nao'); tr.querySelector('input[type=checkbox]').checked = false; renderStats(); }
+  delete i.prevStatus;
+  guardarPrevisao([i], el.value);
   salvar();
-  if (i.origem !== 'ca') return;
-  const st = el.parentElement.querySelector('.prevSt');
-  st.className = 'prevSt av info'; st.textContent = 'enviando ao Conta Azul…';
-  try {
-    const [r] = await api('previsao', { itens: [{ parcela_id: i.id, data: el.value }] });
-    i.prevStatus = r.status === 'ok' ? 'ok' : r.erro; salvar();
-    st.className = 'prevSt av ' + (r.status === 'ok' ? 'info' : 'alto');
-    st.textContent = r.status === 'ok' ? '✓ no Conta Azul' : 'erro: ' + r.erro;
-  } catch (e) { i.prevStatus = e.message; salvar(); st.className = 'prevSt av alto'; st.textContent = 'erro: ' + e.message; }
+  const st = el.parentElement.querySelector('.prevSt'); if (st) { st.className = 'prevSt av info'; st.textContent = ''; }
 }
 function editar(id, campo, el) {
   const i = itens.find(x => x.id === id); if (!i) return;
@@ -477,26 +479,11 @@ async function aplicarPrevisao() {
   if (!data) return msg('erro', 'Escolha a data da previsão.');
   const lista = visiveis().filter(i => !(i.baixa && i.baixa.status === 'ok'));
   if (!lista.length) return msg('erro', 'Nenhuma conta visível.');
-  const ca = lista.filter(i => i.origem === 'ca');
-  if (!confirm(`Colocar a previsão de pagamento em ${C.dt(data)} para ${lista.length} conta(s)?\n${ca.length} serão alteradas no Conta Azul (só a previsão — o vencimento não muda).`)) return;
-  $('btnPrevLote').disabled = true;
-  try {
-    for (const i of lista) { i.previsao = data; if (data > dia() && i.pagar) i.pagar = false; }
-    let ok = 0, erro = '';
-    for (let k = 0; k < ca.length; k += 20) { // em partes, para não estourar o tempo da função
-      msg('info', `Enviando previsões ao Conta Azul… ${k}/${ca.length}`);
-      const res = await api('previsao', { itens: ca.slice(k, k + 20).map(i => ({ parcela_id: i.id, data })) });
-      for (const r of res) {
-        const i = itens.find(x => x.id === r.parcela_id); if (!i) continue;
-        i.prevStatus = r.status === 'ok' ? 'ok' : r.erro;
-        if (r.status === 'ok') ok++; else erro = r.erro;
-      }
-    }
-    salvar(); render();
-    msg(erro ? 'erro' : 'ok', `Previsão ${C.dt(data)}: ${ok} de ${ca.length} alterada(s) no Conta Azul` + (lista.length > ca.length ? `; ${lista.length - ca.length} conta(s) fora do Conta Azul só na lista` : '') +
-      (erro ? `. O Conta Azul recusou alguma: ${esc(erro)}` : '.'));
-  } catch (e) { salvar(); render(); msg('erro', esc(e.message)); }
-  finally { $('btnPrevLote').disabled = false; }
+  if (!confirm(`Colocar a previsão de pagamento em ${C.dt(data)} para ${lista.length} conta(s)? (fica na ferramenta; o vencimento no Conta Azul não muda)`)) return;
+  for (const i of lista) { i.previsao = data; delete i.prevStatus; if (data > dia() && i.pagar) i.pagar = false; }
+  guardarPrevisao(lista, data);
+  salvar(); render();
+  msg('ok', `Previsão ${C.dt(data)} em ${lista.length} conta(s).`);
 }
 function limparFiltros() {
   for (const id of ['fTxt', 'fVencDe', 'fVencAte', 'fPrevDe', 'fPrevAte']) $(id).value = '';
@@ -573,7 +560,7 @@ function render() {
         <td style="min-width:180px">${man ? campo(i, 'credor', 'placeholder="credor"') : esc(i.credor)}</td>
         <td class="mono">${man ? `<input type="date" value="${esc(i.vencimento)}" onchange="editar('${i.id}', 'vencimento', this)">` : C.dt(i.vencimento)}<div>${SIT[s.tipo](s)}</div>${i.competencia ? `<div class="muted">comp. ${i.competencia.slice(5, 7)}/${i.competencia.slice(0, 4)}</div>` : ''}</td>
         <td style="min-width:140px"><input type="date" value="${esc(i.previsao || i.vencimento || '')}" onchange="editarPrevisao('${i.id}', this)" ${baixado ? 'disabled' : ''}>
-          <div class="prevSt av ${i.prevStatus && i.prevStatus !== 'ok' ? 'alto' : 'info'}">${i.prevStatus === 'ok' ? '✓ no Conta Azul' : i.prevStatus ? 'erro: ' + esc(i.prevStatus) : ''}</div></td>
+          <div class="prevSt av info">${i.previsao && i.previsao !== i.vencimento ? 'previsão da ferramenta' : ''}</div></td>
         <td style="min-width:200px">${man ? campo(i, 'descricao', 'placeholder="descrição"') : esc(i.descricao)}</td>
         <td class="num mono">${man ? `<input class="num" value="${Number(i.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}" onchange="editar('${i.id}', 'valor', this)">` : C.brl(i.valor)}</td>
         <td class="num" style="min-width:130px"><input class="num" value="${Number(i.valorPagar).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}" onchange="editar('${i.id}', 'valorPagar', this)" ${baixado ? 'disabled' : ''}>
@@ -620,15 +607,9 @@ async function fecharDia() {
     }
     // não baixadas (inclusive as que deram erro na baixa): previsão para o próximo dia útil
     const reag = [...plano.reagendar, ...plano.baixar.filter(i => !(i.baixa && i.baixa.status === 'ok'))];
-    let reOk = 0, reErro = '';
-    if (reag.length) {
-      msg('info', `Reagendando ${reag.length} conta(s) para ${C.dt(plano.amanha)}…`);
-      const res = await api('previsao', { itens: reag.map(i => ({ parcela_id: i.id, data: plano.amanha })) });
-      for (const r of res) {
-        const i = itens.find(x => x.id === r.parcela_id); if (!i) continue;
-        if (r.status === 'ok') { i.previsao = plano.amanha; i.prevStatus = 'ok'; reOk++; } else { i.prevStatus = r.erro; reErro = r.erro; }
-      }
-    }
+    for (const i of reag) { i.previsao = plano.amanha; delete i.prevStatus; }
+    guardarPrevisao(reag, plano.amanha);
+    const reOk = reag.length, reErro = '';
     // contas fora do Conta Azul não pagas: entram na lista do próximo dia
     const kAmanha = `cp_${cliente()}_${plano.amanha}`;
     const listaAmanha = store.json(kAmanha, []);

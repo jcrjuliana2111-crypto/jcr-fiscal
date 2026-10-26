@@ -560,9 +560,43 @@ async function carregarExtrato(input) {
     const usados = new Set();
     novos.forEach(m => { m.dec = { ...sugerir(m, usados), incluir: true, descricao: m.historico.slice(0, 120) }; });
     S.extrato = { contaId, arquivos: [...input.files].map(f => f.name).join(', '), total: movs.length, movs: novos,
-      saldo: F.saldoAntes(movs, saldoFinal, dataSaldoFinal), filtro: 'todos' };
+      saldo: F.saldoAntes(movs, saldoFinal, dataSaldoFinal), f: null, sel: new Set() };
     render();
   } catch (e) { toast('Não consegui ler o arquivo: ' + e.message, true); }
+}
+
+// Filtros da lista do extrato
+const ACOES_IMP = [['hon', 'Honorário existente'], ['novohon', 'Novo honorário'], ['receita', 'Outra receita'], ['conta', 'Baixa de conta em aberto'],
+  ['despesa', 'Despesa paga'], ['transf', 'Transferência / aplicação'], ['ignorar', 'Ignorar']];
+function filtroImp() {
+  const X = S.extrato;
+  return X.f = X.f || { sentido: 'todos', status: '', acao: '', mes: '', busca: '', min: '', max: '', cat: '' };
+}
+function visiveisImp() {
+  const X = S.extrato, f = filtroImp(), b = semAcento(f.busca), min = f.min === '' ? null : num(f.min), max = f.max === '' ? null : num(f.max);
+  return X.movs.filter(m => {
+    if (f.sentido === 'entradas' && m.valor <= 0) return false;
+    if (f.sentido === 'saidas' && m.valor >= 0) return false;
+    if (f.status === 'pendentes' && !(m.dec.incluir && !pronto(m.dec))) return false;
+    if (f.status === 'prontos' && !(m.dec.incluir && pronto(m.dec))) return false;
+    if (f.status === 'fora' && m.dec.incluir) return false;
+    if (f.acao && m.dec.acao !== f.acao) return false;
+    if (f.cat === '_sem' && m.dec.categoria_id) return false;
+    if (f.cat && f.cat !== '_sem' && m.dec.categoria_id !== f.cat) return false;
+    if (f.mes && !m.data.startsWith(f.mes)) return false;
+    if (b && !semAcento(m.historico + ' ' + (m.dec.descricao || '')).includes(b)) return false;
+    if (min != null && Math.abs(m.valor) < min) return false;
+    if (max != null && Math.abs(m.valor) > max) return false;
+    return true;
+  });
+}
+function filtrarImp(muda, foco) {
+  Object.assign(filtroImp(), muda);
+  clearTimeout(window._ft);
+  window._ft = setTimeout(() => {
+    render();
+    if (foco) { const el = $(foco); if (el) { el.focus(); if (el.setSelectionRange) el.setSelectionRange(el.value.length, el.value.length); } }
+  }, foco ? 250 : 0);
 }
 
 function vImportar() {
@@ -576,18 +610,25 @@ function vImportar() {
     </div>
     ${X ? '' : `<div class="help" style="margin-top:10px">No app da Cora: <b>Extrato → Exportar</b> e escolha <b>OFX</b> (ou CSV), do período desde janeiro. Pode escolher vários arquivos de uma vez. Movimentos já importados são reconhecidos e não entram de novo.</div>`}</div>`;
   if (!X) { $('view').innerHTML = topo; return; }
+  X.sel = X.sel || new Set();
 
   const conta = S.contas.find(c => c.id === X.contaId);
   const saldoAviso = X.saldo && conta && (Math.abs(+conta.saldo_inicial - X.saldo.valor) > 0.009 || conta.data_saldo !== X.saldo.data)
     ? `<div class="card" style="margin-bottom:14px;border-color:var(--accent)">Pelo extrato, o saldo da conta <b>${esc(conta.nome)}</b> no começo de <b>${F.fmtData(X.saldo.data)}</b> era <b>${brl(X.saldo.valor)}</b>.
        <button class="btn sm" style="margin-left:8px" onclick="usarSaldoExtrato()">Usar como saldo inicial</button>
        <div class="help">Hoje está cadastrado ${brl(conta.saldo_inicial)} em ${F.fmtData(conta.data_saldo)}. Com o saldo certo, o fluxo de caixa bate com o banco.</div></div>` : '';
+  const f = filtroImp();
   const ent = X.movs.filter(m => m.valor > 0), sai = X.movs.filter(m => m.valor < 0);
-  const vis = X.movs.filter(m => X.filtro === 'todos' || (X.filtro === 'entradas' ? m.valor > 0 : X.filtro === 'saidas' ? m.valor < 0 : !pronto(m.dec)));
+  const vis = visiveisImp();
   const prontos = X.movs.filter(m => m.dec.incluir && pronto(m.dec));
   const faltam = X.movs.filter(m => m.dec.incluir && !pronto(m.dec)).length;
   const catsD = S.categorias.filter(c => c.ativo && c.tipo === 'despesa'), catsR = S.categorias.filter(c => c.ativo && c.tipo === 'receita');
   const cliOpts = S.clientes.map(c => [c.id, nomeCli(c)]).sort((a, b) => a[1].localeCompare(b[1]));
+  const meses = [...new Set(X.movs.map(m => m.data.slice(0, 7)))].sort().map(c => [c, `${MESES[+c.slice(5, 7) - 1]}/${c.slice(0, 4)}`]);
+  const selVis = vis.filter(m => X.sel.has(m.chave));
+  const marcadas = X.movs.filter(m => X.sel.has(m.chave));
+  const optCats = (sel, vazio) => `<option value="">${esc(vazio)}</option><optgroup label="Despesas">${catsD.map(c => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}</optgroup>
+    <optgroup label="Receitas">${catsR.map(c => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}</optgroup>`;
 
   const linha = (m) => {
     const i = X.movs.indexOf(m), d = m.dec, entrada = m.valor > 0;
@@ -605,25 +646,86 @@ function vImportar() {
       ? `<select onchange="decidir(${i},{categoria_id:this.value},true)" style="${d.categoria_id ? '' : 'border-color:var(--warn)'}">${opts((d.acao === 'despesa' ? catsD : catsR).map(c => [c.id, c.nome]), d.categoria_id, 'Categoria…')}</select>
          <input value="${esc(d.descricao)}" onchange="decidir(${i},{descricao:this.value},false,true)" title="Descrição do lançamento">`
       : '';
-    return `<tr style="${d.incluir ? '' : 'opacity:.45'}">
-      <td><input type="checkbox" ${d.incluir ? 'checked' : ''} onchange="decidir(${i},{incluir:this.checked})"></td>
-      <td class="nowrap">${F.fmtData(m.data)}</td>
+    return `<tr style="${d.incluir ? '' : 'opacity:.45'}${X.sel.has(m.chave) ? ';background:color-mix(in srgb,var(--accent) 8%,transparent)' : ''}">
+      <td><input type="checkbox" ${X.sel.has(m.chave) ? 'checked' : ''} onchange="selImp('${esc(m.chave)}',this.checked)"></td>
+      <td class="nowrap">${F.fmtData(m.data)}${d.incluir ? '' : '<div><span class="chip">não importar</span></div>'}</td>
       <td style="max-width:320px">${esc(m.historico) || '<span class="muted">—</span>'}</td>
       <td class="num nowrap" style="color:${entrada ? 'var(--ok)' : 'var(--danger)'};font-weight:700">${brl(m.valor)}</td>
       <td style="min-width:300px"><select onchange="decidirAcao(${i},this.value)" style="width:100%">${opts(acoes, atual)}</select>
         ${extra ? `<div class="row-flex" style="margin-top:6px;gap:6px">${extra}</div>` : ''}</td></tr>`;
   };
   $('view').innerHTML = topo + saldoAviso + `
-    <div class="tabs">${[['todos', `Todos (${X.movs.length})`], ['entradas', `Entradas (${ent.length})`], ['saidas', `Saídas (${sai.length})`], ['pendentes', `Falta escolher (${X.movs.filter(m => !pronto(m.dec)).length})`]]
-      .map(([v, n]) => `<button class="tab ${X.filtro === v ? 'on' : ''}" onclick="S.extrato.filtro='${v}';render()">${n}</button>`).join('')}</div>
-    ${X.movs.length ? `<div class="tbl"><table><thead><tr><th style="width:30px"></th><th>Data</th><th>Histórico do banco</th><th class="num">Valor</th><th>O que é</th></tr></thead>
-      <tbody>${vis.map(linha).join('')}</tbody></table></div>` : '<div class="empty">Todos os movimentos deste extrato já foram importados.</div>'}
+    <div class="tabs">${[['todos', `Todos (${X.movs.length})`], ['entradas', `Entradas (${ent.length})`], ['saidas', `Saídas (${sai.length})`]]
+      .map(([v, n]) => `<button class="tab ${f.sentido === v ? 'on' : ''}" onclick="filtrarImp({sentido:'${v}'})">${n}</button>`).join('')}</div>
+    <div class="filters">
+      <input id="fi-busca" placeholder="Buscar no histórico…" value="${esc(f.busca)}" oninput="filtrarImp({busca:this.value},'fi-busca')" style="flex:1;min-width:180px">
+      <select onchange="filtrarImp({mes:this.value})" style="width:auto">${opts(meses, f.mes, 'Todos os meses')}</select>
+      <select onchange="filtrarImp({status:this.value})" style="width:auto">${opts([['pendentes', `Falta escolher (${faltam})`], ['prontos', `Prontos (${prontos.length})`], ['fora', 'Fora desta importação']], f.status, 'Qualquer situação')}</select>
+      <select onchange="filtrarImp({acao:this.value})" style="width:auto">${opts(ACOES_IMP, f.acao, 'Qualquer ação')}</select>
+      <select onchange="filtrarImp({cat:this.value})" style="width:auto">${optCats(f.cat, 'Qualquer categoria').replace('<optgroup', `<option value="_sem" ${f.cat === '_sem' ? 'selected' : ''}>Sem categoria</option><optgroup`)}</select>
+      <input id="fi-min" inputmode="decimal" placeholder="Valor de" value="${esc(f.min)}" oninput="filtrarImp({min:this.value},'fi-min')" style="width:100px">
+      <input id="fi-max" inputmode="decimal" placeholder="até" value="${esc(f.max)}" oninput="filtrarImp({max:this.value},'fi-max')" style="width:100px">
+      ${Object.values(f).some((v, k) => v && !(k === 0 && v === 'todos')) ? `<button class="btn sec sm" onclick="S.extrato.f=null;render()">Limpar filtros</button>` : ''}
+    </div>
+    ${marcadas.length ? `<div class="card" style="margin-bottom:12px;padding:12px 14px;border-color:var(--accent)">
+      <div class="row-flex" style="flex-wrap:wrap;gap:8px">
+        <b>${marcadas.length} selecionado(s)</b><span class="muted">entradas ${brl(marcadas.filter(m => m.valor > 0).reduce((a, m) => a + m.valor, 0))} · saídas ${brl(marcadas.filter(m => m.valor < 0).reduce((a, m) => a + m.valor, 0))}</span>
+        <button class="btn sec sm" style="margin-left:auto" onclick="S.extrato.sel.clear();render()">Limpar seleção</button></div>
+      <div class="row-flex" style="flex-wrap:wrap;gap:8px;margin-top:10px">
+        <select id="lt-acao" style="width:auto">${opts([['despesa', 'Despesa paga (saídas)'], ['receita', 'Outra receita (entradas)'], ['novohon', 'Novo honorário (entradas)'], ['transf', 'Transferência / aplicação'], ['ignorar', 'Ignorar']], '', 'Ação: não mudar')}</select>
+        <select id="lt-cat" style="width:auto">${optCats('', 'Categoria: não mudar')}</select>
+        <select id="lt-cli" style="width:auto">${opts(cliOpts, '', 'Cliente: não mudar')}</select>
+        <select id="lt-tipo" style="width:auto">${opts(TIPOS_HON, '', 'Tipo de honorário: não mudar')}</select>
+        <button class="btn sm" onclick="aplicarLote()">Aplicar aos selecionados</button>
+        <button class="btn sec sm" onclick="incluirLote(false)">Não importar</button>
+        <button class="btn sec sm" onclick="incluirLote(true)">Voltar a importar</button>
+      </div>
+      <div class="help">Cada mudança só vale para as linhas compatíveis: categoria de despesa nas saídas, categoria de receita e cliente nas entradas. Escolher só a categoria já transforma a linha em despesa paga (saída) ou outra receita (entrada).</div></div>` : ''}
+    ${X.movs.length ? `<div class="tbl"><table><thead><tr>
+        <th style="width:30px"><input type="checkbox" title="Selecionar todos os que estão na lista" ${vis.length && selVis.length === vis.length ? 'checked' : ''} onchange="selTodosImp(this.checked)"></th>
+        <th>Data</th><th>Histórico do banco</th><th class="num">Valor</th><th>O que é</th></tr></thead>
+      <tbody>${vis.map(linha).join('')}</tbody></table>${vis.length ? '' : '<div class="empty">Nada com esses filtros.</div>'}</div>
+      <div class="help" style="margin-top:6px">${vis.length} de ${X.movs.length} na lista · entradas ${brl(vis.filter(m => m.valor > 0).reduce((a, m) => a + m.valor, 0))} · saídas ${brl(vis.filter(m => m.valor < 0).reduce((a, m) => a + m.valor, 0))}</div>`
+      : '<div class="empty">Todos os movimentos deste extrato já foram importados.</div>'}
     ${X.movs.length ? `<div class="card" style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-      <b>${prontos.length} pronto(s) para importar</b>${faltam ? `<span style="color:var(--warn)">${faltam} marcado(s) ainda sem categoria ou cliente</span>` : ''}
+      <b>${prontos.length} pronto(s) para importar</b>${faltam ? `<span style="color:var(--warn);cursor:pointer" onclick="filtrarImp({status:'pendentes'})">${faltam} ainda sem categoria ou cliente — ver</span>` : ''}
       <button class="btn ok" id="x-ok" style="margin-left:auto" ${prontos.length ? '' : 'disabled'} onclick="importarExtrato()">Importar ${prontos.length} movimento(s)</button>
-      <div class="help" style="flex-basis:100%">Despesas entram como contas <b>já pagas</b> na data do banco. Transferências entre contas e aplicações entram no caixa (para o saldo bater com o banco), mas não na DRE. Honorários ficam como <b>Pago</b> no Gestão Fiscal com a data do crédito. Ao escolher uma categoria, as linhas com o mesmo texto recebem a mesma — e o sistema lembra nas próximas importações.</div></div>` : ''}`;
+      <div class="help" style="flex-basis:100%">Despesas entram como contas <b>já pagas</b> na data do banco. Transferências entre contas e aplicações entram no caixa (para o saldo bater com o banco), mas não na DRE. Honorários ficam como <b>Pago</b> no Gestão Fiscal com a data do crédito. Ao escolher uma categoria, as linhas com o mesmo texto recebem a mesma — e o sistema lembra nas próximas importações. Os que ficarem de fora (sem categoria ou "não importar") continuam aqui para a próxima vez.</div></div>` : ''}`;
 }
-function decidirAcao(i, v) {
+function selImp(chave, on) { const s = S.extrato.sel; on ? s.add(chave) : s.delete(chave); render(); }
+function selTodosImp(on) { const s = S.extrato.sel; visiveisImp().forEach(m => on ? s.add(m.chave) : s.delete(m.chave)); render(); }
+function incluirLote(on) {
+  const X = S.extrato;
+  X.movs.filter(m => X.sel.has(m.chave)).forEach(m => { m.dec.incluir = on; });
+  toast(`${X.sel.size} ${on ? 'voltaram para a importação' : 'ficam fora desta importação'}.`);
+  render();
+}
+function aplicarLote() {
+  const X = S.extrato, acao = $('lt-acao').value, cat = $('lt-cat').value, cli = $('lt-cli').value, tipo = $('lt-tipo').value;
+  if (!acao && !cat && !cli && !tipo) return toast('Escolha o que mudar.', true);
+  const catTipo = cat ? S.catPorId.get(cat).tipo : null;
+  let mudou = 0, pulou = 0;
+  for (const m of X.movs.filter(x => X.sel.has(x.chave))) {
+    const entrada = m.valor > 0, d = m.dec;
+    let ok = false;
+    if (acao) {
+      const cabe = acao === 'despesa' ? !entrada : (acao === 'receita' || acao === 'novohon') ? entrada : true;
+      if (cabe) { decidirAcao(X.movs.indexOf(m), acao, true); ok = true; }
+    }
+    if (cat && ((catTipo === 'despesa' && !entrada) || (catTipo === 'receita' && entrada))) {
+      if (!['despesa', 'receita'].includes(d.acao)) Object.assign(d, { acao: entrada ? 'receita' : 'despesa', ref: null });
+      d.categoria_id = cat; ok = true;
+    }
+    if ((cli || tipo) && entrada && (d.acao === 'novohon' || (!acao && !cat))) {
+      Object.assign(d, { acao: 'novohon', ref: null, ...(cli ? { cliente_id: cli } : {}), tipoHon: tipo || d.tipoHon || 'mensal' });
+      ok = true;
+    }
+    ok ? mudou++ : pulou++;
+  }
+  toast(`${mudou} linha(s) alterada(s)${pulou ? `; ${pulou} não combinavam com a mudança (ex.: categoria de despesa numa entrada)` : ''}.`, mudou === 0);
+  render();
+}
+function decidirAcao(i, v, semRender) {
   const [acao, ref] = v.split(':');
   const m = S.extrato.movs[i];
   const regra = S.regras.get(F.chaveRegra(m.historico));
@@ -632,7 +734,7 @@ function decidirAcao(i, v) {
   if ((acao === 'despesa' || acao === 'receita') && !m.dec.categoria_id && regra) m.dec.categoria_id = regra;
   if (acao === 'despesa' && S.catPorId.get(m.dec.categoria_id)?.tipo !== 'despesa') m.dec.categoria_id = '';
   if (acao === 'receita' && S.catPorId.get(m.dec.categoria_id)?.tipo !== 'receita') m.dec.categoria_id = '';
-  render();
+  if (!semRender) render();
 }
 // propagar: mesma categoria para as outras linhas com o mesmo texto e mesmo sentido ainda sem categoria
 function decidir(i, muda, propagar, semRender) {

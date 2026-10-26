@@ -194,6 +194,7 @@ window.JCR_DEPARTAMENTOS = [
       { id: 'resultado-escritorio', nome: 'Resultado mensal do escritório', freq: 'Mensal' },
     ],
     ferramentas: [
+      { nome: 'Financeiro JCR', url: 'financeiro/', desc: 'Contas a pagar, fluxo de caixa e DRE do escritório (sem Conta Azul).', status: 'ativa' },
       { nome: 'Honorários no Gestão Fiscal', url: 'gclik.html', desc: 'Lançamento e acompanhamento de honorários.', status: 'ativa' },
       { nome: 'Cobrança automática de honorários', desc: 'Boleto/Pix e lembrete automático.', status: 'ideia' },
     ],
@@ -238,6 +239,7 @@ window.JCR_DEPARTAMENTOS = [
 window.JCR_ACESSO_RAPIDO = [
   { nome: 'Entregas', url: 'entregas/', ic: '✅' },
   { nome: 'Gestão Fiscal', url: 'gclik.html', ic: '📊' },
+  { nome: 'Financeiro JCR', url: 'financeiro/', ic: '💰' },
   { nome: 'IRPF', url: 'gclik.html?abrir=irpf', ic: '🧑‍💼' },
   { nome: 'Notificações', url: 'notificacoes/', ic: '🔔' },
   { nome: 'Conciliação', url: 'conciliacao/', ic: '💳' },

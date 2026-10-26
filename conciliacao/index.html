@@ -505,25 +505,38 @@ async function textoPdf(file) {
   return t;
 }
 
-// Linhas de texto do PDF: junta os pedaços que estão na mesma altura da página,
-// da esquerda para a direita (preserva as linhas da tabela do relatório).
-async function linhasPdf(file) {
+// pedaços de texto do PDF com posição ({p: página, x, y, s})
+async function itensPdf(file) {
   await carregarPdfJs();
   const pdf = await window.pdfjsLib.getDocument({ data: await file.arrayBuffer(), verbosity: 0 }).promise;
   const out = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const itens = (await (await pdf.getPage(i)).getTextContent()).items.filter(x => x.str && x.str.trim());
-    const grupos = [];
-    for (const it of itens) {
-      const y = it.transform[5], x = it.transform[4];
-      let g = grupos.find(g => Math.abs(g.y - y) <= 2.5);
-      if (!g) grupos.push(g = { y, itens: [] });
-      g.itens.push({ x, str: it.str });
+  for (let n = 1; n <= pdf.numPages; n++) {
+    for (const it of (await (await pdf.getPage(n)).getTextContent()).items) {
+      if (it.str && it.str.trim()) out.push({ p: n, x: it.transform[4], y: it.transform[5], s: it.str });
     }
-    grupos.sort((a, b) => b.y - a.y);
-    for (const g of grupos) out.push(g.itens.sort((a, b) => a.x - b.x).map(t => t.str.trim()).join('  '));
   }
   return out;
+}
+// Linhas de texto: junta os pedaços que estão na mesma altura da página, da esquerda para a direita
+function linhasDeItens(itens) {
+  const out = [];
+  for (const n of [...new Set(itens.map(i => i.p))]) {
+    const grupos = [];
+    for (const it of itens.filter(i => i.p === n)) {
+      let g = grupos.find(g => Math.abs(g.y - it.y) <= 2.5);
+      if (!g) grupos.push(g = { y: it.y, itens: [] });
+      g.itens.push(it);
+    }
+    grupos.sort((a, b) => b.y - a.y);
+    for (const g of grupos) out.push(g.itens.sort((a, b) => a.x - b.x).map(t => t.s.trim()).join('  '));
+  }
+  return out;
+}
+async function linhasPdf(file) { return linhasDeItens(await itensPdf(file)); }
+// boletos do DDA: primeiro pelas colunas do cabeçalho (tabela com células de várias linhas), senão pelas linhas
+function boletosDDA(itens) {
+  const porColunas = Conciliacao.parseDDAItens(itens);
+  return porColunas.length ? porColunas : Conciliacao.parseDDA(linhasDeItens(itens));
 }
 
 // ---------- DDA ----------
@@ -537,8 +550,9 @@ async function conferirDDA() {
   $('btnDda').disabled = true;
   try {
     msg('msgDda', 'info', 'Lendo o PDF…');
-    const linhas = await linhasPdf(f);
-    const boletos = Conciliacao.parseDDA(linhas);
+    const itensDoPdf = await itensPdf(f);
+    const linhas = linhasDeItens(itensDoPdf);
+    const boletos = boletosDDA(itensDoPdf);
     if (!boletos.length) {
       throw new Error(linhas.join('').trim()
         ? 'Não encontrei boletos neste PDF (procuro vencimento + valor ou linha digitável). Se for outro modelo de relatório, envie um exemplo para ajustarmos o leitor.'

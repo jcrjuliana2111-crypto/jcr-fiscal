@@ -458,3 +458,19 @@ test('lançamentos iguais (mesmo valor, contato e vencimento): avisa e prefere a
   // sem gêmeos continua alta
   assert.strictEqual(C.conciliar([m], [P('out', '2026-10-01')], { janelaDias: 5 }).pares[0].confianca, 'alta');
 });
+
+test('DDA em tabela com células de várias linhas (Unicred): beneficiário pela coluna, não o pagador', () => {
+  const I = (y, x, s) => ({ p: 1, x, y, s });
+  const itens = [
+    I(571, 104, 'Pagador/Agregado'), I(577, 192, 'CPF/CNPJ'), I(571, 260, 'Documento'), I(571, 333, 'Beneficiário'), I(571, 400, 'Vencimento'), I(571, 464, 'Valor'), I(571, 516, 'Situação'),
+    I(525, 104, 'SOS VIDAS RESGATES'), I(530, 192, '13.682.936/0001-'), I(525, 260, '209775'), I(536, 333, 'MTP COMERCIO'), I(525, 333, 'DE PRODUTOS'), I(515, 333, 'PARA'),
+    I(525, 400, '24/10/2026'), I(525, 464, 'R$ 4.731,20'), I(525, 516, 'Vencido'),
+    I(482, 104, 'SOS VIDA RIO'), I(471, 104, 'ATENDIMENTO DE'), I(487, 333, 'ESPECIFARMA'), I(476, 333, 'COM DE'), I(466, 333, 'MEDICAMENTOS'),
+    I(471, 260, '0028794301'), I(471, 400, '24/10/2026'), I(471, 464, 'R$ 682,13'), I(471, 516, 'Vencido')
+  ];
+  const r = C.parseDDAItens(itens);
+  assert.deepStrictEqual(r.map(b => [b.beneficiario, b.documento, b.vencimento, b.valor]), [
+    ['MTP COMERCIO DE PRODUTOS PARA', '209775', '2026-10-24', 4731.2],
+    ['ESPECIFARMA COM DE MEDICAMENTOS', '0028794301', '2026-10-24', 682.13]]);
+  assert.deepStrictEqual(C.parseDDAItens([I(10, 10, 'qualquer coisa')]), []);
+});

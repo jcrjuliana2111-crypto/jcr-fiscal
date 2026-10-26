@@ -163,6 +163,7 @@ const ESCRITORIO_JCR = 'ca9fb94f-abd6-4d55-bd3e-76170860d0ef'; // receitas: hono
 const PAGINAS = [
   { id: 'pagar', nome: 'Contas a pagar', ic: '📤' },
   { id: 'receber', nome: 'Receitas', ic: '📥' },
+  { id: 'importar', nome: 'Importar extrato', ic: '🏦' },
   { id: 'fluxo', nome: 'Fluxo de caixa', ic: '📈' },
   { id: 'dre', nome: 'DRE', ic: '📊' },
   { id: 'config', nome: 'Categorias e contas', ic: '⚙️' },
@@ -207,19 +208,23 @@ const badge = (s, tipo) => `<span class="badge" style="--c:${SIT[s].cor}">${s ==
 
 // ── estado ──
 const S = {
-  categorias: [], catPorId: new Map(), contas: [], lancamentos: [], honorarios: [],
+  categorias: [], catPorId: new Map(), contas: [], lancamentos: [], honorarios: [], clientes: [], regras: new Map(), feitos: new Set(), extrato: null,
   pagina: 'pagar', ano: +hojeISO().slice(0, 4), regime: 'competencia', abertos: new Set(),
   filtro: { mes: hojeISO().slice(0, 7), sit: 'abertas', cat: '', busca: '' }, sel: new Set(),
 };
 
 async function carregar() {
   const q = (t, f) => f(sb.from(t).select('*')).then(r => { chk(r.error); return r.data; });
-  const [cat, contas, lanc, hon] = await Promise.all([
+  const [cat, contas, lanc, hon, cli, regras, feitos] = await Promise.all([
     q('fin_categorias', x => x.order('ordem').order('nome')),
     q('fin_contas_bancarias', x => x.order('nome')),
     q('fin_lancamentos', x => x.order('vencimento').limit(10000)),
     q('gclik_honorarios', x => x.eq('escritorio_id', ESCRITORIO_JCR).limit(10000)),
+    q('gclik_clientes', x => x.eq('escritorio_id', ESCRITORIO_JCR).order('razao_social').limit(5000)),
+    q('fin_regras', x => x.limit(10000)),
+    sb.from('fin_extrato_movs').select('chave').limit(100000).then(r => { chk(r.error); return r.data; }),
   ]);
+  S.clientes = cli; S.regras = new Map(regras.map(r => [r.chave, r.categoria_id])); S.feitos = new Set(feitos.map(f => f.chave));
   S.categorias = cat; S.catPorId = new Map(cat.map(c => [c.id, c]));
   S.contas = contas; S.lancamentos = lanc; S.honorarios = hon;
 }
@@ -248,7 +253,7 @@ function ir(p) {
 }
 function render() {
   menu();
-  ({ pagar: () => vLancamentos('pagar'), receber: () => vLancamentos('receber'), fluxo: vFluxo, dre: vDre, config: vConfig })[S.pagina]();
+  ({ pagar: () => vLancamentos('pagar'), receber: () => vLancamentos('receber'), importar: vImportar, fluxo: vFluxo, dre: vDre, config: vConfig })[S.pagina]();
 }
 
 // ════════════ CONTAS A PAGAR / RECEITAS ════════════
@@ -344,12 +349,12 @@ function mLancamento(tipo, id) {
   const l = S.lancamentos.find(x => x.id === id) || { tipo, vencimento: hoje, competencia: hoje.slice(0, 7), status: 'aberto' };
   const cats = S.categorias.filter(c => c.tipo === (pagar ? 'despesa' : 'receita') && (c.ativo || c.id === l.categoria_id));
   const fornecedores = [...new Set(S.lancamentos.map(x => x.fornecedor).filter(Boolean))].sort();
-  const doGrupo = l.grupo ? S.lancamentos.filter(x => x.grupo === l.grupo && x.status === 'aberto' && x.vencimento >= l.vencimento && x.id !== l.id).length : 0;
+  const doGrupo = id ? proximasDa(l).length : 0;
   modal(id ? (pagar ? 'Editar conta' : 'Editar receita') : (pagar ? 'Nova conta a pagar' : 'Nova receita'), `
     <div class="f2"><div><label>Descrição</label><input id="l-desc" value="${esc(l.descricao || '')}" placeholder="${pagar ? 'Ex.: Aluguel da sala' : 'Ex.: Consultoria avulsa'}"></div>
       <div><label>${pagar ? 'Fornecedor' : 'Cliente / pagador'}</label><input id="l-forn" list="dl-forn" value="${esc(l.fornecedor || '')}"><datalist id="dl-forn">${fornecedores.map(f => `<option value="${esc(f)}">`).join('')}</datalist></div></div>
     <div class="f3"><div><label>Valor (R$)</label><input id="l-valor" inputmode="decimal" value="${l.valor != null ? String(l.valor).replace('.', ',') : ''}" placeholder="0,00"></div>
-      <div><label>Vencimento</label><input id="l-venc" type="date" value="${l.vencimento}" onchange="if(!$('l-comp').dataset.mexeu)$('l-comp').value=this.value.slice(0,7)"></div>
+      <div><label>Vencimento</label><input id="l-venc" type="date" value="${l.vencimento}" onchange="vencMudou(this.value,'${l.vencimento}','${l.competencia}')"></div>
       <div><label>Competência (DRE)</label><input id="l-comp" type="month" value="${l.competencia}" oninput="this.dataset.mexeu=1"></div></div>
     <div class="f2"><div><label>Categoria</label><select id="l-cat">${opts(cats.map(c => [c.id, c.nome]), l.categoria_id, 'Escolha…')}</select></div>
       <div><label>Forma de ${pagar ? 'pagamento' : 'recebimento'}</label><select id="l-forma">${opts(FORMAS, l.forma, '—')}</select></div></div>
@@ -357,10 +362,22 @@ function mLancamento(tipo, id) {
       <div><label>Quantas vezes</label><input id="l-vezes" type="number" min="1" max="120" value="12"><div class="help">Conta fixa: cria os próximos meses com o mesmo valor. Parcelado: marca 1/N, 2/N…</div></div></div>`}
     <div><label>Observações</label><input id="l-obs" value="${esc(l.observacoes || '')}"></div>
     ${id && l.status === 'pago' ? `<div class="help">${pagar ? 'Paga' : 'Recebida'} em ${F.fmtData(l.data_pagamento)} · ${brl(l.valor_pago ?? l.valor)}. Para mudar a baixa, use "Estornar".</div>` : ''}
-    ${doGrupo ? `<label style="display:flex;gap:6px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" id="l-prox"> Aplicar valor, categoria e descrição também aos próximos ${doGrupo} em aberto desta repetição</label>` : ''}`,
+    ${doGrupo ? `<div class="card" style="padding:10px 12px"><label style="display:flex;gap:8px;align-items:flex-start;margin:0;color:var(--text)"><input type="checkbox" id="l-prox" style="margin-top:3px">
+      <span>Aplicar também às próximas <b>${doGrupo}</b> em aberto ${l.grupo ? 'desta conta recorrente' : 'com a mesma descrição'}
+      <span class="help" style="display:block">Vai junto: descrição, fornecedor, valor, categoria, forma e o <b>dia do vencimento</b> (ex.: do dia 16 para o dia 26 em todos os meses seguintes).</span></span></label></div>` : ''}`,
     `${id ? `<button class="btn danger" style="margin-right:auto" onclick="excluirLancamento('${id}')">Excluir</button>
        ${l.status !== 'cancelado' ? `<button class="btn sec" onclick="cancelarLancamento('${id}')">Cancelar ${pagar ? 'conta' : 'receita'}</button>` : ''}` : ''}
      <button class="btn sec" onclick="fechar()">Fechar</button><button class="btn" id="l-ok" onclick="salvarLancamento('${tipo}','${id || ''}')">Salvar</button>`);
+}
+// Próximas contas da mesma recorrência (ou, sem recorrência, com a mesma descrição/fornecedor/categoria) em aberto
+function proximasDa(l) {
+  return S.lancamentos.filter(x => x.id !== l.id && x.tipo === l.tipo && x.status === 'aberto' && x.vencimento > l.vencimento &&
+    (l.grupo ? x.grupo === l.grupo : x.descricao === l.descricao && (x.fornecedor || '') === (l.fornecedor || '') && x.categoria_id === l.categoria_id));
+}
+// Ao mudar o vencimento, a competência anda os mesmos meses (se não foi mexida à mão)
+function vencMudou(novo, venc0, comp0) {
+  if (!novo || $('l-comp').dataset.mexeu) return;
+  $('l-comp').value = F.addMeses(comp0, (+novo.slice(0, 4) * 12 + +novo.slice(5, 7)) - (+venc0.slice(0, 4) * 12 + +venc0.slice(5, 7)));
 }
 async function salvarLancamento(tipo, id) {
   const base = {
@@ -375,16 +392,25 @@ async function salvarLancamento(tipo, id) {
   $('l-ok').disabled = true;
   try {
     if (id) {
+      const antes = { ...S.lancamentos.find(x => x.id === id) };
+      const prox = $('l-prox') && $('l-prox').checked ? proximasDa(antes) : [];   // calculado antes de mudar a data
       const { data, error } = await sb.from('fin_lancamentos').update(base).eq('id', id).select().single();
       chk(error);
       S.lancamentos = S.lancamentos.map(x => x.id === id ? data : x);
-      if ($('l-prox') && $('l-prox').checked) {
-        const ref = data, prox = S.lancamentos.filter(x => x.grupo === ref.grupo && x.status === 'aberto' && x.vencimento > ref.vencimento);
-        const muda = { descricao: base.descricao, fornecedor: base.fornecedor, valor: base.valor, categoria_id: base.categoria_id, forma: base.forma };
-        chk((await sb.from('fin_lancamentos').update(muda).in('id', prox.map(x => x.id))).error);
-        prox.forEach(x => Object.assign(x, muda));
+      if (prox.length) {
+        const comum = { descricao: base.descricao, fornecedor: base.fornecedor, valor: base.valor, categoria_id: base.categoria_id, forma: base.forma };
+        const mudouData = antes.vencimento !== base.vencimento;
+        const desloc = (+base.competencia.slice(0, 4) * 12 + +base.competencia.slice(5, 7)) - (+antes.competencia.slice(0, 4) * 12 + +antes.competencia.slice(5, 7));
+        for (const x of prox) {
+          const muda = { ...comum,
+            ...(mudouData ? { vencimento: F.moverVencimento(antes.vencimento, base.vencimento, x.vencimento) } : {}),
+            ...(desloc ? { competencia: F.addMeses(x.competencia, desloc) } : {}) };
+          chk((await sb.from('fin_lancamentos').update(muda).eq('id', x.id)).error);
+          Object.assign(S.lancamentos.find(y => y.id === x.id), muda);
+        }
+        S.lancamentos.sort((a, b) => a.vencimento.localeCompare(b.vencimento));
       }
-      toast('Salvo.');
+      toast(prox.length ? `Salvo, e ${prox.length} próxima(s) atualizada(s).` : 'Salvo.');
     } else {
       const rep = $('l-rep').value, vezes = rep === '1' ? 1 : +$('l-vezes').value || 1;
       const grupo = vezes > 1 ? crypto.randomUUID() : null;
@@ -466,6 +492,256 @@ async function estornar(id) {
   chk((await sb.from('fin_lancamentos').update(muda).eq('id', id)).error);
   Object.assign(S.lancamentos.find(x => x.id === id), muda);
   render();
+}
+
+// ════════════ IMPORTAR EXTRATO ════════════
+// Lê o extrato (OFX/CSV) da conta da JCR e transforma cada movimento em:
+//  entrada → honorário recebido (existente ou novo no Gestão Fiscal) ou receita avulsa
+//  saída   → conta a pagar já paga (nova, ou baixa de uma conta em aberto)
+//  ou ignorar (transferência entre contas, aplicação…). Movimento tratado não aparece de novo.
+const TIPOS_HON = [['mensal', 'Mensalidade'], ['avulso', 'Serviço avulso'], ['declaracao_mei', 'Declaração MEI Anual'], ['irpf', 'Declaração IRPF'],
+  ['abertura', 'Abertura de empresa'], ['consultoria', 'Consultoria'], ['outro', 'Outro']];
+const nomeCli = c => c ? (c.nome_fantasia || c.razao_social) : '';
+const CAT_TRANSF = { saida: 'Transferências e aplicações', entrada: 'Transferências e resgates recebidos' };
+const ehTransferencia = h => /transfer|aplica|resgate|conta propria|mesma titularidade|investiment|poupanca|cdb/.test(F.chaveRegra(h) + ' ' + String(h).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
+const honAbertos = () => S.honorarios.filter(h => !['pago', 'recebido', 'cancelado'].includes(String(h.status || '').toLowerCase()));
+
+function melhorCliente(historico) {
+  let melhor = null, nota = 0;
+  for (const c of S.clientes) {
+    const n = Math.max(F.nomeNoHistorico(historico, c.razao_social), F.nomeNoHistorico(historico, c.nome_fantasia || ''));
+    if (n > nota) { nota = n; melhor = c; }
+  }
+  return nota >= 0.5 ? melhor : null;
+}
+// Sugestão inicial de cada movimento
+function sugerir(m, usados) {
+  const regra = S.regras.get(F.chaveRegra(m.historico));
+  const regraTransf = regra && S.catPorId.get(regra)?.grupo_dre === 'fora_dre' && /^Transfer/.test(S.catPorId.get(regra)?.nome || '');
+  if (regraTransf || (!regra && ehTransferencia(m.historico))) return { acao: 'transf' };
+  if (m.valor > 0) {
+    const h = F.candidatosHonorario(m, honAbertos()).find(x => !usados.has('h' + x.id));
+    if (h) { usados.add('h' + h.id); return { acao: 'hon', ref: h.id }; }
+    if (regra && S.catPorId.get(regra)?.tipo === 'receita') return { acao: 'receita', categoria_id: regra };
+    const c = melhorCliente(m.historico);
+    return { acao: 'novohon', cliente_id: c ? c.id : '', tipoHon: 'mensal' };
+  }
+  const l = F.candidatosConta(m, S.lancamentos).find(x => !usados.has('l' + x.id));
+  if (l) { usados.add('l' + l.id); return { acao: 'conta', ref: l.id }; }
+  return { acao: 'despesa', categoria_id: regra && S.catPorId.get(regra)?.tipo === 'despesa' ? regra : '' };
+}
+function pronto(d) {
+  if (['ignorar', 'hon', 'conta', 'transf'].includes(d.acao)) return true;
+  if (d.acao === 'novohon') return !!d.cliente_id;
+  return !!d.categoria_id;
+}
+
+async function lerArquivo(file) {
+  const buf = await file.arrayBuffer();
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+  catch (e) { return new TextDecoder('windows-1252').decode(buf); }
+}
+async function carregarExtrato(input) {
+  const contaId = $('x-conta').value;
+  if (!contaId) { input.value = ''; return toast('Escolha a conta bancária antes.', true); }
+  try {
+    const todos = [];
+    let saldoFinal = null, dataSaldoFinal = null;
+    for (const f of input.files) {
+      const r = F.parseExtrato(f.name, await lerArquivo(f));
+      todos.push(...r.movs);
+      if (r.saldoFinal != null && (!dataSaldoFinal || r.dataSaldoFinal > dataSaldoFinal)) { saldoFinal = r.saldoFinal; dataSaldoFinal = r.dataSaldoFinal; }
+    }
+    const vistos = new Set();
+    const movs = todos.map(m => ({ ...m, chave: F.chaveMov(contaId, m) }))
+      .filter(m => !vistos.has(m.chave) && vistos.add(m.chave))
+      .sort((a, b) => a.data.localeCompare(b.data) || a.ordem - b.ordem);
+    const novos = movs.filter(m => !S.feitos.has(m.chave));
+    const usados = new Set();
+    novos.forEach(m => { m.dec = { ...sugerir(m, usados), incluir: true, descricao: m.historico.slice(0, 120) }; });
+    S.extrato = { contaId, arquivos: [...input.files].map(f => f.name).join(', '), total: movs.length, movs: novos,
+      saldo: F.saldoAntes(movs, saldoFinal, dataSaldoFinal), filtro: 'todos' };
+    render();
+  } catch (e) { toast('Não consegui ler o arquivo: ' + e.message, true); }
+}
+
+function vImportar() {
+  const X = S.extrato, contas = S.contas.filter(c => c.ativo);
+  const topo = `<div class="head"><div><h1>Importar extrato</h1><p>Lance o que já aconteceu a partir do extrato do banco (OFX ou CSV). Cada movimento vira honorário recebido, receita, despesa paga ou é ignorado.</p></div></div>
+    <div class="card" style="margin-bottom:14px"><div class="filters" style="margin:0;align-items:flex-end">
+      <div><label>Conta bancária</label><select id="x-conta" style="width:auto" ${X ? 'disabled' : ''}>${opts(contas.map(c => [c.id, c.nome]), X ? X.contaId : (contas.length === 1 ? contas[0].id : ''), 'Escolha…')}</select></div>
+      ${contas.length ? '' : `<button class="btn sec" onclick="mConta()">+ Cadastrar a conta (ex.: Cora)</button>`}
+      ${X ? `<div class="muted" style="align-self:center">${esc(X.arquivos)} · ${X.total} movimento(s), ${X.total - X.movs.length} já importado(s)</div><button class="btn sec" onclick="S.extrato=null;render()">Trocar arquivo</button>`
+        : `<div><label>Arquivo do extrato</label><input type="file" accept=".ofx,.csv,.txt" multiple onchange="carregarExtrato(this)"></div>`}
+    </div>
+    ${X ? '' : `<div class="help" style="margin-top:10px">No app da Cora: <b>Extrato → Exportar</b> e escolha <b>OFX</b> (ou CSV), do período desde janeiro. Pode escolher vários arquivos de uma vez. Movimentos já importados são reconhecidos e não entram de novo.</div>`}</div>`;
+  if (!X) { $('view').innerHTML = topo; return; }
+
+  const conta = S.contas.find(c => c.id === X.contaId);
+  const saldoAviso = X.saldo && conta && (Math.abs(+conta.saldo_inicial - X.saldo.valor) > 0.009 || conta.data_saldo !== X.saldo.data)
+    ? `<div class="card" style="margin-bottom:14px;border-color:var(--accent)">Pelo extrato, o saldo da conta <b>${esc(conta.nome)}</b> no começo de <b>${F.fmtData(X.saldo.data)}</b> era <b>${brl(X.saldo.valor)}</b>.
+       <button class="btn sm" style="margin-left:8px" onclick="usarSaldoExtrato()">Usar como saldo inicial</button>
+       <div class="help">Hoje está cadastrado ${brl(conta.saldo_inicial)} em ${F.fmtData(conta.data_saldo)}. Com o saldo certo, o fluxo de caixa bate com o banco.</div></div>` : '';
+  const ent = X.movs.filter(m => m.valor > 0), sai = X.movs.filter(m => m.valor < 0);
+  const vis = X.movs.filter(m => X.filtro === 'todos' || (X.filtro === 'entradas' ? m.valor > 0 : X.filtro === 'saidas' ? m.valor < 0 : !pronto(m.dec)));
+  const prontos = X.movs.filter(m => m.dec.incluir && pronto(m.dec));
+  const faltam = X.movs.filter(m => m.dec.incluir && !pronto(m.dec)).length;
+  const catsD = S.categorias.filter(c => c.ativo && c.tipo === 'despesa'), catsR = S.categorias.filter(c => c.ativo && c.tipo === 'receita');
+  const cliOpts = S.clientes.map(c => [c.id, nomeCli(c)]).sort((a, b) => a[1].localeCompare(b[1]));
+
+  const linha = (m) => {
+    const i = X.movs.indexOf(m), d = m.dec, entrada = m.valor > 0;
+    const acoes = entrada
+      ? F.candidatosHonorario(m, honAbertos()).map(h => [`hon:${h.id}`, `Honorário recebido: ${h.nome_cliente || ''} · ${h.servico || ''} ${F.fmtComp(h.competencia)} (venc. ${F.fmtData(h.vencimento)})`])
+          .concat([['novohon', 'Novo honorário recebido (cria no Gestão Fiscal)'], ['receita', 'Outra receita'],
+            ['transf', 'Transferência / resgate (entra no caixa, fora da DRE)'], ['ignorar', 'Ignorar (não entra em nada — ex.: duplicado)']])
+      : F.candidatosConta(m, S.lancamentos).map(l => [`conta:${l.id}`, `Baixar conta em aberto: ${l.descricao} (venc. ${F.fmtData(l.vencimento)})`])
+          .concat([['despesa', 'Despesa paga'], ['transf', 'Transferência / aplicação (sai do caixa, fora da DRE)'], ['ignorar', 'Ignorar (não entra em nada — ex.: duplicado)']]);
+    const atual = d.acao === 'hon' ? `hon:${d.ref}` : d.acao === 'conta' ? `conta:${d.ref}` : d.acao;
+    const extra = d.acao === 'novohon'
+      ? `<select onchange="decidir(${i},{cliente_id:this.value})" style="${d.cliente_id ? '' : 'border-color:var(--warn)'}">${opts(cliOpts, d.cliente_id, 'Cliente…')}</select>
+         <select onchange="decidir(${i},{tipoHon:this.value})">${opts(TIPOS_HON, d.tipoHon)}</select>`
+      : d.acao === 'despesa' || d.acao === 'receita'
+      ? `<select onchange="decidir(${i},{categoria_id:this.value},true)" style="${d.categoria_id ? '' : 'border-color:var(--warn)'}">${opts((d.acao === 'despesa' ? catsD : catsR).map(c => [c.id, c.nome]), d.categoria_id, 'Categoria…')}</select>
+         <input value="${esc(d.descricao)}" onchange="decidir(${i},{descricao:this.value},false,true)" title="Descrição do lançamento">`
+      : '';
+    return `<tr style="${d.incluir ? '' : 'opacity:.45'}">
+      <td><input type="checkbox" ${d.incluir ? 'checked' : ''} onchange="decidir(${i},{incluir:this.checked})"></td>
+      <td class="nowrap">${F.fmtData(m.data)}</td>
+      <td style="max-width:320px">${esc(m.historico) || '<span class="muted">—</span>'}</td>
+      <td class="num nowrap" style="color:${entrada ? 'var(--ok)' : 'var(--danger)'};font-weight:700">${brl(m.valor)}</td>
+      <td style="min-width:300px"><select onchange="decidirAcao(${i},this.value)" style="width:100%">${opts(acoes, atual)}</select>
+        ${extra ? `<div class="row-flex" style="margin-top:6px;gap:6px">${extra}</div>` : ''}</td></tr>`;
+  };
+  $('view').innerHTML = topo + saldoAviso + `
+    <div class="tabs">${[['todos', `Todos (${X.movs.length})`], ['entradas', `Entradas (${ent.length})`], ['saidas', `Saídas (${sai.length})`], ['pendentes', `Falta escolher (${X.movs.filter(m => !pronto(m.dec)).length})`]]
+      .map(([v, n]) => `<button class="tab ${X.filtro === v ? 'on' : ''}" onclick="S.extrato.filtro='${v}';render()">${n}</button>`).join('')}</div>
+    ${X.movs.length ? `<div class="tbl"><table><thead><tr><th style="width:30px"></th><th>Data</th><th>Histórico do banco</th><th class="num">Valor</th><th>O que é</th></tr></thead>
+      <tbody>${vis.map(linha).join('')}</tbody></table></div>` : '<div class="empty">Todos os movimentos deste extrato já foram importados.</div>'}
+    ${X.movs.length ? `<div class="card" style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <b>${prontos.length} pronto(s) para importar</b>${faltam ? `<span style="color:var(--warn)">${faltam} marcado(s) ainda sem categoria ou cliente</span>` : ''}
+      <button class="btn ok" id="x-ok" style="margin-left:auto" ${prontos.length ? '' : 'disabled'} onclick="importarExtrato()">Importar ${prontos.length} movimento(s)</button>
+      <div class="help" style="flex-basis:100%">Despesas entram como contas <b>já pagas</b> na data do banco. Transferências entre contas e aplicações entram no caixa (para o saldo bater com o banco), mas não na DRE. Honorários ficam como <b>Pago</b> no Gestão Fiscal com a data do crédito. Ao escolher uma categoria, as linhas com o mesmo texto recebem a mesma — e o sistema lembra nas próximas importações.</div></div>` : ''}`;
+}
+function decidirAcao(i, v) {
+  const [acao, ref] = v.split(':');
+  const m = S.extrato.movs[i];
+  const regra = S.regras.get(F.chaveRegra(m.historico));
+  Object.assign(m.dec, { acao, ref: ref || null });
+  if (acao === 'novohon' && !m.dec.cliente_id) { const c = melhorCliente(m.historico); m.dec.cliente_id = c ? c.id : ''; m.dec.tipoHon = m.dec.tipoHon || 'mensal'; }
+  if ((acao === 'despesa' || acao === 'receita') && !m.dec.categoria_id && regra) m.dec.categoria_id = regra;
+  if (acao === 'despesa' && S.catPorId.get(m.dec.categoria_id)?.tipo !== 'despesa') m.dec.categoria_id = '';
+  if (acao === 'receita' && S.catPorId.get(m.dec.categoria_id)?.tipo !== 'receita') m.dec.categoria_id = '';
+  render();
+}
+// propagar: mesma categoria para as outras linhas com o mesmo texto e mesmo sentido ainda sem categoria
+function decidir(i, muda, propagar, semRender) {
+  const X = S.extrato, m = X.movs[i];
+  Object.assign(m.dec, muda);
+  if (propagar && muda.categoria_id) {
+    const k = F.chaveRegra(m.historico);
+    if (k) X.movs.forEach(o => { if (o !== m && o.dec.acao === m.dec.acao && !o.dec.categoria_id && F.chaveRegra(o.historico) === k) o.dec.categoria_id = muda.categoria_id; });
+  }
+  if (!semRender) render();
+}
+async function usarSaldoExtrato() {
+  const X = S.extrato, c = S.contas.find(x => x.id === X.contaId);
+  if (!confirm(`Cadastrar ${brl(X.saldo.valor)} em ${F.fmtData(X.saldo.data)} como saldo inicial da conta ${c.nome}?`)) return;
+  const muda = { saldo_inicial: X.saldo.valor, data_saldo: X.saldo.data };
+  chk((await sb.from('fin_contas_bancarias').update(muda).eq('id', c.id)).error);
+  Object.assign(c, muda);
+  toast('Saldo inicial atualizado.'); render();
+}
+
+async function importarExtrato() {
+  const X = S.extrato, movs = X.movs.filter(m => m.dec.incluir && pronto(m.dec));
+  if (!confirm(`Importar ${movs.length} movimento(s) do extrato?`)) return;
+  const btn = $('x-ok'); btn.disabled = true;
+  const passo = t => { btn.textContent = t; };
+  const registros = [];   // fin_extrato_movs
+  const reg = (m, destino, ref_id) => registros.push({ conta_id: X.contaId, chave: m.chave, data: m.data, valor: m.valor, historico: m.historico, destino, ref_id: ref_id || null });
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const comp = d => d.slice(0, 7);
+    // 1. Honorários já cadastrados → Pago
+    const hons = movs.filter(m => m.dec.acao === 'hon');
+    for (const [k, m] of hons.entries()) {
+      passo(`Honorários ${k + 1}/${hons.length}…`);
+      const muda = { status: 'Pago', data_pagamento: m.data };
+      chk((await sb.from('gclik_honorarios').update(muda).eq('id', m.dec.ref)).error);
+      Object.assign(S.honorarios.find(h => h.id === m.dec.ref) || {}, muda);
+      reg(m, 'honorario', m.dec.ref);
+    }
+    // 2. Honorários novos (Gestão Fiscal, escritório JCR). Mensalidade: competência = mês anterior ao recebimento.
+    const novos = movs.filter(m => m.dec.acao === 'novohon');
+    if (novos.length) {
+      passo('Criando honorários…');
+      const rows = novos.map(m => {
+        const c = S.clientes.find(x => x.id === m.dec.cliente_id), tipo = m.dec.tipoHon || 'mensal';
+        return { user_id: session.user.id, escritorio_id: ESCRITORIO_JCR, cliente_id: c.id, nome_cliente: c.razao_social,
+          tipo, servico: (TIPOS_HON.find(t => t[0] === tipo) || [])[1] || 'Honorário',
+          competencia: tipo === 'mensal' ? F.addMeses(comp(m.data), -1) : comp(m.data), valor: m.valor, vencimento: m.data,
+          status: 'Pago', data_pagamento: m.data, forma: 'PIX', obs: 'Criado pela importação do extrato' };
+      });
+      const { data, error } = await sb.from('gclik_honorarios').insert(rows).select();
+      chk(error);
+      S.honorarios.push(...data);
+      novos.forEach((m, k) => reg(m, 'honorario', data[k] && data[k].id));
+    }
+    // 3. Contas em aberto → pagas
+    const contas = movs.filter(m => m.dec.acao === 'conta');
+    for (const [k, m] of contas.entries()) {
+      passo(`Baixando contas ${k + 1}/${contas.length}…`);
+      const muda = { status: 'pago', data_pagamento: m.data, valor_pago: Math.abs(m.valor), conta_id: X.contaId };
+      chk((await sb.from('fin_lancamentos').update(muda).eq('id', m.dec.ref)).error);
+      Object.assign(S.lancamentos.find(l => l.id === m.dec.ref) || {}, muda);
+      reg(m, 'lancamento', m.dec.ref);
+    }
+    // 4. Despesas pagas e receitas avulsas novas
+    const transf = movs.filter(m => m.dec.acao === 'transf');
+    if (transf.length) {
+      for (const [lado, tipo] of [['saida', 'despesa'], ['entrada', 'receita']]) {
+        let c = S.categorias.find(x => x.nome === CAT_TRANSF[lado]);
+        if (!c) {
+          const { data, error } = await sb.from('fin_categorias').insert({ nome: CAT_TRANSF[lado], tipo, grupo_dre: 'fora_dre', ordem: 82 }).select().single();
+          chk(error); S.categorias.push(data); S.catPorId.set(data.id, data); c = data;
+        }
+        transf.filter(m => (m.valor < 0) === (lado === 'saida')).forEach(m => { m.dec.categoria_id = c.id; m.dec.descricao = m.dec.descricao || m.historico; });
+      }
+    }
+    const lanc = movs.filter(m => ['despesa', 'receita', 'transf'].includes(m.dec.acao));
+    if (lanc.length) {
+      passo('Lançando despesas e receitas…');
+      const rows = lanc.map(m => ({ tipo: m.valor < 0 ? 'pagar' : 'receber', descricao: (m.dec.descricao || m.historico || 'Movimento do extrato').slice(0, 200),
+        categoria_id: m.dec.categoria_id, competencia: comp(m.data), vencimento: m.data, valor: Math.abs(m.valor),
+        status: 'pago', data_pagamento: m.data, valor_pago: Math.abs(m.valor), conta_id: X.contaId, observacoes: 'Importado do extrato' }));
+      const { data, error } = await sb.from('fin_lancamentos').insert(rows).select();
+      chk(error);
+      S.lancamentos = S.lancamentos.concat(data).sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+      lanc.forEach((m, k) => reg(m, 'lancamento', data[k] && data[k].id));
+      // aprende a categoria pelo texto
+      const regras = new Map();
+      lanc.forEach(m => { const k = F.chaveRegra(m.historico); if (k) regras.set(k, m.dec.categoria_id); });
+      if (regras.size) {
+        chk((await sb.from('fin_regras').upsert([...regras].map(([chave, categoria_id]) => ({ chave, categoria_id })), { onConflict: 'user_id,chave' })).error);
+        regras.forEach((v, k) => S.regras.set(k, v));
+      }
+    }
+    // 5. Ignorados
+    movs.filter(m => m.dec.acao === 'ignorar').forEach(m => reg(m, 'ignorado'));
+    // 6. Marca tudo como tratado
+    passo('Finalizando…');
+    for (let k = 0; k < registros.length; k += 500) chk((await sb.from('fin_extrato_movs').insert(registros.slice(k, k + 500))).error);
+    registros.forEach(r => S.feitos.add(r.chave));
+    X.movs = X.movs.filter(m => !S.feitos.has(m.chave));
+    toast(`${registros.length} movimento(s) importado(s).`);
+    render();
+  } catch (e) {
+    toast('A importação parou no meio: ' + (e.message || e) + '. O que já entrou ficou salvo; importe o arquivo de novo para continuar.', true);
+    if (registros.length) { await sb.from('fin_extrato_movs').insert(registros); registros.forEach(r => S.feitos.add(r.chave)); }
+    X.movs = X.movs.filter(m => !S.feitos.has(m.chave));
+    render();
+  }
 }
 
 // ════════════ FLUXO DE CAIXA ════════════

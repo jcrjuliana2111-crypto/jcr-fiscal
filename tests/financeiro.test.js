@@ -95,3 +95,51 @@ test('DRE por competência e por caixa', () => {
   assert.strictEqual(caixa.linhas.lucroBruto[8], -1000);  // só o custo foi pago em setembro
   assert.strictEqual(caixa.linhas.receitaBruta[9], 0);
 });
+
+test('mudar vencimento das próximas: novo dia e mesmo deslocamento de meses', () => {
+  assert.strictEqual(F.moverVencimento('2026-10-16', '2026-10-26', '2026-11-16'), '2026-11-26');
+  assert.strictEqual(F.moverVencimento('2026-10-16', '2026-10-31', '2027-02-16'), '2027-02-28');
+  assert.strictEqual(F.moverVencimento('2026-10-16', '2026-11-05', '2026-11-16'), '2026-12-05'); // andou um mês
+});
+
+const OFX = `OFXHEADER:100
+<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>
+<STMTTRN><TRNTYPE>CREDIT<DTPOSTED>20260110120000[-3:BRT]<TRNAMT>400.00<FITID>abc1<NAME>Pix recebido ANDREA ROSA DISTRIBUICAO<MEMO>Pix</STMTTRN>
+<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260112<TRNAMT>-189.90<FITID>abc2<MEMO>PIX ENVIADO ENEL DISTRIBUICAO SP 12/01</STMTTRN>
+</BANKTRANLIST><LEDGERBAL><BALAMT>1210.10<DTASOF>20260131</LEDGERBAL></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>`;
+
+test('lê OFX e calcula o saldo antes do primeiro movimento', () => {
+  const r = F.parseExtrato('cora.ofx', OFX);
+  assert.strictEqual(r.movs.length, 2);
+  assert.deepStrictEqual([r.movs[0].data, r.movs[0].valor, r.movs[0].fitid], ['2026-01-10', 400, 'abc1']);
+  assert.strictEqual(r.movs[1].valor, -189.9);
+  assert.deepStrictEqual(F.saldoAntes(r.movs, r.saldoFinal, r.dataSaldoFinal), { valor: 1000, data: '2026-01-10' });
+  assert.strictEqual(F.chaveMov('c1', r.movs[0]), 'c1|abc1');
+});
+
+test('lê CSV com colunas de texto variadas (ex.: Cora)', () => {
+  const csv = 'Data;Transação;Tipo Transação;Identificação;Valor\n10/01/2026;Pix recebido;CRÉDITO;ANDREA ROSA;R$ 400,00\n12/01/2026;Pix enviado;DÉBITO;ENEL DISTRIBUICAO;-R$ 1.189,90\n';
+  const r = F.parseExtrato('extrato.csv', csv);
+  assert.strictEqual(r.movs.length, 2);
+  assert.strictEqual(r.movs[1].valor, -1189.9);
+  assert.match(r.movs[1].historico, /ENEL DISTRIBUICAO/);
+  const cd = F.parseExtrato('x.csv', 'Data,Descrição,Crédito,Débito\n2026-01-05,Tarifa,,"12,50"\n');
+  assert.strictEqual(cd.movs[0].valor, -12.5);
+});
+
+test('regra pelo texto e honorário candidato', () => {
+  assert.strictEqual(F.chaveRegra('PIX ENVIADO 12/03 ENEL DISTRIBUICAO SP 123'), 'enel distribuicao sp');
+  assert.strictEqual(F.chaveRegra('PIX ENVIADO ENEL DISTRIBUICAO SP'), F.chaveRegra('Pix enviado - Enel Distribuição SP 99'));
+  const hon = [
+    { id: 'a', status: 'Pendente', valor: 400, vencimento: '2026-01-10', nome_cliente: 'FACILITY CREDIT' },
+    { id: 'b', status: 'Pendente', valor: 400, vencimento: '2026-01-12', nome_cliente: 'ANDREA ROSA DISTRIBUICAO LTDA' },
+    { id: 'c', status: 'Pago', valor: 400, vencimento: '2026-01-10', nome_cliente: 'ANDREA ROSA' },
+    { id: 'd', status: 'Pendente', valor: 401, vencimento: '2026-01-10', nome_cliente: 'ANDREA ROSA' },
+    { id: 'e', status: 'Pendente', valor: 400, vencimento: '2026-04-10', nome_cliente: 'ANDREA ROSA' },
+  ];
+  const c = F.candidatosHonorario({ data: '2026-01-10', valor: 400, historico: 'Pix recebido ANDREA ROSA DISTRIBUICAO' }, hon);
+  assert.deepStrictEqual(c.map(h => h.id), ['b', 'a']);   // nome bate primeiro
+  assert.deepStrictEqual(F.candidatosHonorario({ data: '2026-01-10', valor: -400, historico: '' }, hon), []);
+  const l = [{ id: 'x', tipo: 'pagar', status: 'aberto', valor: 189.9, vencimento: '2026-01-15' }];
+  assert.strictEqual(F.candidatosConta({ data: '2026-01-12', valor: -189.9 }, l)[0].id, 'x');
+});

@@ -147,10 +147,13 @@
   </div>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="relatorios-core.js"></script>
+<!-- gráficos e Excel carregam sem travar a página (se a rede bloquear, o resto continua funcionando) -->
+<script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" onload="window.render && render()"></script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
+// qualquer erro aparece na tela, em vez de deixar a página parada
+window.addEventListener('error', e => { const m = document.getElementById('msg'); if (m) { m.className = 'msg show erro'; m.textContent = 'Erro na página: ' + (e.message || e) + ' — mande um print desta mensagem.'; } });
 const FN_URL = 'https://qftusjwnlyjokilcjuzb.supabase.co/functions/v1/conta-azul';
 const R = window.Relatorios;
 const $ = id => document.getElementById(id);
@@ -304,7 +307,8 @@ const varCel = (a, b, inverso) => {
 };
 function limparGraficos() { graficos.forEach(g => g.destroy()); graficos = []; $('graficos').innerHTML = ''; }
 function grafico(titulo, config) {
-  if (!window.Chart) return;
+  if (!window.Chart) { if (!$('graficos').dataset.aviso) { $('graficos').dataset.aviso = 1; $('graficos').insertAdjacentHTML('beforebegin', '<p class="muted" id="semGraf">Gráficos carregando… (se não aparecerem, a rede bloqueou cdn.jsdelivr.net)</p>'); } return; }
+  const sg = document.getElementById('semGraf'); if (sg) sg.remove();
   const box = document.createElement('div'); box.className = 'grafico';
   box.innerHTML = `<h3>${esc(titulo)}</h3><canvas></canvas>`;
   $('graficos').appendChild(box);

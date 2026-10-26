@@ -197,10 +197,35 @@
     return b;
   }
 
+  // despesas mês a mês por grupo da DRE e por categoria (só contas a pagar; "fora da DRE" à parte)
+  function despesasMensais(eventos, mapa, de, ate, regime) {
+    const ms = meses(de, ate), idx = Object.fromEntries(ms.map((m, k) => [m, k]));
+    const vazio = () => ms.map(() => 0);
+    const grupos = {};
+    for (const ev of eventos) {
+      if (ev.tipo !== 'pagar') continue;
+      const v = naDRE(ev, regime);
+      if (!v || !v.data || v.data < de || v.data > ate || !v.valor) continue;
+      const k = idx[v.data.slice(0, 7)]; if (k == null) continue;
+      const id = grupoDe(ev, mapa), cat = ev.categoria || '(sem categoria)';
+      const g = grupos[id] || (grupos[id] = { porMes: vazio(), categorias: {} });
+      g.porMes[k] += v.valor;
+      (g.categorias[cat] || (g.categorias[cat] = vazio()))[k] += v.valor;
+    }
+    const arred = l => l.map(r2);
+    const totalPorMes = vazio();
+    for (const [id, g] of Object.entries(grupos)) {
+      g.porMes = arred(g.porMes);
+      for (const c in g.categorias) g.categorias[c] = arred(g.categorias[c]);
+      if (id !== 'fora') g.porMes.forEach((v, k) => { totalPorMes[k] += v; });
+    }
+    return { meses: ms, rotulos: ms.map(nomeMes), grupos, totalPorMes: arred(totalPorMes) };
+  }
+
   const variacao = (a, b) => ({ valor: r2(a - b), pct: b ? r2((a - b) / Math.abs(b) * 100) : null });
 
   const api = { norm, dt, meses, nomeMes, periodoAnterior, anoAnterior, presetPeriodo, GRUPOS, LINHAS_DRE, palpiteGrupo, grupoDe, chaveCat,
-    naDRE, montarDRE, dreMensal, fluxoCaixa, saldoEm, balanco, variacao, somarDias };
+    naDRE, montarDRE, dreMensal, despesasMensais, fluxoCaixa, saldoEm, balanco, variacao, somarDias };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Relatorios = api;
 })(this);

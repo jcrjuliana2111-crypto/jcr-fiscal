@@ -203,7 +203,7 @@ function modal(titulo, corpo, rodape, lg) {
 }
 function fechar() { $('modal-root').innerHTML = ''; }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') fechar(); });
-const badge = s => `<span class="badge" style="--c:${SIT[s].cor}">${SIT[s].nome}</span>`;
+const badge = (s, tipo) => `<span class="badge" style="--c:${SIT[s].cor}">${s === 'pago' && tipo === 'receber' ? 'Recebido' : SIT[s].nome}</span>`;
 
 // ── estado ──
 const S = {
@@ -252,10 +252,25 @@ function render() {
 }
 
 // ════════════ CONTAS A PAGAR / RECEITAS ════════════
+// Receitas = honorários da JCR (Gestão Fiscal) + receitas avulsas. Honorário tem id 'h:<id>'.
+const HON = '__honorarios';
+const ehHon = id => String(id).startsWith('h:');
+function honorarioItem(h) {
+  return { ...F.deHonorario(h), id: 'h:' + h.id, descricao: h.servico || 'Honorário', categoria_id: HON,
+    fornecedor: h.nome_cliente || '', forma: h.forma || null, observacoes: h.obs || null };
+}
+function itensDoTipo(tipo) {
+  const ls = S.lancamentos.filter(l => l.tipo === tipo);
+  return tipo === 'receber' ? ls.concat(S.honorarios.map(honorarioItem)) : ls;
+}
+function itemPorId(id) {
+  if (!ehHon(id)) return S.lancamentos.find(x => x.id === id);
+  const h = S.honorarios.find(x => x.id === id.slice(2));
+  return h && honorarioItem(h);
+}
 function filtrados(tipo) {
   const f = S.filtro, hoje = hojeISO(), b = semAcento(f.busca);
-  return S.lancamentos.filter(l => {
-    if (l.tipo !== tipo) return false;
+  return itensDoTipo(tipo).sort((a, b) => a.vencimento.localeCompare(b.vencimento)).filter(l => {
     const sit = F.situacao(l, hoje);
     if (f.sit === 'abertas' && !['aberto', 'hoje', 'vencida'].includes(sit)) return false;
     if (f.sit === 'vencidas' && sit !== 'vencida') return false;
@@ -269,7 +284,7 @@ function filtrados(tipo) {
 }
 function vLancamentos(tipo) {
   const hoje = hojeISO(), pagar = tipo === 'pagar';
-  const doTipo = S.lancamentos.filter(l => l.tipo === tipo);
+  const doTipo = itensDoTipo(tipo);
   const soma = ls => ls.reduce((a, l) => a + (+l.valor || 0), 0);
   const vencidas = doTipo.filter(l => F.situacao(l, hoje) === 'vencida');
   const deHoje = doTipo.filter(l => F.situacao(l, hoje) === 'hoje');
@@ -282,7 +297,7 @@ function vLancamentos(tipo) {
 
   $('view').innerHTML = `
     <div class="head"><div><h1>${pagar ? 'Contas a pagar' : 'Receitas'}</h1>
-      <p>${pagar ? 'Contas do escritório: aluguel, sistemas, impostos, pró-labore…' : 'Receitas além dos honorários (os honorários vêm do Gestão Fiscal e entram sozinhos no fluxo e na DRE).'}</p></div>
+      <p>${pagar ? 'Contas do escritório: aluguel, sistemas, impostos, pró-labore…' : 'Honorários da JCR (vêm do Gestão Fiscal) e outras receitas. Ao receber aqui, o honorário fica como Pago também no Gestão Fiscal.'}</p></div>
       <div class="acts"><button class="btn" onclick="mLancamento('${tipo}')">+ ${pagar ? 'Nova conta' : 'Nova receita'}</button></div></div>
     <div class="kpis">
       ${kpi(brl(soma(vencidas)), `${vencidas.length} vencida(s)`, 'var(--danger)', 'vencidas')}
@@ -293,7 +308,7 @@ function vLancamentos(tipo) {
     <div class="filters">
       <input type="month" value="${S.filtro.mes}" onchange="S.filtro.mes=this.value;render()" title="Mês do vencimento (vazio = todos)" style="width:auto">
       <select onchange="S.filtro.sit=this.value;render()" style="width:auto">${opts([['abertas', 'Em aberto'], ['vencidas', 'Vencidas'], ['pagas', pagar ? 'Pagas' : 'Recebidas'], ['todas', 'Todas']], S.filtro.sit)}</select>
-      <select onchange="S.filtro.cat=this.value;render()" style="width:auto">${opts(cats.map(c => [c.id, c.nome]), S.filtro.cat, 'Todas as categorias')}</select>
+      <select onchange="S.filtro.cat=this.value;render()" style="width:auto">${opts((pagar ? [] : [[HON, 'Honorários (Gestão Fiscal)']]).concat(cats.map(c => [c.id, c.nome])), S.filtro.cat, 'Todas as categorias')}</select>
       <input placeholder="Buscar descrição ou fornecedor…" value="${esc(S.filtro.busca)}" oninput="S.filtro.busca=this.value;clearTimeout(window._bt);window._bt=setTimeout(()=>{render();const i=document.querySelector('.filters input[placeholder]');i.focus();i.setSelectionRange(i.value.length,i.value.length)},250)" style="flex:1;min-width:200px">
       ${S.filtro.mes ? `<button class="btn sec sm" onclick="S.filtro.mes='';render()">Todos os meses</button>` : ''}
     </div>
@@ -309,13 +324,13 @@ function vLancamentos(tipo) {
       return `<tr style="${sit === 'cancelado' ? 'opacity:.5' : ''}">
         <td>${aberto ? `<input type="checkbox" ${S.sel.has(l.id) ? 'checked' : ''} onchange="this.checked?S.sel.add('${l.id}'):S.sel.delete('${l.id}');render()">` : ''}</td>
         <td class="nowrap">${F.fmtData(l.vencimento)}<div class="muted">comp. ${F.fmtComp(l.competencia)}</div></td>
-        <td style="cursor:pointer" onclick="mLancamento('${tipo}','${l.id}')"><b>${esc(l.descricao)}</b>${l.parcela ? ` <span class="chip">${esc(l.parcela)}</span>` : ''}<div class="muted">${esc([l.fornecedor, l.forma].filter(Boolean).join(' · '))}</div></td>
-        <td>${c ? esc(c.nome) : '<span class="muted">—</span>'}</td>
+        <td style="cursor:${ehHon(l.id) ? 'default' : 'pointer'}" onclick="${ehHon(l.id) ? '' : `mLancamento('${tipo}','${l.id}')`}"><b>${esc(l.descricao)}</b>${l.parcela ? ` <span class="chip">${esc(l.parcela)}</span>` : ''}<div class="muted">${esc([l.fornecedor, l.forma].filter(Boolean).join(' · '))}</div></td>
+        <td>${ehHon(l.id) ? 'Honorários <span class="chip">Gestão Fiscal</span>' : c ? esc(c.nome) : '<span class="muted">—</span>'}</td>
         <td class="num nowrap"><b>${brl(l.valor)}</b>${l.status === 'pago' && l.valor_pago != null && +l.valor_pago !== +l.valor ? `<div class="muted">${pagar ? 'pago' : 'recebido'} ${brl(l.valor_pago)}</div>` : ''}</td>
-        <td>${badge(sit)}${l.status === 'pago' ? `<div class="muted">${F.fmtData(l.data_pagamento)}</div>` : ''}</td>
+        <td>${badge(sit, tipo)}${l.status === 'pago' ? `<div class="muted">${F.fmtData(l.data_pagamento)}</div>` : ''}</td>
         <td class="nowrap">${aberto ? `<button class="btn ok sm" onclick="mBaixa(['${l.id}'])">${pagar ? 'Pagar' : 'Receber'}</button>` : l.status === 'pago' ? `<button class="btn sec sm" onclick="estornar('${l.id}')">Estornar</button>` : ''}</td></tr>`;
     }).join('')}
-    </tbody></table>${lista.length ? '' : `<div class="empty">${doTipo.length ? 'Nada com esses filtros.' : pagar ? 'Nenhuma conta cadastrada. Comece por "+ Nova conta" (dá para repetir todo mês).' : 'Nenhuma receita avulsa cadastrada.'}</div>`}</div>
+    </tbody></table>${lista.length ? '' : `<div class="empty">${doTipo.length ? 'Nada com esses filtros.' : pagar ? 'Nenhuma conta cadastrada. Comece por "+ Nova conta" (dá para repetir todo mês).' : 'Nenhum honorário da JCR no Gestão Fiscal e nenhuma receita avulsa.'}</div>`}</div>
     ${lista.length ? `<div class="help" style="margin-top:8px">${lista.length} lançamento(s) · total ${brl(soma(lista))}</div>` : ''}`;
 }
 function marcarTodos(on) {
@@ -400,12 +415,13 @@ async function cancelarLancamento(id) {
 }
 
 function mBaixa(ids) {
-  const ls = ids.map(i => S.lancamentos.find(x => x.id === i)).filter(Boolean);
-  const pagar = ls[0].tipo === 'pagar', um = ls.length === 1;
+  const ls = ids.map(itemPorId).filter(Boolean);
+  const pagar = ls[0].tipo === 'pagar', um = ls.length === 1, hon = um && ehHon(ls[0].id);
   modal(`${pagar ? 'Pagar' : 'Receber'} ${um ? esc(ls[0].descricao) : ls.length + ' lançamentos'}`, `
     <div class="f2"><div><label>Data do ${pagar ? 'pagamento' : 'recebimento'}</label><input id="b-data" type="date" value="${hojeISO()}"></div>
       <div><label>Conta bancária</label><select id="b-conta">${opts(S.contas.filter(c => c.ativo).map(c => [c.id, c.nome]), S.contas.length === 1 ? S.contas[0].id : '', '—')}</select></div></div>
-    ${um ? `<div class="f2"><div><label>Valor ${pagar ? 'pago' : 'recebido'} (com juros/desconto)</label><input id="b-valor" inputmode="decimal" value="${String(ls[0].valor).replace('.', ',')}"></div>
+    ${ls.some(l => ehHon(l.id)) ? '<div class="help">Honorário: fica como <b>Pago</b> no Gestão Fiscal, com esta data de recebimento.</div>' : ''}
+    ${um ? `<div class="f2"><div><label>Valor ${pagar ? 'pago' : 'recebido'}${hon ? '' : ' (com juros/desconto)'}</label><input id="b-valor" inputmode="decimal" value="${String(ls[0].valor).replace('.', ',')}" ${hon ? 'disabled title="Para mudar o valor do honorário, edite no Gestão Fiscal"' : ''}></div>
       <div><label>Forma</label><select id="b-forma">${opts(FORMAS, ls[0].forma, '—')}</select></div></div>`
       : `<div class="help">Total: <b>${brl(ls.reduce((a, l) => a + +l.valor, 0))}</b>. Cada um é baixado pelo próprio valor.</div>`}`,
     `<button class="btn sec" onclick="fechar()">Cancelar</button><button class="btn ok" id="b-ok" onclick="salvarBaixa(${JSON.stringify(ids).replace(/"/g, '&quot;')})">Confirmar</button>`);
@@ -415,12 +431,19 @@ async function salvarBaixa(ids) {
   if (!data_pagamento) return toast('Informe a data.', true);
   $('b-ok').disabled = true;
   try {
-    if (ids.length === 1) {
+    for (const id of ids.filter(ehHon)) {
+      const h = S.honorarios.find(x => x.id === id.slice(2));
+      const muda = { status: 'Pago', data_pagamento, ...(ids.length === 1 && $('b-forma').value ? { forma: $('b-forma').value } : {}) };
+      chk((await sb.from('gclik_honorarios').update(muda).eq('id', h.id)).error);
+      Object.assign(h, muda);
+    }
+    const lanc = ids.filter(id => !ehHon(id));
+    if (lanc.length === 1 && ids.length === 1) { // uma conta: usa valor e forma do formulário
       const muda = { status: 'pago', data_pagamento, conta_id, valor_pago: num($('b-valor').value), forma: $('b-forma').value || null };
       chk((await sb.from('fin_lancamentos').update(muda).eq('id', ids[0])).error);
       Object.assign(S.lancamentos.find(x => x.id === ids[0]), muda);
     } else {
-      for (const id of ids) {
+      for (const id of lanc) {
         const l = S.lancamentos.find(x => x.id === id);
         const muda = { status: 'pago', data_pagamento, conta_id, valor_pago: +l.valor };
         chk((await sb.from('fin_lancamentos').update(muda).eq('id', id)).error);
@@ -433,6 +456,12 @@ async function salvarBaixa(ids) {
 }
 async function estornar(id) {
   if (!confirm('Estornar a baixa? O lançamento volta a ficar em aberto.')) return;
+  if (ehHon(id)) {
+    const h = S.honorarios.find(x => x.id === id.slice(2)), muda = { status: 'Pendente', data_pagamento: null };
+    chk((await sb.from('gclik_honorarios').update(muda).eq('id', h.id)).error);
+    Object.assign(h, muda);
+    return render();
+  }
   const muda = { status: 'aberto', data_pagamento: null, valor_pago: null, conta_id: null };
   chk((await sb.from('fin_lancamentos').update(muda).eq('id', id)).error);
   Object.assign(S.lancamentos.find(x => x.id === id), muda);
@@ -457,7 +486,7 @@ function vFluxo() {
   const mesHoje = hoje.slice(0, 7);
   const prox = movimentos().filter(m => m.status === 'aberto').sort((a, b) => a.vencimento.localeCompare(b.vencimento)).filter(m => m.vencimento <= F.mesmoDia(hoje, 1));
   $('view').innerHTML = `
-    <div class="head"><div><h1>Fluxo de caixa</h1><p>Realizado (o que foi pago e recebido) e previsto (o que está em aberto). Honorários pagos entram na data de vencimento.</p></div>
+    <div class="head"><div><h1>Fluxo de caixa</h1><p>Realizado (o que foi pago e recebido) e previsto (o que está em aberto). Honorários entram na data do recebimento (ou no vencimento, se foram marcados como pagos no Gestão Fiscal).</p></div>
       <div class="acts"><select onchange="S.ano=+this.value;render()" style="width:auto">${opts([S.ano - 1, S.ano, S.ano + 1].map(String), String(S.ano))}</select></div></div>
     ${S.contas.length ? '' : `<div class="card" style="margin-bottom:14px;border-color:var(--warn)">Cadastre as contas bancárias com o saldo de hoje em <a href="#" onclick="ir('config');return false">Categorias e contas</a> para o saldo ficar certo. Sem isso o fluxo começa do zero.</div>`}
     <div class="tbl"><table><thead><tr><th></th>${MESES.map((n, i) => `<th class="num" style="${`${S.ano}-${String(i + 1).padStart(2, '0')}` === mesHoje ? 'color:var(--accent)' : ''}">${n}</th>`).join('')}<th class="num">Total</th></tr></thead><tbody>

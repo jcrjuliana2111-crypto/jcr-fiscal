@@ -98,7 +98,8 @@
   function lerPlanilha(linhas) {
     const cab = (linhas[0] || []).map(norm);
     const col = (...nomes) => cab.findIndex(c => nomes.some(n => c.startsWith(n)));
-    const c = { credor: col('nome do credor', 'credor', 'fornecedor'), venc: col('vencimento'), obs: col('observacao'),
+    const colTem = (...nomes) => cab.findIndex(c => nomes.some(n => c.includes(n)));
+    const c = { credor: colTem('credor', 'fornecedor'), venc: colTem('vencimento'), obs: col('observacao'),
       desc: col('descricao'), valor: col('valor'), pix: col('pix', 'chave') };
     const b = { banco: col('banco'), conta: col('conta'), limite: cab.findIndex(x => x.startsWith('limite') && !x.includes('utiliz') && !x.includes('dispon')),
       utilizado: cab.findIndex(x => x.includes('utilizado')), disponivel: cab.findIndex(x => x.startsWith('limite') && x.includes('disponivel')), saldo: cab.findIndex(x => x.startsWith('saldo disponivel (sem')) };

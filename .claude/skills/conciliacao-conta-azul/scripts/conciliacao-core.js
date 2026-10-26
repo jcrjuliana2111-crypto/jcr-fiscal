@@ -622,6 +622,52 @@
     };
   }
 
+  // DDA em tabela com células de várias linhas (ex.: Unicred "Gerenciar boletos": Pagador · CPF/CNPJ ·
+  // Documento · Beneficiário · Vencimento · Valor · Situação). Recebe os pedaços de texto do PDF com
+  // posição ({p: página, x, y, s}) e usa as colunas do cabeçalho — assim o nome do PAGADOR não vira
+  // beneficiário. Devolve [] se não achar um cabeçalho com Beneficiário e Vencimento.
+  function parseDDAItens(itens) {
+    const semAc = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const COLS = [['pagador', /^pagador/], ['cpf', /^cpf|^cnpj/], ['documento', /^documento|^n[ºo°]?\s*doc/], ['beneficiario', /^benefici|^cedente/],
+      ['vencimento', /^vencimento/], ['valor', /^valor/], ['situacao', /^situacao/]];
+    const out = [];
+    let cab = null;
+    const paginas = [...new Set(itens.map(i => i.p))].sort((a, b) => a - b);
+    for (const pg of paginas) {
+      const doPg = itens.filter(i => i.p === pg);
+      // cabeçalho: "Beneficiário" e "Vencimento" na mesma altura
+      const ben = doPg.find(i => /^benefici|^cedente/.test(semAc(i.s)) && doPg.some(v => /^vencimento$/.test(semAc(v.s)) && Math.abs(v.y - i.y) <= 8));
+      let topo = Infinity;
+      if (ben) {
+        const faixa = doPg.filter(i => Math.abs(i.y - ben.y) <= 8);
+        const cols = [];
+        for (const [nome, re] of COLS) { const h = faixa.find(i => re.test(semAc(i.s))); if (h && !cols.some(c => c.nome === nome)) cols.push({ nome, x: h.x }); }
+        cab = cols.sort((a, b) => a.x - b.x);
+        topo = Math.min(...faixa.map(i => i.y)) - 2;
+      }
+      if (!cab || !cab.some(c => c.nome === 'beneficiario')) continue;
+      const coluna = it => { let c = null; for (const h of cab) if (h.x <= it.x + 4) c = h; return c && c.nome; };
+      const corpo = doPg.filter(i => i.y < topo).map(i => ({ ...i, col: coluna(i) }));
+      const ancoras = corpo.filter(i => i.col === 'vencimento' && /^\d{2}\/\d{2}\/\d{4}$/.test(i.s.trim())).sort((a, b) => b.y - a.y);
+      ancoras.forEach((an, k) => {
+        const acima = k ? (ancoras[k - 1].y + an.y) / 2 : topo;
+        const gap = k ? ancoras[k - 1].y - an.y : (ancoras[k + 1] ? an.y - ancoras[k + 1].y : 50);
+        const abaixo = ancoras[k + 1] ? (an.y + ancoras[k + 1].y) / 2 : an.y - gap / 2;
+        const bloco = corpo.filter(i => i.y <= acima && i.y > abaixo).sort((a, b) => b.y - a.y || a.x - b.x);
+        const txt = nome => bloco.filter(i => i.col === nome).map(i => i.s.trim()).join(' ').replace(/\s+/g, ' ').trim();
+        const vencimento = parseData(an.s.trim());
+        const valorTxt = (txt('valor').match(/\d{1,3}(?:\.\d{3})*,\d{2}/) || [])[0];
+        if (!vencimento || !valorTxt) return;
+        const valor = parseValorBR(valorTxt);
+        const linhaDig = (bloco.map(i => i.s).join(' ').match(/\d[\d. ]{42,60}\d/) || [])[0] || '';
+        out.push({ id: `dda${out.length}|${vencimento}|${Math.round(valor * 100)}|${txt('documento')}`,
+          beneficiario: txt('beneficiario').slice(0, 120), documento: txt('documento'), vencimento, valor,
+          valores: [Math.round(valor * 100)], linha: linhaDig.replace(/\D/g, '').length >= 44 ? linhaDig : '', situacao: txt('situacao') });
+      });
+    }
+    return out;
+  }
+
   // Lê o relatório de DDA a partir das linhas de texto do PDF (cada linha = itens
   // na mesma altura). Funciona com relatório em tabela (um boleto por linha) e em
   // blocos ("Beneficiário: … / Vencimento: … / Valor: …").
@@ -693,7 +739,7 @@
 
   const api = { parseValorBR, parseData, parseOFX, parseCSV, parseExtrato, similaridadeNome, conciliar, dadosComprovante, casarComprovantes,
     nomeNoExtrato, nomeBate, nomeForte, temNome, palavrasNome, ajusteDe, montarPar, reforcarComComprovantes, resumoFechamento,
-    dadosLinhaDigitavel, parseDDA, conferirDDA, montarGrupo, agruparPagamentos, comprovantesDosMovimentos };
+    dadosLinhaDigitavel, parseDDA, parseDDAItens, conferirDDA, montarGrupo, agruparPagamentos, comprovantesDosMovimentos };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Conciliacao = api;
 })(this);

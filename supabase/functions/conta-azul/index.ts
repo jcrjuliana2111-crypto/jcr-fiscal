@@ -258,18 +258,34 @@ async function lancar(cliente: string, l: Lancamento) {
 }
 
 // ---------- previsão de pagamento (contas a pagar do dia) ----------
+// A API não documenta qual campo o PATCH da parcela aceita para a previsão: tenta os nomes
+// possíveis, confere relendo a parcela e guarda o que funcionou. Se nenhum funcionar, devolve
+// os campos de data da parcela para descobrirmos o certo.
+const CAMPOS_PREVISAO = ['data_pagamento_previsto', 'data_pagamento_prevista', 'data_previsao_pagamento', 'data_previsao', 'data_prevista', 'previsao_pagamento'];
+let campoPrevisao: string | null | undefined; // undefined = ainda não descoberto; null = nenhum funcionou
+const camposData = (o: any) => Object.entries(o ?? {}).filter(([k, v]) => /data|prev|venc/i.test(k) && (typeof v === 'string' || v == null))
+  .map(([k, v]) => `${k}=${v ?? '—'}`).join(', ');
 async function alterarPrevisao(cliente: string, parcelaId: string, data: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data || '')) throw new Error('Data de previsão inválida.');
   const path = `/v1/financeiro/eventos-financeiros/parcelas/${parcelaId}`;
-  const parcela = await ca(cliente, path);
-  const body: Record<string, unknown> = { data_pagamento_previsto: data };
-  if (parcela?.versao != null) body.versao = parcela.versao;
-  await ca(cliente, path, { method: 'PATCH', body: JSON.stringify(body) });
-  // confere se o Conta Azul gravou mesmo
-  const depois = await ca(cliente, path);
-  const gravada = String(depois?.data_pagamento_previsto ?? '').slice(0, 10);
-  if (gravada && gravada !== data) throw new Error(`O Conta Azul aceitou, mas a previsão ficou ${gravada}.`);
-  return { parcela_id: parcelaId, status: 'ok', previsao: gravada || data };
+  let parcela = await ca(cliente, path);
+  const lida = (p: any) => String(p?.data_pagamento_previsto ?? p?.[campoPrevisao ?? ''] ?? '').slice(0, 10);
+  if (lida(parcela) === data) return { parcela_id: parcelaId, status: 'ok', previsao: data };
+  if (campoPrevisao === null) throw new Error(`O Conta Azul não aceita alterar a previsão por esta API. Campos de data da parcela: ${camposData(parcela)}`);
+  const tentar = campoPrevisao ? [campoPrevisao] : CAMPOS_PREVISAO;
+  const erros: string[] = [];
+  for (const campo of tentar) {
+    const body: Record<string, unknown> = { [campo]: data };
+    if (parcela?.versao != null) body.versao = parcela.versao;
+    try { await ca(cliente, path, { method: 'PATCH', body: JSON.stringify(body) }); }
+    catch (e) { erros.push(`${campo}: ${String((e as Error).message).slice(0, 160)}`); continue; }
+    parcela = await ca(cliente, path);
+    const mudou = Object.entries(parcela ?? {}).some(([k, v]) => /prev|pagamento/i.test(k) && String(v ?? '').slice(0, 10) === data);
+    if (mudou) { campoPrevisao = campo; return { parcela_id: parcelaId, status: 'ok', previsao: data, campo }; }
+  }
+  if (!campoPrevisao) campoPrevisao = null;
+  throw new Error(`O Conta Azul aceitou, mas não gravou a previsão (testei: ${tentar.join(', ')}). ` +
+    `Campos de data da parcela: ${camposData(parcela)}${erros.length ? ` · Recusas: ${erros.join(' | ')}` : ''}`);
 }
 
 // ---------- desfazer ----------

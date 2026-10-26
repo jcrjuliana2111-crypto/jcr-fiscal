@@ -121,6 +121,64 @@ async function listarParcelas(cliente: string, tipo: 'receber' | 'pagar', de: st
   return out;
 }
 
+// ---------- relatórios (DRE, fluxo de caixa, balanço) ----------
+// nome da categoria em qualquer um dos formatos que a API devolve (lista, objeto ou rateio)
+const nomeCategoria = (o: any): string => {
+  const c = o?.categorias ?? o?.categoria ?? o?.rateio ?? o?.evento?.rateio ?? o?.evento?.categorias;
+  const lista = Array.isArray(c) ? c : c ? [c] : [];
+  return lista.map((x: any) => x?.nome ?? x?.nome_categoria ?? x?.categoria?.nome ?? x?.descricao ?? '').filter(Boolean).join(' / ');
+};
+const dia10 = (v: unknown) => String(v ?? '').slice(0, 10);
+async function listarEventos(cliente: string, tipo: 'receber' | 'pagar', de: string, ate: string) {
+  const out: unknown[] = [];
+  let chaves: string[] | null = null;
+  for (let pagina = 1; pagina <= 80; pagina++) {
+    const q = new URLSearchParams({ pagina: String(pagina), tamanho_pagina: '100', data_vencimento_de: de, data_vencimento_ate: ate });
+    for (const s of STATUS_TODOS) q.append('status', s);
+    const itens = itensDe(await ca(cliente, `/v1/financeiro/eventos-financeiros/contas-a-${tipo}/buscar?${q}`));
+    for (const i of itens) {
+      if (!chaves) chaves = Object.keys(i);
+      const total = Number(i.total ?? i.valor ?? 0), aberto = Number(i.nao_pago ?? i.valor_em_aberto ?? 0);
+      out.push({
+        id: i.id, tipo, descricao: i.descricao ?? '',
+        contato: i.cliente?.nome ?? i.fornecedor?.nome ?? i.contato?.nome ?? '',
+        categoria: nomeCategoria(i),
+        vencimento: dia10(i.data_vencimento ?? i.vencimento),
+        competencia: dia10(i.data_competencia ?? i.competencia ?? i.evento?.data_competencia),
+        dataPagamento: dia10(i.data_pagamento ?? i.data_ultimo_pagamento ?? i.data_quitacao ?? i.baixas?.[0]?.data_pagamento),
+        total, aberto, pago: Number(i.pago ?? i.valor_pago ?? Math.max(0, total - aberto)), status: i.status,
+      });
+    }
+    if (itens.length < 100) break;
+  }
+  return { itens: out, chaves: chaves ?? [] };
+}
+// detalhe da parcela: categoria (rateio), data do pagamento (baixas) e competência
+async function detalheParcela(cliente: string, id: string) {
+  const p = await ca(cliente, `/v1/financeiro/eventos-financeiros/parcelas/${id}`);
+  const baixas = (p?.baixas ?? []) as any[];
+  const datas = baixas.map((b) => dia10(b?.data_pagamento)).filter(Boolean).sort();
+  return { id, categoria: nomeCategoria(p), dataPagamento: datas.pop() ?? '', competencia: dia10(p?.evento?.data_competencia ?? p?.data_competencia),
+    chaves: Object.keys(p ?? {}), chavesEvento: Object.keys(p?.evento ?? {}) };
+}
+// saldo atual das contas financeiras (o caminho exato não é documentado: tenta os prováveis)
+async function saldos(cliente: string) {
+  const out = [];
+  for (const c of await contasFinanceiras(cliente)) {
+    let saldo: number | null = null, erro = '';
+    for (const path of [`/v1/conta-financeira/${c.id}/saldo-atual`, `/v1/conta-financeira/${c.id}/saldo`]) {
+      try {
+        const r = await ca(cliente, path);
+        const v = typeof r === 'number' ? r : r?.saldo_atual ?? r?.saldo ?? r?.valor ?? r?.saldoAtual;
+        if (v != null && !isNaN(Number(v))) { saldo = Number(v); break; }
+        erro = `resposta sem saldo: ${JSON.stringify(r).slice(0, 120)}`;
+      } catch (e) { erro = String((e as Error).message).slice(0, 160); }
+    }
+    out.push({ ...c, saldo, erro: saldo == null ? erro : '' });
+  }
+  return out;
+}
+
 async function contasFinanceiras(cliente: string) {
   const r = await ca(cliente, '/v1/conta-financeira?pagina=1&tamanho_pagina=100&apenas_ativo=true');
   return itensDe(r).map((c: any) => ({ id: c.id, nome: c.nome, banco: c.banco, tipo: c.tipo }));
@@ -414,6 +472,19 @@ Deno.serve(async (req) => {
       }
       case 'categorias':
         return json(await categorias(cliente, p.tipo ?? ''));
+      case 'eventos': {
+        const [r, g] = await Promise.all([listarEventos(cliente, 'receber', p.de, p.ate), listarEventos(cliente, 'pagar', p.de, p.ate)]);
+        return json({ itens: [...r.itens, ...g.itens], chaves: { receber: r.chaves, pagar: g.chaves } });
+      }
+      case 'detalhes': {
+        const out = [];
+        for (const id of ((p.ids ?? []) as string[]).slice(0, 40)) {
+          try { out.push(await detalheParcela(cliente, id)); } catch (e) { out.push({ id, erro: String((e as Error).message).slice(0, 200) }); }
+        }
+        return json(out);
+      }
+      case 'saldos':
+        return json(await saldos(cliente));
       case 'pessoas':
         return json(await pessoas(cliente, p.perfil ?? '', p.busca ?? ''));
       case 'baixar': {

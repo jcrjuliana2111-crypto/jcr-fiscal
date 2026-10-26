@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/jcr-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatórios financeiros · Portal JCR</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14; --surface: #13161e; --surface2: #1a1e2a; --border: #2a2f42;
+    --accent: #4f8ef7; --accent2: #22d3ee; --warn: #ffb84f; --danger: #ff5f5f; --success: #4fcf8a;
+    --text: #e8eaf2; --text2: #9aa1b8; --text3: #626a85;
+    --font: 'DM Sans', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; gap: 20px; height: 64px; position: sticky; top: 0; z-index: 100; }
+  .logo { display: flex; align-items: center; gap: 12px; font-family: 'Syne', var(--font); font-size: 16px; font-weight: 700; }
+  .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #22d3ee, #4f8ef7); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .header-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  main { padding: 28px 32px 80px; max-width: 1400px; margin: 0 auto; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .card h2 { font-size: 13px; font-family: var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--text2); margin-bottom: 14px; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+  label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text2); }
+  input, select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: var(--font); outline: none; }
+  input:focus, select:focus { border-color: var(--accent); }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: var(--font); text-decoration: none; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 16px; }
+  .stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .stat-label { font-size: 11px; font-family: var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--text2); margin-bottom: 4px; }
+  .stat-value { font-size: 19px; font-weight: 700; font-family: var(--mono); }
+  .stat-sub { font-size: 12px; color: var(--text2); margin-top: 3px; font-family: var(--mono); }
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .tab { padding: 8px 14px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); color: var(--text2); cursor: pointer; font-size: 13px; }
+  .tab.active { border-color: var(--accent); color: var(--text); }
+  .table-wrap { border: 1px solid var(--border); border-radius: 10px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 12px; font-size: 11px; font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--text2); border-bottom: 1px solid var(--border); white-space: nowrap; background: var(--surface2); }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  .num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+  tr.total td { font-weight: 700; background: rgba(79,142,247,.06); }
+  tr.grupo td:first-child { cursor: pointer; }
+  tr.cat td { color: var(--text2); font-size: 12px; }
+  tr.cat td:first-child { padding-left: 34px; }
+  .pos { color: var(--success); } .neg { color: var(--danger); }
+  .muted { color: var(--text2); font-size: 12px; line-height: 1.6; }
+  .msg { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; }
+  .msg.show { display: block; }
+  .msg.ok { background: rgba(79,207,138,.12); color: var(--success); }
+  .msg.erro { background: rgba(255,95,95,.12); color: var(--danger); }
+  .msg.info { background: rgba(79,142,247,.12); color: var(--accent); }
+  .graficos { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; margin-top: 16px; }
+  .grafico { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; height: 320px; }
+  .grafico h3 { font-size: 12px; color: var(--text2); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .grafico canvas { max-height: 270px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-family: var(--mono); font-weight: 600; background: var(--surface2); color: var(--text2); }
+  .pill.ok { background: rgba(79,207,138,.15); color: var(--success); }
+  .pill.off { background: rgba(255,95,95,.15); color: var(--danger); }
+  details summary { cursor: pointer; color: var(--text2); font-size: 12px; margin-top: 8px; }
+  @media (max-width: 700px) { header { padding: 0 16px; } main { padding: 16px; } .graficos { grid-template-columns: 1fr; } }
+  @media print {
+    header, .no-print, .tabs { display: none !important; }
+    body { background: #fff; color: #000; } .card, .stat, .grafico { background: #fff; border-color: #ccc; }
+    th { background: #eee; color: #000; } td, .muted { color: #000; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-icon">📊</div>Relatórios financeiros</div>
+  <span style="color:var(--text3);font-size:12px;font-family:var(--mono)">// BPO Financeiro · Portal JCR</span>
+  <div class="header-right">
+    <a class="btn btn-outline" href="../index.html#/bpo">‹ BPO Financeiro</a>
+  </div>
+</header>
+
+<main>
+  <div class="card no-print">
+    <h2>1 · Cliente e períodos</h2>
+    <div class="row">
+      <label>Chave do robô
+        <input type="password" id="roboKey" placeholder="a mesma da Conciliação" onchange="store.set('robo_key', this.value)"></label>
+      <button class="btn btn-outline" onclick="verificar()">Verificar</button>
+      <label>Cliente
+        <select id="cliente" onchange="store.set('robo_cliente', this.value); verificar()"><option value="principal">Cliente principal</option></select></label>
+      <span id="statusCA" class="pill off">não verificado</span>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <label>Período
+        <select id="preset" onchange="aplicarPreset()">
+          <option value="mes">Mês atual</option><option value="mesAnterior" selected>Mês anterior</option><option value="trimestre">Trimestre atual</option>
+          <option value="ano">Ano atual</option><option value="12meses">Últimos 12 meses</option><option value="">Personalizado</option>
+        </select></label>
+      <label>De <input type="date" id="deA" onchange="$('preset').value=''; atualizarComparacao()"></label>
+      <label>Até <input type="date" id="ateA" onchange="$('preset').value=''; atualizarComparacao()"></label>
+      <label>Comparar com
+        <select id="comparar" onchange="atualizarComparacao()">
+          <option value="anterior">Período anterior</option><option value="anoAnterior">Mesmo período do ano anterior</option>
+          <option value="personalizado">Personalizado</option><option value="">Sem comparação</option>
+        </select></label>
+      <label>De <input type="date" id="deB" onchange="$('comparar').value='personalizado'; render()"></label>
+      <label>Até <input type="date" id="ateB" onchange="$('comparar').value='personalizado'; render()"></label>
+      <label>DRE por
+        <select id="regime" onchange="render()"><option value="competencia">Competência</option><option value="caixa">Caixa (pagamentos)</option></select></label>
+      <button class="btn btn-primary" id="btnCarregar" onclick="carregar()">⟳ Carregar do Conta Azul</button>
+    </div>
+    <div class="msg" id="msg"></div>
+    <div id="diag"></div>
+  </div>
+
+  <div class="card no-print" id="saldoCard" style="display:none">
+    <h2>Saldo atual das contas (hoje)</h2>
+    <div class="row">
+      <label>Saldo total hoje (R$)
+        <input id="saldoAtual" style="width:180px;text-align:right;font-family:var(--mono)" onchange="store.set('rel_saldo_' + cliente(), this.value); render()"></label>
+      <button class="btn btn-outline" onclick="buscarSaldos()">⟳ Buscar saldos no Conta Azul</button>
+      <span class="muted" id="saldoInfo"></span>
+    </div>
+    <p class="muted" style="margin-top:8px">O saldo de hoje é a base do fluxo de caixa e do balanço: o saldo de datas passadas é calculado voltando pelos pagamentos e recebimentos feitos depois delas.</p>
+  </div>
+
+  <div id="relatorio" style="display:none">
+    <div class="tabs no-print">
+      <div class="tab active" data-tab="dre" onclick="trocarAba('dre')">📈 DRE</div>
+      <div class="tab" data-tab="fluxo" onclick="trocarAba('fluxo')">💧 Fluxo de caixa</div>
+      <div class="tab" data-tab="balanco" onclick="trocarAba('balanco')">⚖️ Balanço gerencial</div>
+      <div class="tab" data-tab="mapa" onclick="trocarAba('mapa')">🗂️ Categorias da DRE</div>
+      <span style="margin-left:auto" class="row">
+        <button class="btn btn-outline" onclick="exportarExcel()">⬇ Excel</button>
+        <button class="btn btn-outline" onclick="window.print()">🖨 Imprimir / PDF</button>
+      </span>
+    </div>
+    <div class="card">
+      <div id="titulo" class="muted" style="margin-bottom:12px"></div>
+      <div class="stats" id="stats"></div>
+      <div id="conteudo"></div>
+      <div class="graficos" id="graficos"></div>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="relatorios-core.js"></script>
+<script>
+const FN_URL = 'https://qftusjwnlyjokilcjuzb.supabase.co/functions/v1/conta-azul';
+const R = window.Relatorios;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  json(k, padrao) { try { return JSON.parse(localStorage.getItem(k)) ?? padrao; } catch { return padrao; } }
+};
+const brl = n => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const pct = n => n == null ? '—' : `${n > 0 ? '+' : ''}${Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
+const num = s => { const t = String(s ?? '').replace(/[R$\s]/g, ''); return Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t) || 0; };
+const hoje = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const cliente = () => $('cliente').value || 'principal';
+let eventos = [], aba = 'dre', graficos = [], carregadoDe = null;
+
+function msg(tipo, html) { const el = $('msg'); el.className = `msg show ${tipo}`; el.innerHTML = html; }
+async function api(action, body) {
+  const r = await fetch(FN_URL, { method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-action': action, 'x-robo-key': $('roboKey').value, 'x-cliente': cliente() },
+    body: JSON.stringify(body || {}) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.erro || `HTTP ${r.status}`);
+  return data;
+}
+async function verificar() {
+  store.set('robo_key', $('roboKey').value);
+  try {
+    const lista = await api('clientes');
+    const atual = store.get('robo_cliente') || 'principal';
+    $('cliente').innerHTML = lista.map(c => `<option value="${esc(c.cliente)}" ${c.cliente === atual ? 'selected' : ''}>${esc(c.nome)}${c.conectado ? '' : ' (não conectado)'}</option>`).join('');
+    const c = lista.find(x => x.cliente === cliente());
+    $('statusCA').className = 'pill ' + (c && c.conectado ? 'ok' : 'off');
+    $('statusCA').textContent = c && c.conectado ? 'Conta Azul conectado' : 'não conectado';
+    $('saldoAtual').value = store.get('rel_saldo_' + cliente()) || '';
+  } catch (e) { $('statusCA').className = 'pill off'; $('statusCA').textContent = 'chave inválida?'; msg('erro', esc(e.message)); }
+}
+
+// ---------- períodos ----------
+function aplicarPreset() {
+  const p = R.presetPeriodo($('preset').value, hoje());
+  if (p) { $('deA').value = p.de; $('ateA').value = p.ate; }
+  atualizarComparacao();
+}
+function atualizarComparacao() {
+  const c = $('comparar').value, de = $('deA').value, ate = $('ateA').value;
+  if (de && ate && (c === 'anterior' || c === 'anoAnterior')) {
+    const p = c === 'anterior' ? R.periodoAnterior(de, ate) : R.anoAnterior(de, ate);
+    $('deB').value = p.de; $('ateB').value = p.ate;
+  }
+  if (!c) { $('deB').value = ''; $('ateB').value = ''; }
+  render();
+}
+const perA = () => ({ de: $('deA').value, ate: $('ateA').value });
+const perB = () => ($('deB').value && $('ateB').value ? { de: $('deB').value, ate: $('ateB').value } : null);
+const rotulo = p => p ? `${R.dt(p.de)} a ${R.dt(p.ate)}` : '';
+
+// ---------- dados ----------
+const kCache = () => `rel_det_${cliente()}`;
+function aplicarCache() {
+  const cache = store.json(kCache(), {});
+  for (const e of eventos) {
+    const c = cache[e.id]; if (!c) continue;
+    if (!e.categoria && c.categoria) e.categoria = c.categoria;
+    if (!e.dataPagamento && c.dataPagamento) e.dataPagamento = c.dataPagamento;
+    if (!e.competencia && c.competencia) e.competencia = c.competencia;
+  }
+}
+async function carregar() {
+  const a = perA(), b = perB();
+  if (!a.de || !a.ate) return msg('erro', 'Escolha o período.');
+  const minDe = [a.de, b && b.de].filter(Boolean).sort()[0];
+  const maxAte = [a.ate, b && b.ate, hoje()].filter(Boolean).sort().pop();
+  // vencimentos com folga: pagamentos atrasados/adiantados e o que está em aberto entram no balanço e no saldo
+  const de = R.somarDias(minDe, -365), ate = R.somarDias(maxAte, 365);
+  $('btnCarregar').disabled = true;
+  try {
+    msg('info', `Buscando contas a pagar e a receber no Conta Azul (vencimento de ${R.dt(de)} a ${R.dt(ate)})… pode levar alguns segundos.`);
+    const r = await api('eventos', { de, ate });
+    eventos = r.itens; carregadoDe = { de, ate };
+    aplicarCache();
+    const semCat = eventos.filter(e => !e.categoria).length;
+    const pagosSemData = eventos.filter(e => e.pago > 0 && !e.dataPagamento).length;
+    msg(semCat || pagosSemData ? 'info' : 'ok', `${eventos.length} lançamento(s) carregados.` +
+      (semCat ? ` <b>${semCat} sem categoria</b>` : '') + (pagosSemData ? `${semCat ? ' e' : ''} <b>${pagosSemData} pagos sem data de pagamento</b>` : '') +
+      (semCat || pagosSemData ? ` — clique em <button class="btn btn-outline" style="padding:4px 10px" onclick="completar()">Completar pelos detalhes</button> (consulta lançamento por lançamento dos períodos escolhidos).` : ''));
+    $('diag').innerHTML = `<details><summary>Campos que o Conta Azul devolveu (para conferência)</summary><div class="muted">Receber: ${esc(r.chaves.receber.join(', '))}<br>Pagar: ${esc(r.chaves.pagar.join(', '))}</div></details>`;
+    $('saldoCard').style.display = ''; $('relatorio').style.display = '';
+    if (!$('saldoAtual').value) buscarSaldos();
+    render();
+  } catch (e) { msg('erro', esc(e.message)); }
+  finally { $('btnCarregar').disabled = false; }
+}
+// categoria / data de pagamento que não vieram na lista: busca o detalhe de cada lançamento dos períodos
+async function completar() {
+  const a = perA(), b = perB();
+  const noPeriodo = e => [a, b].filter(Boolean).some(p => {
+    const datas = [e.competencia, e.vencimento, e.dataPagamento].filter(Boolean);
+    return datas.some(d => d >= p.de && d <= p.ate);
+  });
+  const falta = eventos.filter(e => (!e.categoria || (e.pago > 0 && !e.dataPagamento)) && noPeriodo(e));
+  if (!falta.length) return msg('ok', 'Nada a completar nos períodos escolhidos.');
+  const cache = store.json(kCache(), {});
+  let feitos = 0, chaves = null, erro = '';
+  for (let k = 0; k < falta.length; k += 40) {
+    msg('info', `Buscando detalhes… ${k}/${falta.length}`);
+    try {
+      const res = await api('detalhes', { ids: falta.slice(k, k + 40).map(e => e.id) });
+      for (const d of res) {
+        if (d.erro) { erro = d.erro; continue; }
+        if (!chaves) chaves = d;
+        cache[d.id] = { categoria: d.categoria, dataPagamento: d.dataPagamento, competencia: d.competencia };
+        feitos++;
+      }
+      store.set(kCache(), JSON.stringify(cache));
+    } catch (e) { erro = e.message; break; }
+  }
+  aplicarCache(); render();
+  const semCat = eventos.filter(e => !e.categoria && noPeriodo(e)).length;
+  msg(erro ? 'erro' : 'ok', `${feitos} lançamento(s) completados.` + (semCat ? ` ${semCat} continuam sem categoria (sem categoria no Conta Azul).` : '') + (erro ? ` Erro: ${esc(erro)}` : ''));
+  if (chaves && semCat) $('diag').innerHTML += `<details><summary>Campos do detalhe da parcela</summary><div class="muted">Parcela: ${esc(chaves.chaves.join(', '))}<br>Evento: ${esc(chaves.chavesEvento.join(', '))}</div></details>`;
+}
+async function buscarSaldos() {
+  $('saldoInfo').textContent = 'buscando…';
+  try {
+    const lista = await api('saldos');
+    const ok = lista.filter(c => c.saldo != null);
+    if (ok.length) {
+      const total = ok.reduce((t, c) => t + c.saldo, 0);
+      $('saldoAtual').value = total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+      store.set('rel_saldo_' + cliente(), $('saldoAtual').value);
+    }
+    $('saldoInfo').innerHTML = ok.length
+      ? `${ok.length} de ${lista.length} conta(s): ` + ok.map(c => `${esc(c.nome)} ${brl(c.saldo)}`).join(' · ') + (ok.length < lista.length ? ` · sem saldo: ${lista.filter(c => c.saldo == null).map(c => esc(c.nome)).join(', ')}` : '')
+      : `O Conta Azul não devolveu os saldos (${esc((lista[0] || {}).erro || 'sem contas')}). Digite o saldo total de hoje.`;
+    render();
+  } catch (e) { $('saldoInfo').textContent = 'Não consegui buscar: ' + e.message + '. Digite o saldo total de hoje.'; }
+}
+
+// ---------- tela ----------
+function trocarAba(a) {
+  aba = a;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === a));
+  render();
+}
+const mapa = () => store.json(`rel_mapa_${cliente()}`, {});
+const sinal = v => `<span class="${v >= 0 ? 'pos' : 'neg'}">${brl(v)}</span>`;
+const varCel = (a, b, inverso) => {
+  const v = R.variacao(a, b), bom = inverso ? v.valor <= 0 : v.valor >= 0;
+  return `<td class="num ${v.valor === 0 ? '' : bom ? 'pos' : 'neg'}">${brl(v.valor)}</td><td class="num ${v.valor === 0 ? '' : bom ? 'pos' : 'neg'}">${pct(v.pct)}</td>`;
+};
+function limparGraficos() { graficos.forEach(g => g.destroy()); graficos = []; $('graficos').innerHTML = ''; }
+function grafico(titulo, config) {
+  if (!window.Chart) return;
+  const box = document.createElement('div'); box.className = 'grafico';
+  box.innerHTML = `<h3>${esc(titulo)}</h3><canvas></canvas>`;
+  $('graficos').appendChild(box);
+  Chart.defaults.color = '#9aa1b8'; Chart.defaults.borderColor = '#2a2f42';
+  config.options = Object.assign({ responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${brl(c.parsed.y)}` } } },
+    scales: { y: { ticks: { callback: v => Number(v).toLocaleString('pt-BR', { notation: 'compact' }) } } } }, config.options || {});
+  graficos.push(new Chart(box.querySelector('canvas'), config));
+}
+const COR = { a: '#4f8ef7', b: '#626a85', ent: '#4fcf8a', sai: '#ff5f5f', entP: 'rgba(79,207,138,.45)', saiP: 'rgba(255,95,95,.45)', linha: '#ffb84f' };
+const saldoHoje = () => num($('saldoAtual').value);
+
+function render() {
+  if (!eventos.length) return;
+  const a = perA(), b = perB();
+  if (!a.de || !a.ate) return;
+  $('titulo').innerHTML = `Período <b>${rotulo(a)}</b>${b ? ` comparado com <b>${rotulo(b)}</b>` : ''} · ${$('cliente').selectedOptions[0]?.textContent || ''}`;
+  limparGraficos();
+  if (aba === 'dre') renderDRE(a, b);
+  else if (aba === 'fluxo') renderFluxo(a, b);
+  else if (aba === 'balanco') renderBalanco(a, b);
+  else renderMapa(a);
+}
+
+// ---------- DRE ----------
+let abertos = new Set();
+function renderDRE(a, b) {
+  const reg = $('regime').value, m = mapa();
+  const A = R.montarDRE(eventos, m, a.de, a.ate, reg), B = b ? R.montarDRE(eventos, m, b.de, b.ate, reg) : null;
+  const margem = (x, d) => d.receitaLiquida ? x / d.receitaLiquida * 100 : null;
+  $('stats').innerHTML = [
+    ['Receita líquida', A.receitaLiquida, B && B.receitaLiquida],
+    ['Lucro bruto', A.lucroBruto, B && B.lucroBruto, margem(A.lucroBruto, A)],
+    ['Resultado operacional', A.resultadoOperacional, B && B.resultadoOperacional, margem(A.resultadoOperacional, A)],
+    ['Resultado líquido', A.resultadoLiquido, B && B.resultadoLiquido, margem(A.resultadoLiquido, A)]
+  ].map(([l, v, vb, mg]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value ${v < 0 ? 'neg' : ''}">${brl(v)}</div>
+    <div class="stat-sub">${mg != null ? `margem ${pct(mg).replace('+', '')}` : ''}${vb != null ? ` · antes ${brl(vb)} (${pct(R.variacao(v, vb).pct)})` : ''}</div></div>`).join('');
+  const nome = id => R.GRUPOS.find(g => g.id === id).nome;
+  const desp = id => R.GRUPOS.find(g => g.id === id).tipo === 'pagar';
+  let html = `<div class="table-wrap"><table><thead><tr><th>DRE (${reg === 'caixa' ? 'caixa' : 'competência'})</th><th class="num">${esc(rotulo(a))}</th><th class="num">AV%</th>` +
+    (B ? `<th class="num">${esc(rotulo(b))}</th><th class="num">AV%</th><th class="num">Variação</th><th class="num">Var %</th>` : '') + '</tr></thead><tbody>';
+  const av = (v, d) => d.receitaBruta ? pct(v / d.receitaBruta * 100).replace('+', '') : '—';
+  for (const l of R.LINHAS_DRE) {
+    if (l.grupo) {
+      const ga = A.grupos[l.grupo], gb = B && B.grupos[l.grupo];
+      if (!ga.total && !(gb && gb.total)) continue;
+      const aberto = abertos.has(l.grupo);
+      html += `<tr class="grupo" onclick="abrir('${l.grupo}')"><td>${aberto ? '▾' : '▸'} ${esc(nome(l.grupo))}</td><td class="num">${brl(ga.total)}</td><td class="num">${av(ga.total, A)}</td>` +
+        (B ? `<td class="num">${brl(gb.total)}</td><td class="num">${av(gb.total, B)}</td>${varCel(ga.total, gb.total, desp(l.grupo))}` : '') + '</tr>';
+      if (aberto) {
+        const cats = [...new Set([...Object.keys(ga.categorias), ...Object.keys(gb ? gb.categorias : {})])].sort((x, y) => (ga.categorias[y] || 0) - (ga.categorias[x] || 0));
+        for (const c of cats) html += `<tr class="cat"><td>${esc(c)}</td><td class="num">${brl(ga.categorias[c] || 0)}</td><td class="num"></td>` +
+          (B ? `<td class="num">${brl(gb.categorias[c] || 0)}</td><td class="num"></td>${varCel(ga.categorias[c] || 0, gb.categorias[c] || 0, desp(l.grupo))}` : '') + '</tr>';
+      }
+    } else {
+      html += `<tr class="total"><td>${esc(l.nome)}</td><td class="num">${sinal(A[l.total])}</td><td class="num">${av(A[l.total], A)}</td>` +
+        (B ? `<td class="num">${sinal(B[l.total])}</td><td class="num">${av(B[l.total], B)}</td>${varCel(A[l.total], B[l.total])}` : '') + '</tr>';
+    }
+  }
+  html += '</tbody></table></div>';
+  const fora = A.grupos.fora.total;
+  html += `<p class="muted" style="margin-top:8px">Clique numa linha para ver as categorias. ${fora ? `Fora da DRE neste período: ${brl(fora)} (empréstimos, transferências etc.). ` : ''}Ajuste em que linha cada categoria entra na aba <b>Categorias da DRE</b>.</p>`;
+  $('conteudo').innerHTML = html;
+  const rot = ['Receita líquida', 'Custos', 'Despesas operacionais', 'Resultado líquido'];
+  const val = d => [d.receitaLiquida, d.grupos.custos.total, d.despesasOperacionais, d.resultadoLiquido];
+  grafico('Comparação entre períodos', { type: 'bar', data: { labels: rot, datasets: [{ label: rotulo(a), data: val(A), backgroundColor: COR.a }, ...(B ? [{ label: rotulo(b), data: val(B), backgroundColor: COR.b }] : [])] } });
+  const mes = R.dreMensal(eventos, m, a.de, a.ate, reg);
+  if (mes.length > 1) grafico('Evolução mensal', { type: 'line', data: { labels: mes.map(x => x.rotulo), datasets: [
+    { label: 'Receita líquida', data: mes.map(x => x.receitaLiquida), borderColor: COR.ent, backgroundColor: COR.ent, tension: .3 },
+    { label: 'Custos e despesas', data: mes.map(x => x.despesas), borderColor: COR.sai, backgroundColor: COR.sai, tension: .3 },
+    { label: 'Resultado', data: mes.map(x => x.resultado), borderColor: COR.linha, backgroundColor: COR.linha, tension: .3 }] } });
+  const despesas = ['custos', 'pessoal', 'administrativas', 'comerciais', 'despFinanceiras', 'deducoes'].map(id => ({ id, v: A.grupos[id].total })).filter(x => x.v > 0);
+  if (despesas.length) grafico('Para onde foi o dinheiro (' + rotulo(a) + ')', { type: 'doughnut',
+    data: { labels: despesas.map(x => nome(x.id).replace('(−) ', '')), datasets: [{ data: despesas.map(x => x.v), backgroundColor: ['#ff5f5f', '#ffb84f', '#4f8ef7', '#22d3ee', '#a78bfa', '#4fcf8a'] }] },
+    options: { scales: {}, plugins: { tooltip: { callbacks: { label: c => `${c.label}: ${brl(c.parsed)}` } } } } });
+}
+function abrir(id) { abertos.has(id) ? abertos.delete(id) : abertos.add(id); render(); }
+
+// ---------- fluxo de caixa ----------
+function fluxoDe(p) {
+  const dias = Math.round((Date.parse(p.ate) - Date.parse(p.de)) / 864e5) + 1;
+  const ini = R.saldoEm(eventos, saldoHoje(), R.somarDias(p.de, -1), hoje());
+  return R.fluxoCaixa(eventos, p.de, p.ate, ini, hoje(), dias <= 31);
+}
+function renderFluxo(a, b) {
+  const A = fluxoDe(a), B = b ? fluxoDe(b) : null;
+  const res = f => f.entradas + f.entradasPrev - f.saidas - f.saidasPrev;
+  $('stats').innerHTML = [
+    ['Saldo inicial', A.saldoInicial, B && B.saldoInicial],
+    ['Entradas', A.entradas + A.entradasPrev, B && B.entradas + B.entradasPrev, A.entradasPrev ? `${brl(A.entradasPrev)} previstas` : ''],
+    ['Saídas', A.saidas + A.saidasPrev, B && B.saidas + B.saidasPrev, A.saidasPrev ? `${brl(A.saidasPrev)} previstas` : ''],
+    ['Geração de caixa', res(A), B && res(B)],
+    ['Saldo final', A.saldoFinal, B && B.saldoFinal]
+  ].map(([l, v, vb, sub]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value ${v < 0 ? 'neg' : ''}">${brl(v)}</div>
+    <div class="stat-sub">${sub || ''}${vb != null ? `${sub ? ' · ' : ''}antes ${brl(vb)} (${pct(R.variacao(v, vb).pct)})` : ''}</div></div>`).join('');
+  const temPrev = A.entradasPrev || A.saidasPrev;
+  let html = `<div class="table-wrap"><table><thead><tr><th>Período</th><th class="num">Saldo inicial</th><th class="num">Entradas</th><th class="num">Saídas</th>` +
+    (temPrev ? '<th class="num">Entradas previstas</th><th class="num">Saídas previstas</th>' : '') + '<th class="num">Saldo final</th></tr></thead><tbody>' +
+    A.linhas.map(l => `<tr><td>${esc(l.rotulo)}</td><td class="num">${brl(l.saldoInicial)}</td><td class="num pos">${brl(l.entradas)}</td><td class="num neg">${brl(l.saidas)}</td>` +
+      (temPrev ? `<td class="num">${brl(l.entradasPrev)}</td><td class="num">${brl(l.saidasPrev)}</td>` : '') + `<td class="num">${sinal(l.saldoFinal)}</td></tr>`).join('') +
+    `<tr class="total"><td>Total</td><td class="num">${brl(A.saldoInicial)}</td><td class="num">${brl(A.entradas)}</td><td class="num">${brl(A.saidas)}</td>` +
+    (temPrev ? `<td class="num">${brl(A.entradasPrev)}</td><td class="num">${brl(A.saidasPrev)}</td>` : '') + `<td class="num">${sinal(A.saldoFinal)}</td></tr></tbody></table></div>`;
+  html += `<p class="muted" style="margin-top:8px">Entradas/saídas = o que foi pago (data do pagamento). Previstas = o que está em aberto, no vencimento.` +
+    (A.atrasoReceber || A.atrasoPagar ? ` Em atraso (contadas como previstas para hoje): a receber ${brl(A.atrasoReceber)} · a pagar ${brl(A.atrasoPagar)}.` : '') +
+    (saldoHoje() ? '' : ' <b>Informe o saldo de hoje</b> para os saldos ficarem certos.') + '</p>';
+  $('conteudo').innerHTML = html;
+  grafico('Entradas, saídas e saldo', { type: 'bar', data: { labels: A.linhas.map(l => l.rotulo), datasets: [
+    { label: 'Entradas', data: A.linhas.map(l => l.entradas), backgroundColor: COR.ent, stack: 'e' },
+    ...(temPrev ? [{ label: 'Entradas previstas', data: A.linhas.map(l => l.entradasPrev), backgroundColor: COR.entP, stack: 'e' }] : []),
+    { label: 'Saídas', data: A.linhas.map(l => l.saidas), backgroundColor: COR.sai, stack: 's' },
+    ...(temPrev ? [{ label: 'Saídas previstas', data: A.linhas.map(l => l.saidasPrev), backgroundColor: COR.saiP, stack: 's' }] : []),
+    { label: 'Saldo final', data: A.linhas.map(l => l.saldoFinal), type: 'line', borderColor: COR.linha, backgroundColor: COR.linha, tension: .3 }] } });
+  if (B) grafico('Comparação entre períodos', { type: 'bar', data: { labels: ['Entradas', 'Saídas', 'Geração de caixa', 'Saldo final'], datasets: [
+    { label: rotulo(a), data: [A.entradas + A.entradasPrev, A.saidas + A.saidasPrev, res(A), A.saldoFinal], backgroundColor: COR.a },
+    { label: rotulo(b), data: [B.entradas + B.entradasPrev, B.saidas + B.saidasPrev, res(B), B.saldoFinal], backgroundColor: COR.b }] } });
+}
+
+// ---------- balanço ----------
+function renderBalanco(a, b) {
+  const h = hoje(), dataA = a.ate > h ? h : a.ate, dataB = b ? (b.ate > h ? h : b.ate) : null;
+  const A = R.balanco(eventos, saldoHoje(), dataA, h), B = b ? R.balanco(eventos, saldoHoje(), dataB, h) : null;
+  $('stats').innerHTML = [
+    ['Ativo (bancos + a receber)', A.ativo, B && B.ativo], ['Passivo (a pagar)', A.passivo, B && B.passivo],
+    ['Patrimônio líquido gerencial', A.pl, B && B.pl], ['Liquidez corrente', A.liquidezCorrente, B && B.liquidezCorrente, true]
+  ].map(([l, v, vb, ind]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value ${v < 0 ? 'neg' : ''}">${ind ? (v == null ? '—' : v.toLocaleString('pt-BR')) : brl(v)}</div>
+    <div class="stat-sub">${vb != null ? `antes ${ind ? vb.toLocaleString('pt-BR') : brl(vb)}` : ''}</div></div>`).join('');
+  const L = [['ATIVO', null, 'h'], ['Disponível (bancos)', 'disponivel'], ['Contas a receber a vencer', 'receberAVencer'], ['Contas a receber vencidas', 'receberVencido'], ['Total do ativo', 'ativo', 't'],
+    ['PASSIVO', null, 'h'], ['Contas a pagar a vencer', 'pagarAVencer', '', true], ['Contas a pagar vencidas', 'pagarVencido', '', true], ['Total do passivo', 'passivo', 't', true],
+    ['Patrimônio líquido gerencial (ativo − passivo)', 'pl', 't']];
+  $('conteudo').innerHTML = `<div class="table-wrap"><table><thead><tr><th>Balanço gerencial</th><th class="num">em ${R.dt(dataA)}</th>` +
+    (B ? `<th class="num">em ${R.dt(dataB)}</th><th class="num">Variação</th><th class="num">Var %</th>` : '') + '</tr></thead><tbody>' +
+    L.map(([n, k, t, inv]) => k ? `<tr class="${t === 't' ? 'total' : ''}"><td>${esc(n)}</td><td class="num">${t === 't' ? sinal(A[k]) : brl(A[k])}</td>` +
+      (B ? `<td class="num">${t === 't' ? sinal(B[k]) : brl(B[k])}</td>${varCel(A[k], B[k], inv)}` : '') + '</tr>'
+      : `<tr><td colspan="${B ? 5 : 2}" style="font-family:var(--mono);font-size:11px;color:var(--accent2);letter-spacing:.08em">${n}</td></tr>`).join('') +
+    `</tbody></table></div><p class="muted" style="margin-top:8px">Balanço <b>gerencial</b> com o que existe no Conta Azul: saldo das contas (calculado a partir do saldo de hoje) e contas a receber/pagar em aberto na data. Não inclui estoque, imobilizado, empréstimos de longo prazo nem o patrimônio contábil — para isso, use o balanço da contabilidade.${saldoHoje() ? '' : ' <b>Informe o saldo de hoje</b> para o disponível ficar certo.'}</p>`;
+  grafico('Ativo × passivo', { type: 'bar', data: { labels: ['Disponível', 'A receber', 'A pagar', 'PL gerencial'], datasets: [
+    { label: R.dt(dataA), data: [A.disponivel, A.receberAVencer + A.receberVencido, A.passivo, A.pl], backgroundColor: COR.a },
+    ...(B ? [{ label: R.dt(dataB), data: [B.disponivel, B.receberAVencer + B.receberVencido, B.passivo, B.pl], backgroundColor: COR.b }] : [])] } });
+  // evolução mês a mês do PL gerencial dentro do período A
+  const fins = R.meses(a.de, dataA).map(ym => { const f = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0); const s = `${ym}-${String(f.getDate()).padStart(2, '0')}`; return s > dataA ? dataA : s; });
+  if (fins.length > 1) {
+    const bs = fins.map(d => R.balanco(eventos, saldoHoje(), d, h));
+    grafico('Evolução no período', { type: 'line', data: { labels: fins.map(d => R.nomeMes(d.slice(0, 7))), datasets: [
+      { label: 'Ativo', data: bs.map(x => x.ativo), borderColor: COR.ent, backgroundColor: COR.ent, tension: .3 },
+      { label: 'Passivo', data: bs.map(x => x.passivo), borderColor: COR.sai, backgroundColor: COR.sai, tension: .3 },
+      { label: 'PL gerencial', data: bs.map(x => x.pl), borderColor: COR.linha, backgroundColor: COR.linha, tension: .3 }] } });
+  }
+}
+
+// ---------- mapa de categorias ----------
+function renderMapa(a) {
+  $('stats').innerHTML = '';
+  const m = mapa(), reg = $('regime').value;
+  const cats = {};
+  for (const e of eventos) {
+    const k = R.chaveCat(e);
+    const c = cats[k] || (cats[k] = { tipo: e.tipo, categoria: e.categoria || '(sem categoria)', n: 0, valor: 0 });
+    c.n++;
+    const v = R.naDRE(e, reg);
+    if (v && v.data >= a.de && v.data <= a.ate) c.valor += v.valor;
+  }
+  const lista = Object.entries(cats).sort((x, y) => x[1].tipo.localeCompare(y[1].tipo) || y[1].valor - x[1].valor);
+  $('conteudo').innerHTML = `<p class="muted" style="margin-bottom:10px">Em que linha da DRE cada categoria do Conta Azul entra. O robô sugere pelo nome; mude o que precisar — fica salvo para este cliente.</p>
+    <div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Categoria</th><th class="num">Lançamentos</th><th class="num">No período</th><th>Linha da DRE</th></tr></thead><tbody>` +
+    lista.map(([k, c]) => {
+      const atual = m[k] || R.palpiteGrupo(c.categoria === '(sem categoria)' ? '' : c.categoria, c.tipo);
+      return `<tr><td>${c.tipo === 'receber' ? 'Receita' : 'Despesa'}</td><td>${esc(c.categoria)}</td><td class="num">${c.n}</td><td class="num">${brl(c.valor)}</td>
+        <td><select onchange="mudarGrupo('${esc(k).replace(/'/g, '&#39;')}', this.value)">${R.GRUPOS.map(g => `<option value="${g.id}" ${g.id === atual ? 'selected' : ''}>${esc(g.nome)}</option>`).join('')}</select>
+        ${m[k] ? '' : '<span class="muted"> (automático)</span>'}</td></tr>`;
+    }).join('') + '</tbody></table></div>';
+}
+function mudarGrupo(k, g) { const m = mapa(); m[k] = g; store.set(`rel_mapa_${cliente()}`, JSON.stringify(m)); }
+
+// ---------- Excel ----------
+function exportarExcel() {
+  if (!window.XLSX) return msg('erro', 'Não carregou o gerador de Excel.');
+  const a = perA(), b = perB(), reg = $('regime').value, m = mapa(), wb = XLSX.utils.book_new();
+  const A = R.montarDRE(eventos, m, a.de, a.ate, reg), B = b ? R.montarDRE(eventos, m, b.de, b.ate, reg) : null;
+  const dre = [['DRE (' + reg + ')', rotulo(a), ...(B ? [rotulo(b), 'Variação', 'Var %'] : [])]];
+  for (const l of R.LINHAS_DRE) {
+    const va = l.grupo ? A.grupos[l.grupo].total : A[l.total], vb = B ? (l.grupo ? B.grupos[l.grupo].total : B[l.total]) : null;
+    dre.push([l.grupo ? R.GRUPOS.find(g => g.id === l.grupo).nome : l.nome, va, ...(B ? [vb, va - vb, vb ? (va - vb) / Math.abs(vb) : null] : [])]);
+    if (l.grupo) for (const [c, v] of Object.entries(A.grupos[l.grupo].categorias)) dre.push(['   ' + c, v, ...(B ? [B.grupos[l.grupo].categorias[c] || 0] : [])]);
+  }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dre), 'DRE');
+  const F = fluxoDe(a);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Período', 'Saldo inicial', 'Entradas', 'Saídas', 'Entradas previstas', 'Saídas previstas', 'Saldo final'],
+    ...F.linhas.map(l => [l.rotulo, l.saldoInicial, l.entradas, l.saidas, l.entradasPrev, l.saidasPrev, l.saldoFinal])]), 'Fluxo de caixa');
+  const h = hoje(), bA = R.balanco(eventos, saldoHoje(), a.ate > h ? h : a.ate, h), bB = b ? R.balanco(eventos, saldoHoje(), b.ate > h ? h : b.ate, h) : null;
+  const linhasB = [['Disponível (bancos)', 'disponivel'], ['A receber a vencer', 'receberAVencer'], ['A receber vencidas', 'receberVencido'], ['Total do ativo', 'ativo'],
+    ['A pagar a vencer', 'pagarAVencer'], ['A pagar vencidas', 'pagarVencido'], ['Total do passivo', 'passivo'], ['PL gerencial', 'pl']];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Balanço gerencial', bA.data, ...(bB ? [bB.data] : [])], ...linhasB.map(([n, k]) => [n, bA[k], ...(bB ? [bB[k]] : [])])]), 'Balanço');
+  XLSX.writeFile(wb, `relatorios_${cliente()}_${a.de}_${a.ate}.xlsx`);
+}
+
+// ---------- início ----------
+$('roboKey').value = store.get('robo_key') || '';
+aplicarPreset();
+if ($('roboKey').value) verificar();
+</script>
+</body>
+</html>

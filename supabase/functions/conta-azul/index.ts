@@ -131,7 +131,7 @@ const nomeCategoria = (o: any): string => {
 const dia10 = (v: unknown) => String(v ?? '').slice(0, 10);
 async function listarEventos(cliente: string, tipo: 'receber' | 'pagar', de: string, ate: string) {
   const out: unknown[] = [];
-  let chaves: string[] | null = null, amostra = '';
+  let chaves: string[] | null = null, amostra = '', amostraPaga = false;
   const porStatus: Record<string, number> = {};
   for (let pagina = 1; pagina <= 80; pagina++) {
     const q = new URLSearchParams({ pagina: String(pagina), tamanho_pagina: '100', data_vencimento_de: de, data_vencimento_ate: ate });
@@ -141,7 +141,8 @@ async function listarEventos(cliente: string, tipo: 'receber' | 'pagar', de: str
       if (!chaves) chaves = Object.keys(i);
       porStatus[String(i.status)] = (porStatus[String(i.status)] ?? 0) + 1;
       // exemplo de um lançamento já pago (ou o primeiro), para conferir os campos
-      if (!amostra || (!amostra.includes('"pago"') && Number(i.pago ?? 0) > 0)) amostra = JSON.stringify(i).slice(0, 1800);
+      const paga = Number(i.pago ?? 0) > 0 || !['EM_ABERTO', 'ATRASADO'].includes(String(i.status));
+      if (!amostra || (!amostraPaga && paga)) { amostra = JSON.stringify(i).slice(0, 1800); amostraPaga = paga; }
       const total = Number(i.total ?? i.valor ?? 0), aberto = Number(i.nao_pago ?? i.valor_em_aberto ?? 0);
       out.push({
         id: i.id, tipo, descricao: i.descricao ?? '',

@@ -133,7 +133,8 @@ async function listarEventos(cliente: string, tipo: 'receber' | 'pagar', de: str
   const out: unknown[] = [];
   let chaves: string[] | null = null, amostra = '', amostraPaga = false;
   const porStatus: Record<string, number> = {};
-  for (let pagina = 1; pagina <= 80; pagina++) {
+  let cortado = false;
+  for (let pagina = 1; pagina <= 150; pagina++) {
     const q = new URLSearchParams({ pagina: String(pagina), tamanho_pagina: '100', data_vencimento_de: de, data_vencimento_ate: ate });
     for (const s of STATUS_TODOS) q.append('status', s);
     const itens = itensDe(await ca(cliente, `/v1/financeiro/eventos-financeiros/contas-a-${tipo}/buscar?${q}`));
@@ -155,8 +156,9 @@ async function listarEventos(cliente: string, tipo: 'receber' | 'pagar', de: str
       });
     }
     if (itens.length < 100) break;
+    if (pagina === 150) cortado = true;
   }
-  return { itens: out, chaves: chaves ?? [], porStatus, amostra };
+  return { itens: out, chaves: chaves ?? [], porStatus, amostra, cortado };
 }
 // detalhe da parcela: categoria (rateio), data do pagamento (baixas) e competência
 async function detalheParcela(cliente: string, id: string) {
@@ -480,7 +482,7 @@ Deno.serve(async (req) => {
       case 'eventos': {
         const [r, g] = await Promise.all([listarEventos(cliente, 'receber', p.de, p.ate), listarEventos(cliente, 'pagar', p.de, p.ate)]);
         return json({ itens: [...r.itens, ...g.itens], chaves: { receber: r.chaves, pagar: g.chaves },
-          porStatus: { receber: r.porStatus, pagar: g.porStatus }, amostra: { receber: r.amostra, pagar: g.amostra } });
+          porStatus: { receber: r.porStatus, pagar: g.porStatus }, amostra: { receber: r.amostra, pagar: g.amostra }, cortado: r.cortado || g.cortado });
       }
       case 'detalhes': {
         const out = [];

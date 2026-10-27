@@ -229,7 +229,7 @@ async function carregar() {
   const minDe = [a.de, b && b.de].filter(Boolean).sort()[0];
   const maxAte = [a.ate, b && b.ate, hoje()].filter(Boolean).sort().pop();
   // vencimentos com folga: pagamentos atrasados/adiantados e o que está em aberto entram no balanço e no saldo
-  const de = R.somarDias(minDe, -365), ate = R.somarDias(maxAte, 365);
+  const de = R.somarDias(minDe, -120), ate = R.somarDias(maxAte, 120);
   $('btnCarregar').disabled = true;
   try {
     msg('info', `Buscando contas a pagar e a receber no Conta Azul (vencimento de ${R.dt(de)} a ${R.dt(ate)})… pode levar alguns segundos.`);
@@ -238,7 +238,7 @@ async function carregar() {
     aplicarCache();
     const semCat = eventos.filter(e => !e.categoria).length;
     const pagosSemData = eventos.filter(e => e.pago > 0 && !e.dataPagamento).length;
-    msg(semCat || pagosSemData ? 'info' : 'ok', `${eventos.length} lançamento(s) carregados.` +
+    msg(semCat || pagosSemData || r.cortado ? 'info' : 'ok', `${eventos.length} lançamento(s) carregados.` + (r.cortado ? ' <b>Atenção: muitos lançamentos, a busca parou em 15.000 por tipo — escolha períodos menores.</b>' : '') +
       (semCat ? ` <b>${semCat} sem categoria</b>` : '') + (pagosSemData ? `${semCat ? ' e' : ''} <b>${pagosSemData} pagos sem data de pagamento</b>` : '') +
       (semCat || pagosSemData ? ` — clique em <button class="btn btn-outline" style="padding:4px 10px" onclick="completar()">Completar pelos detalhes</button> (consulta lançamento por lançamento dos períodos escolhidos).` : ''));
     const st = o => Object.entries(o || {}).map(([k, v]) => `${k}: ${v}`).join(' · ') || '—';

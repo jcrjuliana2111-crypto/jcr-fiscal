@@ -84,7 +84,9 @@
     if (tem('outras despesas', 'nao operacional', 'perda')) return 'outrasDesp';
     return 'administrativas';
   }
-  const grupoDe = (ev, mapa) => (mapa && mapa[chaveCat(ev)]) || palpiteGrupo(ev.categoria, ev.tipo);
+  const palpites = new Map(); // o palpite só depende do tipo e da categoria: calcula uma vez
+  const palpiteMemo = (cat, tipo) => { const k = tipo + '|' + cat; let g = palpites.get(k); if (!g) palpites.set(k, g = palpiteGrupo(cat, tipo)); return g; };
+  const grupoDe = (ev, mapa) => (mapa && mapa[chaveCat(ev)]) || palpiteMemo(ev.categoria, ev.tipo);
   const chaveCat = ev => `${ev.tipo}|${ev.categoria || '(sem categoria)'}`;
 
   // valor e data do evento na DRE: competência (valor total na data de competência) ou caixa (pago na data do pagamento)

@@ -131,13 +131,19 @@ const nomeCategoria = (o: any): string => {
 const dia10 = (v: unknown) => String(v ?? '').slice(0, 10);
 async function listarEventos(cliente: string, tipo: 'receber' | 'pagar', de: string, ate: string) {
   const out: unknown[] = [];
-  let chaves: string[] | null = null;
-  for (let pagina = 1; pagina <= 80; pagina++) {
+  let chaves: string[] | null = null, amostra = '', amostraPaga = false;
+  const porStatus: Record<string, number> = {};
+  let cortado = false;
+  for (let pagina = 1; pagina <= 150; pagina++) {
     const q = new URLSearchParams({ pagina: String(pagina), tamanho_pagina: '100', data_vencimento_de: de, data_vencimento_ate: ate });
     for (const s of STATUS_TODOS) q.append('status', s);
     const itens = itensDe(await ca(cliente, `/v1/financeiro/eventos-financeiros/contas-a-${tipo}/buscar?${q}`));
     for (const i of itens) {
       if (!chaves) chaves = Object.keys(i);
+      porStatus[String(i.status)] = (porStatus[String(i.status)] ?? 0) + 1;
+      // exemplo de um lançamento já pago (ou o primeiro), para conferir os campos
+      const paga = Number(i.pago ?? 0) > 0 || !['EM_ABERTO', 'ATRASADO'].includes(String(i.status));
+      if (!amostra || (!amostraPaga && paga)) { amostra = JSON.stringify(i).slice(0, 1800); amostraPaga = paga; }
       const total = Number(i.total ?? i.valor ?? 0), aberto = Number(i.nao_pago ?? i.valor_em_aberto ?? 0);
       out.push({
         id: i.id, tipo, descricao: i.descricao ?? '',
@@ -150,8 +156,9 @@ async function listarEventos(cliente: string, tipo: 'receber' | 'pagar', de: str
       });
     }
     if (itens.length < 100) break;
+    if (pagina === 150) cortado = true;
   }
-  return { itens: out, chaves: chaves ?? [] };
+  return { itens: out, chaves: chaves ?? [], porStatus, amostra, cortado };
 }
 // detalhe da parcela: categoria (rateio), data do pagamento (baixas) e competência
 async function detalheParcela(cliente: string, id: string) {
@@ -474,7 +481,8 @@ Deno.serve(async (req) => {
         return json(await categorias(cliente, p.tipo ?? ''));
       case 'eventos': {
         const [r, g] = await Promise.all([listarEventos(cliente, 'receber', p.de, p.ate), listarEventos(cliente, 'pagar', p.de, p.ate)]);
-        return json({ itens: [...r.itens, ...g.itens], chaves: { receber: r.chaves, pagar: g.chaves } });
+        return json({ itens: [...r.itens, ...g.itens], chaves: { receber: r.chaves, pagar: g.chaves },
+          porStatus: { receber: r.porStatus, pagar: g.porStatus }, amostra: { receber: r.amostra, pagar: g.amostra }, cortado: r.cortado || g.cortado });
       }
       case 'detalhes': {
         const out = [];

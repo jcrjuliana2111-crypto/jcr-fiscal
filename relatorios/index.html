@@ -241,7 +241,12 @@ async function carregar() {
     msg(semCat || pagosSemData ? 'info' : 'ok', `${eventos.length} lançamento(s) carregados.` +
       (semCat ? ` <b>${semCat} sem categoria</b>` : '') + (pagosSemData ? `${semCat ? ' e' : ''} <b>${pagosSemData} pagos sem data de pagamento</b>` : '') +
       (semCat || pagosSemData ? ` — clique em <button class="btn btn-outline" style="padding:4px 10px" onclick="completar()">Completar pelos detalhes</button> (consulta lançamento por lançamento dos períodos escolhidos).` : ''));
-    $('diag').innerHTML = `<details><summary>Campos que o Conta Azul devolveu (para conferência)</summary><div class="muted">Receber: ${esc(r.chaves.receber.join(', '))}<br>Pagar: ${esc(r.chaves.pagar.join(', '))}</div></details>`;
+    const st = o => Object.entries(o || {}).map(([k, v]) => `${k}: ${v}`).join(' · ') || '—';
+    const nTipo = t => eventos.filter(e => e.tipo === t).length;
+    $('diag').innerHTML = `<details ${nTipo('pagar') < nTipo('receber') / 10 ? 'open' : ''}><summary>Conferência dos dados do Conta Azul</summary><div class="muted">
+      A receber: <b>${nTipo('receber')}</b> lançamentos (${esc(st(r.porStatus && r.porStatus.receber))}) · A pagar: <b>${nTipo('pagar')}</b> (${esc(st(r.porStatus && r.porStatus.pagar))})<br>
+      Campos — receber: ${esc(r.chaves.receber.join(', '))}<br>Campos — pagar: ${esc(r.chaves.pagar.join(', '))}
+      ${r.amostra ? `<br>Exemplo a pagar: <code style="word-break:break-all">${esc(r.amostra.pagar)}</code><br>Exemplo a receber: <code style="word-break:break-all">${esc(r.amostra.receber)}</code>` : ''}</div></details>`;
     $('saldoCard').style.display = ''; $('relatorio').style.display = '';
     if (!$('saldoAtual').value) buscarSaldos();
     render();
@@ -257,6 +262,7 @@ async function completar() {
   });
   const falta = eventos.filter(e => (!e.categoria || (e.pago > 0 && !e.dataPagamento)) && noPeriodo(e));
   if (!falta.length) return msg('ok', 'Nada a completar nos períodos escolhidos.');
+  if (falta.length > 1500 && !confirm(`São ${falta.length} lançamentos para consultar um a um — pode levar vários minutos. Continuar?`)) return;
   const cache = store.json(kCache(), {});
   let feitos = 0, chaves = null, erro = '';
   for (let k = 0; k < falta.length; k += 40) {
@@ -321,7 +327,10 @@ function grafico(titulo, config) {
 const COR = { a: '#4f8ef7', b: '#626a85', ent: '#4fcf8a', sai: '#ff5f5f', entP: 'rgba(79,207,138,.45)', saiP: 'rgba(255,95,95,.45)', linha: '#ffb84f' };
 const saldoHoje = () => num($('saldoAtual').value);
 
-function render() {
+// junta várias chamadas seguidas (carregar, saldos, gráficos chegando) num desenho só
+let agendado = 0;
+function render() { cancelAnimationFrame(agendado); agendado = requestAnimationFrame(() => setTimeout(desenhar, 0)); }
+function desenhar() {
   if (!eventos.length) return;
   const a = perA(), b = perB();
   if (!a.de || !a.ate) return;

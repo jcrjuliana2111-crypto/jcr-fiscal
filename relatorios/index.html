@@ -199,17 +199,19 @@ function aplicarPreset() {
   if (p) { $('deA').value = p.de; $('ateA').value = p.ate; }
   atualizarComparacao();
 }
+// data completa e plausível (enquanto a pessoa digita o ano, o campo passa por valores como 0002-…)
+const dataOk = d => /^(19|20)\d\d-\d\d-\d\d$/.test(d || '');
 function atualizarComparacao() {
   const c = $('comparar').value, de = $('deA').value, ate = $('ateA').value;
-  if (de && ate && (c === 'anterior' || c === 'anoAnterior')) {
+  if (dataOk(de) && dataOk(ate) && de <= ate && (c === 'anterior' || c === 'anoAnterior')) {
     const p = c === 'anterior' ? R.periodoAnterior(de, ate) : R.anoAnterior(de, ate);
     $('deB').value = p.de; $('ateB').value = p.ate;
   }
   if (!c) { $('deB').value = ''; $('ateB').value = ''; }
   render();
 }
-const perA = () => ({ de: $('deA').value, ate: $('ateA').value });
-const perB = () => ($('deB').value && $('ateB').value ? { de: $('deB').value, ate: $('ateB').value } : null);
+const perA = () => (dataOk($('deA').value) && dataOk($('ateA').value) ? { de: $('deA').value, ate: $('ateA').value } : { de: '', ate: '' });
+const perB = () => (dataOk($('deB').value) && dataOk($('ateB').value) ? { de: $('deB').value, ate: $('ateB').value } : null);
 const rotulo = p => p ? `${R.dt(p.de)} a ${R.dt(p.ate)}` : '';
 
 // ---------- dados ----------
@@ -232,9 +234,25 @@ async function carregar() {
   const de = R.somarDias(minDe, -120), ate = R.somarDias(maxAte, 120);
   $('btnCarregar').disabled = true;
   try {
-    msg('info', `Buscando contas a pagar e a receber no Conta Azul (vencimento de ${R.dt(de)} a ${R.dt(ate)})… pode levar alguns segundos.`);
-    const r = await api('eventos', { de, ate });
-    eventos = r.itens; carregadoDe = { de, ate };
+    // em pedaços de 2 meses: uma busca só, de anos, estoura o limite da função (HTTP 546)
+    const pedacos = [];
+    for (let d = de; d <= ate; ) { const f = R.somarDias(d, 61) < ate ? R.somarDias(d, 61) : ate; pedacos.push([d, f]); d = R.somarDias(f, 1); }
+    const porId = new Map();
+    let r = null;
+    for (const [k, [d, f]] of pedacos.entries()) {
+      msg('info', `Buscando no Conta Azul… parte ${k + 1} de ${pedacos.length} (vencimentos de ${R.dt(d)} a ${R.dt(f)}) · ${porId.size} lançamento(s) até agora`);
+      let parte;
+      for (let tentativa = 1; ; tentativa++) {
+        try { parte = await api('eventos', { de: d, ate: f }); break; }
+        catch (e) { if (tentativa >= 3) throw new Error(`parte ${k + 1} (${R.dt(d)} a ${R.dt(f)}): ${e.message}`); await new Promise(ok => setTimeout(ok, 1500 * tentativa)); }
+      }
+      for (const it of parte.itens) porId.set(it.id, it);
+      if (!r) r = { ...parte, porStatus: { receber: {}, pagar: {} }, cortado: false };
+      for (const t of ['receber', 'pagar']) for (const [st, n] of Object.entries((parte.porStatus || {})[t] || {})) r.porStatus[t][st] = (r.porStatus[t][st] || 0) + n;
+      if (parte.amostra) for (const t of ['receber', 'pagar']) if (!r.amostra[t] && parte.amostra[t]) r.amostra[t] = parte.amostra[t];
+      r.cortado = r.cortado || parte.cortado;
+    }
+    eventos = [...porId.values()]; carregadoDe = { de, ate };
     aplicarCache();
     const semCat = eventos.filter(e => !e.categoria).length;
     const pagosSemData = eventos.filter(e => e.pago > 0 && !e.dataPagamento).length;

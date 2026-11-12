@@ -71,6 +71,11 @@ const lista = (itens, tipo = 'ul', vazio) => itens && itens.length
   ? `<${tipo}>${itens.map(i => `<li>${esc(i)}</li>`).join('')}</${tipo}>`
   : `<p class="vazio">${vazio}</p>`;
 
+// Links externos (manuais no Drive, sites do governo) abrem em outra aba
+const link = f => !f.url ? `<a>${esc(f.nome)}</a>`
+  : /^https?:/.test(f.url) ? `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.nome)} ↗</a>`
+  : `<a href="${esc(f.url)}">${esc(f.nome)}</a>`;
+
 if (!proc) {
   view.innerHTML = '<div class="erro">Processo não encontrado. <a href="index.html">Voltar ao portal</a></div>';
 } else {
@@ -97,8 +102,9 @@ if (!proc) {
       ? `<ul class="check">${p.checklist.map(i => `<li><input type="checkbox"><span>${esc(i)}</span></li>`).join('')}</ul>`
       : '<p class="vazio">Itens a conferir antes de dar o processo como concluído.</p>'}</section>
     <section><h2>Ferramentas usadas</h2>${p.ferramentas && p.ferramentas.length
-      ? `<div class="tools">${p.ferramentas.map(f => f.url ? `<a href="${esc(f.url)}">${esc(f.nome)}</a>` : `<a>${esc(f.nome)}</a>`).join('')}</div>`
+      ? `<div class="tools">${p.ferramentas.map(link).join('')}</div>`
       : '<p class="vazio">Sistemas, sites e ferramentas do portal usados neste processo.</p>'}</section>
+    ${p.manuais && p.manuais.length ? `<section><h2>Manuais e legislação</h2><div class="tools">${p.manuais.map(link).join('')}</div></section>` : ''}
     <section><h2>Pontos de atenção</h2>${lista(p.atencao, 'ul', 'Erros comuns, exceções e situações que exigem cuidado.')}</section>`;
 }
 </script>

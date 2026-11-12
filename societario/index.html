@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/jcr-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Painel Societário · Portal JCR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="societario-core.js"></script>
+<style>
+:root{
+  --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;
+  --border:#2a2f42; --border2:#363d55;
+  --text:#e8eaf2; --text2:#9aa1b8; --text3:#626a85;
+  --accent:#60a5fa; --accent2:#a78bfa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171; --orange:#fb923c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh;font-size:14px}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+main{max-width:1240px;margin:0 auto;padding:24px 24px 90px}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:18px}
+.head h1{font:800 22px Syne,sans-serif}
+.head p{color:var(--text2);font-size:13px;margin-top:2px}
+.head .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--accent),#6b7ff7);color:#fff;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{filter:brightness(1.08)}
+.btn[disabled]{opacity:.55;cursor:wait}
+.btn.sec{background:var(--surface2);border:1px solid var(--border2);color:var(--text)}
+.btn.danger{background:#b91c1c}
+.btn.sm{padding:5px 10px;font-size:12.5px;border-radius:8px}
+.icon-btn{background:none;border:1px solid transparent;border-radius:8px;padding:4px 7px;cursor:pointer;color:var(--text2)}
+.icon-btn:hover{border-color:var(--border2);color:var(--text)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;position:relative;overflow:hidden;text-align:left}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--accent))}
+.kpi.on{border-color:var(--c,var(--accent))}
+.kpi .v{font:800 26px Syne,sans-serif}
+.kpi .l{font-size:12px;color:var(--text2);margin-top:2px}
+label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px}
+input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:8px 11px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input[type=checkbox]{width:auto;accent-color:var(--accent)}
+textarea{min-height:70px;resize:vertical}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.filters>*{flex:1 1 150px;max-width:230px}
+.filters .grow{max-width:none;flex:2 1 220px}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tab{border:1px solid var(--border2);background:var(--surface);border-radius:999px;padding:6px 13px;cursor:pointer;font-weight:600;color:var(--text2);font-size:13px}
+.tab.on{border-color:var(--accent);color:var(--text);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:color-mix(in srgb,var(--surface2) 60%,transparent)}
+.tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.muted{color:var(--text3);font-size:12px}
+.nowrap{white-space:nowrap}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c)}
+.bar{height:7px;border-radius:6px;background:var(--surface3);overflow:hidden;min-width:90px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.empty{padding:34px;text-align:center;color:var(--text3)}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:640px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.modal.lg{max-width:900px}
+.modal-h{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.modal-h h3{font:700 16px Syne,sans-serif}
+.modal-h .x{margin-left:auto}
+.modal-b{padding:16px 18px;display:grid;gap:12px}
+.modal-f{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--border)}
+.modal-f .esq{margin-right:auto}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.help{font-size:11.5px;color:var(--text3);margin-top:4px;line-height:1.4}
+.det{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+.box{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.box h4{font:700 11px Syne,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin-bottom:8px}
+.step{display:flex;align-items:center;gap:10px;padding:6px 2px;border-bottom:1px dashed var(--border);cursor:pointer;margin:0;font-weight:500;color:var(--text);font-size:13.5px}
+.step:last-child{border-bottom:0}
+.step.done .t{text-decoration:line-through;color:var(--text3)}
+.step .d{margin-left:auto;font-size:11.5px;color:var(--text3);white-space:nowrap}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px}
+.kv span{color:var(--text3)}
+.toast{position:fixed;right:18px;bottom:18px;z-index:99;background:var(--surface3);border:1px solid var(--border2);border-left:4px solid var(--ok);padding:11px 16px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:380px}
+.toast.err{border-left-color:var(--danger)}
+@media (max-width:800px){
+  main{padding:16px 16px 90px}
+  .f2,.f3,.det{grid-template-columns:1fr}
+  .filters>*{max-width:none}
+}
+</style>
+</head>
+<body>
+<main id="view"><div class="empty">Carregando…</div></main>
+<div id="modal-root"></div>
+
+<script>
+const SUPABASE_URL = 'https://onecnoicxqjhgolqncjj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_paOFHdYEcMr7MZdOFx16Lw_sXt0n0-9';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SO = window.Societario;
+const FACILITA = 'https://portalfacilitasp.sp.gov.br/facilitasp';
+const NATUREZAS = ['MEI', 'EI', 'LTDA', 'SLU', 'S/A', 'Cooperativa', 'Outra'];
+const SIT = {
+  andamento:         { nome: 'Em andamento',     cor: 'var(--accent)' },
+  parado:            { nome: 'Parado',           cor: 'var(--orange)' },
+  exigencia:         { nome: 'Em exigência',     cor: 'var(--warn)' },
+  exigencia_vencida: { nome: 'Exigência vencida', cor: 'var(--danger)' },
+  concluido:         { nome: 'Concluído',        cor: 'var(--ok)' },
+  cancelado:         { nome: 'Cancelado',        cor: 'var(--text3)' },
+};
+
+// ── utilidades ──
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const semAcento = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const dataBR = iso => (iso ? iso.split('-').reverse().join('/') : '—');
+const brl = v => (v == null ? '—' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+const num = v => { const s = String(v ?? '').trim().replace(/\s|R\$/g, ''); if (!s) return null; return +(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s) || 0; };
+function toast(msg, erro) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (erro ? ' err' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), erro ? 6000 : 3000);
+}
+function chk(error) { if (error) { toast('Erro: ' + error.message, true); throw error; } }
+function opts(lista, sel, vazio) {
+  return (vazio != null ? `<option value="">${esc(vazio)}</option>` : '') +
+    lista.map(o => { const [v, n] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}" ${String(v) === String(sel ?? '') ? 'selected' : ''}>${esc(n)}</option>`; }).join('');
+}
+function modal(titulo, corpo, rodape, lg) {
+  $('modal-root').innerHTML = `<div class="ov" onclick="if(event.target===this)fechar()"><div class="modal ${lg ? 'lg' : ''}">
+    <div class="modal-h"><h3>${titulo}</h3><button class="icon-btn x" onclick="fechar()">✕</button></div>
+    <div class="modal-b">${corpo}</div>${rodape ? `<div class="modal-f">${rodape}</div>` : ''}</div></div>`;
+}
+function fechar() { $('modal-root').innerHTML = ''; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') fechar(); });
+const badge = s => `<span class="badge" style="--c:${SIT[s].cor}">${SIT[s].nome}</span>`;
+const tipoNome = t => (SO.TIPOS[t] ? SO.TIPOS[t].ic + ' ' + SO.TIPOS[t].nome : t);
+
+// ── estado ──
+const S = { processos: [], clientes: [], tipo: '', sit: 'abertos', busca: '', resp: '' };
+
+async function carregar() {
+  const [p, c] = await Promise.all([
+    sb.from('soc_processos').select('*').order('iniciado_em', { ascending: false }).limit(5000),
+    sb.from('gclik_clientes').select('id,razao_social,cnpj,escritorio_id').order('razao_social').limit(5000),
+  ]);
+  chk(p.error); chk(c.error);
+  S.processos = p.data; S.clientes = c.data;
+}
+
+function visiveis() {
+  const hoje = hojeISO(), b = semAcento(S.busca);
+  return S.processos.filter(p => {
+    const s = SO.situacao(p, hoje);
+    if (S.tipo && p.tipo !== S.tipo) return false;
+    if (S.resp && (p.responsavel || '') !== S.resp) return false;
+    if (S.sit === 'abertos' && (s === 'concluido' || s === 'cancelado')) return false;
+    if (S.sit && S.sit !== 'abertos' && s !== S.sit && !(S.sit === 'exigencia' && s === 'exigencia_vencida')) return false;
+    if (b && !semAcento([p.empresa, p.protocolo, p.protocolo_redesim, p.descricao].join(' ')).includes(b)) return false;
+    return true;
+  });
+}
+
+function render() {
+  const hoje = hojeISO();
+  const cont = { andamento: 0, parado: 0, exigencia: 0, exigencia_vencida: 0, concluido: 0 };
+  S.processos.forEach(p => { const s = SO.situacao(p, hoje); if (s in cont) cont[s]++; });
+  const mes = hoje.slice(0, 7);
+  const concluidosMes = S.processos.filter(p => p.status === 'concluido' && (p.concluido_em || '').startsWith(mes)).length;
+  const kpi = (sit, v, l, cor) => `<button class="kpi ${S.sit === sit ? 'on' : ''}" style="--c:${cor}" onclick="S.sit='${sit}';render()"><div class="v">${v}</div><div class="l">${l}</div></button>`;
+  const resps = [...new Set(S.processos.map(p => p.responsavel).filter(Boolean))].sort();
+  const lista = visiveis();
+
+  $('view').innerHTML = `
+    <div class="head">
+      <div><h1>🏛️ Painel Societário</h1><p>Abertura, alteração, transformação, encerramento e baixa — etapa por etapa, conforme os manuais do Facilita SP e do DREI.</p></div>
+      <div class="acts">
+        <a class="btn sec" href="${FACILITA}" target="_blank" rel="noopener">Facilita SP ↗</a>
+        <button class="btn" onclick="editar()">+ Novo processo</button>
+      </div>
+    </div>
+    <div class="kpis">
+      ${kpi('abertos', cont.andamento + cont.parado + cont.exigencia + cont.exigencia_vencida, 'Abertos', 'var(--accent)')}
+      ${kpi('parado', cont.parado, 'Parados há mais de ' + SO.DIAS_PARADO + ' dias', 'var(--orange)')}
+      ${kpi('exigencia', cont.exigencia + cont.exigencia_vencida, 'Em exigência' + (cont.exigencia_vencida ? ` (${cont.exigencia_vencida} vencida${cont.exigencia_vencida > 1 ? 's' : ''})` : ''), cont.exigencia_vencida ? 'var(--danger)' : 'var(--warn)')}
+      ${kpi('concluido', concluidosMes, 'Concluídos no mês', 'var(--ok)')}
+    </div>
+    <div class="tabs">
+      <button class="tab ${!S.tipo ? 'on' : ''}" onclick="S.tipo='';render()">Todos</button>
+      ${Object.entries(SO.TIPOS).map(([id, t]) => `<button class="tab ${S.tipo === id ? 'on' : ''}" onclick="S.tipo='${id}';render()">${t.ic} ${esc(t.nome)}</button>`).join('')}
+    </div>
+    <div class="filters">
+      <input class="grow" placeholder="Buscar empresa, protocolo…" value="${esc(S.busca)}" oninput="S.busca=this.value;renderTabela()">
+      <select onchange="S.sit=this.value;render()">${opts([['abertos', 'Abertos'], ['', 'Todos'], ...Object.entries(SIT).map(([k, v]) => [k, v.nome])], S.sit)}</select>
+      <select onchange="S.resp=this.value;render()">${opts(resps, S.resp, 'Todos os responsáveis')}</select>
+    </div>
+    <div class="tbl" id="tabela"></div>`;
+  renderTabela(lista);
+}
+
+function renderTabela(lista) {
+  lista = lista || visiveis();
+  const hoje = hojeISO();
+  $('tabela').innerHTML = lista.length ? `<table>
+    <thead><tr><th>Empresa</th><th>Ato</th><th>Situação</th><th>Progresso</th><th>Próxima etapa</th><th>Responsável</th><th>Início</th></tr></thead>
+    <tbody>${lista.map(p => {
+      const s = SO.situacao(p, hoje), g = SO.progresso(p);
+      const prazo = s === 'exigencia' || s === 'exigencia_vencida' ? `<div class="muted">prazo ${dataBR(SO.prazoExigencia(p))}</div>` : '';
+      return `<tr onclick="abrir('${p.id}')">
+        <td><b>${esc(p.empresa)}</b>${p.protocolo ? `<div class="muted">${esc(p.protocolo)}</div>` : ''}</td>
+        <td class="nowrap">${tipoNome(p.tipo)}${p.natureza ? `<div class="muted">${esc(p.natureza)}${p.fluxo ? ' · fluxo ' + esc(p.fluxo) : ''}</div>` : ''}</td>
+        <td>${badge(s)}${prazo}</td>
+        <td><div class="bar"><i style="width:${g.pct}%"></i></div><div class="muted">${g.feitas}/${g.total}</div></td>
+        <td>${esc(g.proxima || '—')}</td>
+        <td>${esc(p.responsavel || '—')}</td>
+        <td class="nowrap">${dataBR(p.iniciado_em)}<div class="muted">${SO.diasEntre(p.iniciado_em, p.concluido_em || hoje)} dias</div></td>
+      </tr>`;
+    }).join('')}</tbody></table>`
+    : `<div class="empty">${S.processos.length ? 'Nenhum processo com estes filtros.' : 'Nenhum processo ainda. Clique em “+ Novo processo”.'}</div>`;
+}
+
+// ── novo / editar ──
+function editar(id) {
+  const p = id ? S.processos.find(x => x.id === id) : { tipo: S.tipo || 'abertura', fluxo: 'rapido', natureza: 'LTDA', iniciado_em: hojeISO() };
+  const resps = [...new Set(S.processos.map(x => x.responsavel).filter(Boolean))];
+  modal(id ? 'Editar processo' : 'Novo processo', `
+    <div class="f2">
+      <div><label>Ato</label><select id="e-tipo" ${id ? 'disabled' : ''}>${opts(Object.entries(SO.TIPOS).map(([k, t]) => [k, t.ic + ' ' + t.nome]), p.tipo)}</select>
+        ${id ? '<div class="help">O ato não muda depois de criado.</div>' : ''}</div>
+      <div><label>Cliente do Gestão Fiscal</label><select id="e-cli" onchange="if(this.value&&!$('e-emp').value)$('e-emp').value=this.selectedOptions[0].dataset.nome">
+        <option value="">— empresa ainda não é cliente (abertura) —</option>
+        ${S.clientes.map(c => `<option value="${c.id}" data-nome="${esc(c.razao_social)}" ${c.id === p.cliente_id ? 'selected' : ''}>${esc(c.razao_social)}${c.cnpj ? ' · ' + esc(c.cnpj) : ''}</option>`).join('')}
+      </select></div>
+    </div>
+    <div><label>Empresa (razão social ou nome pretendido)</label><input id="e-emp" value="${esc(p.empresa)}"></div>
+    <div class="f3">
+      <div><label>Natureza jurídica</label><select id="e-nat">${opts(NATUREZAS, p.natureza, '—')}</select></div>
+      <div><label>Fluxo no Facilita SP</label><select id="e-fluxo" ${id ? 'disabled' : ''}>${opts([['rapido', 'Rápido (contrato padrão)'], ['tradicional', 'Tradicional']], p.fluxo, 'Não se aplica')}</select>
+        <div class="help">Rápido: só EI/LTDA, sócios pessoas físicas maiores e residentes no Brasil, contrato padrão do DREI e sem procurador.</div></div>
+      <div><label>Responsável</label><input id="e-resp" list="l-resp" value="${esc(p.responsavel)}" placeholder="Você, freelance…"><datalist id="l-resp">${resps.map(r => `<option value="${esc(r)}">`).join('')}</datalist></div>
+    </div>
+    <div><label>O que será feito / motivo</label><textarea id="e-desc" placeholder="Ex.: entrada de sócio e mudança de endereço">${esc(p.descricao)}</textarea></div>
+    <div class="f2">
+      <div><label>Protocolo Facilita SP</label><input id="e-prot" value="${esc(p.protocolo)}" placeholder="SPB…"></div>
+      <div><label>Protocolo REDESIM (DBE)</label><input id="e-red" value="${esc(p.protocolo_redesim)}"></div>
+    </div>
+    <div class="f3">
+      <div><label>Início</label><input type="date" id="e-ini" value="${esc(p.iniciado_em)}"></div>
+      <div><label>Taxas (DARE etc.)</label><input id="e-tax" value="${p.taxas == null ? '' : String(p.taxas).replace('.', ',')}" placeholder="0,00"></div>
+      <div><label>Honorário cobrado</label><input id="e-hon" value="${p.honorario == null ? '' : String(p.honorario).replace('.', ',')}" placeholder="0,00"></div>
+    </div>
+    <div><label>Observações</label><textarea id="e-obs">${esc(p.obs)}</textarea></div>`,
+    `${id ? `<button class="btn danger sm esq" onclick="excluir('${id}')">Excluir</button>` : ''}
+     <button class="btn sec" onclick="${id ? `abrir('${id}')` : 'fechar()'}">Cancelar</button><button class="btn" id="b-salvar" onclick="salvar(${id ? `'${id}'` : ''})">Salvar</button>`, true);
+}
+
+async function salvar(id) {
+  const empresa = $('e-emp').value.trim();
+  if (!empresa) return toast('Informe a empresa.', true);
+  const dados = {
+    cliente_id: $('e-cli').value || null, empresa, natureza: $('e-nat').value || null,
+    responsavel: $('e-resp').value.trim() || null, descricao: $('e-desc').value.trim() || null,
+    protocolo: $('e-prot').value.trim() || null, protocolo_redesim: $('e-red').value.trim() || null,
+    iniciado_em: $('e-ini').value || hojeISO(), taxas: num($('e-tax').value), honorario: num($('e-hon').value),
+    obs: $('e-obs').value.trim() || null, updated_at: new Date().toISOString(),
+  };
+  $('b-salvar').disabled = true;
+  try {
+    if (id) {
+      const r = await sb.from('soc_processos').update(dados).eq('id', id).select().single(); chk(r.error);
+      Object.assign(S.processos.find(x => x.id === id), r.data);
+      abrir(id);
+    } else {
+      const tipo = $('e-tipo').value, fluxo = $('e-fluxo').value || null;
+      const r = await sb.from('soc_processos').insert({ ...dados, tipo, fluxo, etapas: SO.etapasPadrao(tipo, fluxo, dados.natureza) }).select().single(); chk(r.error);
+      S.processos.unshift(r.data);
+      abrir(r.data.id);
+    }
+    render(); toast('Processo salvo.');
+  } finally { const b = $('b-salvar'); if (b) b.disabled = false; }
+}
+
+async function excluir(id) {
+  if (!confirm('Excluir este processo? As etapas marcadas serão perdidas.')) return;
+  const r = await sb.from('soc_processos').delete().eq('id', id); chk(r.error);
+  S.processos = S.processos.filter(x => x.id !== id);
+  fechar(); render(); toast('Processo excluído.');
+}
+
+// ── detalhe: etapas, exigência, documentos ──
+function abrir(id) {
+  const p = S.processos.find(x => x.id === id);
+  const hoje = hojeISO(), s = SO.situacao(p, hoje), g = SO.progresso(p), t = SO.TIPOS[p.tipo];
+  const cliente = S.clientes.find(c => c.id === p.cliente_id);
+  modal(`${tipoNome(p.tipo)} · ${esc(p.empresa)}`, `
+    <div class="row-flex" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${badge(s)}
+      <div class="bar" style="flex:1"><i style="width:${g.pct}%"></i></div><span class="muted">${g.feitas} de ${g.total} etapas</span></div>
+    <div class="det">
+      <div class="box"><h4>Etapas</h4>
+        ${(p.etapas || []).map(e => `<label class="step ${e.feito ? 'done' : ''}"><input type="checkbox" ${e.feito ? 'checked' : ''} onchange="marcar('${p.id}','${e.id}',this.checked)">
+          <span class="t">${esc(e.nome)}</span><span class="d">${e.feito ? dataBR(e.data) : ''}</span></label>`).join('') || '<p class="muted">Sem etapas.</p>'}
+      </div>
+      <div style="display:grid;gap:12px;align-content:start">
+        <div class="box"><h4>Dados</h4><div class="kv">
+          <span>Cliente</span><div>${cliente ? esc(cliente.razao_social) : '<i class="muted">não vinculado</i>'}</div>
+          <span>Natureza</span><div>${esc(p.natureza || '—')}${p.fluxo ? ' · fluxo ' + esc(p.fluxo) : ''}</div>
+          <span>Responsável</span><div>${esc(p.responsavel || '—')}</div>
+          <span>Protocolo</span><div>${esc(p.protocolo || '—')}</div>
+          <span>REDESIM</span><div>${esc(p.protocolo_redesim || '—')}</div>
+          <span>Início</span><div>${dataBR(p.iniciado_em)}${p.concluido_em ? ' · concluído ' + dataBR(p.concluido_em) : ''}</div>
+          <span>Taxas</span><div>${brl(p.taxas)}</div>
+          <span>Honorário</span><div>${brl(p.honorario)}</div>
+        </div>${p.descricao ? `<p style="margin-top:8px;font-size:13px">${esc(p.descricao)}</p>` : ''}${p.obs ? `<p class="muted" style="margin-top:6px">${esc(p.obs)}</p>` : ''}</div>
+        <div class="box"><h4>Exigência / vício</h4>
+          ${p.status === 'exigencia'
+            ? `<p style="font-size:13px"><b>${esc(p.exigencia_motivo || 'Sem motivo informado')}</b></p>
+               <p class="muted">Desde ${dataBR(p.exigencia_em)} · prazo ${dataBR(SO.prazoExigencia(p))} (${SO.PRAZO_EXIGENCIA} dias, sem nova taxa)</p>
+               <button class="btn sm" style="margin-top:8px" onclick="mudarStatus('${p.id}','andamento')">Exigência cumprida</button>`
+            : `<p class="muted">A JUCESP dá ${SO.PRAZO_EXIGENCIA} dias para cumprir exigência ou corrigir vício sem pagar nova taxa.</p>
+               ${p.status === 'andamento' ? `<button class="btn sec sm" style="margin-top:8px" onclick="exigencia('${p.id}')">Registrar exigência</button>` : ''}`}
+        </div>
+        <div class="box"><h4>Documentos do cliente</h4>
+          <p class="muted">${t ? t.docs.length : 0} itens. Copie a lista e mande ao cliente.</p>
+          <button class="btn sec sm" style="margin-top:8px" onclick="copiarDocs('${p.id}')">Copiar lista</button>
+          ${t ? `<a class="btn sec sm" style="margin-top:8px" href="../procedimento.html?dep=societario&proc=${t.proc}" target="_blank">Ver procedimento</a>` : ''}
+        </div>
+      </div>
+    </div>`,
+    `<button class="btn sec esq" onclick="editar('${p.id}')">Editar dados</button>
+     ${p.status !== 'cancelado' && p.status !== 'concluido' ? `<button class="btn sec" onclick="mudarStatus('${p.id}','cancelado')">Cancelar processo</button>` : ''}
+     ${p.status === 'concluido' || p.status === 'cancelado' ? `<button class="btn sec" onclick="mudarStatus('${p.id}','andamento')">Reabrir</button>`
+       : `<button class="btn" onclick="mudarStatus('${p.id}','concluido')">Concluir</button>`}`, true);
+}
+
+async function gravar(id, campos) {
+  const r = await sb.from('soc_processos').update({ ...campos, updated_at: new Date().toISOString() }).eq('id', id).select().single(); chk(r.error);
+  Object.assign(S.processos.find(x => x.id === id), r.data);
+  render(); abrir(id);
+}
+
+function marcar(id, etapa, feito) {
+  const p = S.processos.find(x => x.id === id);
+  return gravar(id, { etapas: SO.marcarEtapa(p.etapas, etapa, feito, hojeISO()) });
+}
+
+function mudarStatus(id, status) {
+  const p = S.processos.find(x => x.id === id);
+  if (status === 'concluido') {
+    const g = SO.progresso(p);
+    if (g.feitas < g.total && !confirm(`Ainda faltam ${g.total - g.feitas} etapas. Concluir assim mesmo?`)) return;
+  }
+  const campos = { status, concluido_em: status === 'concluido' ? hojeISO() : null };
+  if (status !== 'exigencia') Object.assign(campos, { exigencia_em: null, exigencia_motivo: null });
+  return gravar(id, campos);
+}
+
+function exigencia(id) {
+  modal('Registrar exigência', `
+    <div><label>Motivo (do termo de análise)</label><textarea id="x-mot"></textarea></div>
+    <div><label>Data da exigência</label><input type="date" id="x-dt" value="${hojeISO()}"></div>
+    <p class="help">O prazo de ${SO.PRAZO_EXIGENCIA} dias conta a partir desta data. Para corrigir: novo protocolo (se mudar algo antes do DBE), corrigir o DBE ou corrigir o protocolo atual.</p>`,
+    `<button class="btn sec" onclick="abrir('${id}')">Voltar</button><button class="btn" onclick="gravar('${id}',{status:'exigencia',exigencia_motivo:$('x-mot').value.trim()||null,exigencia_em:$('x-dt').value||hojeISO()})">Salvar</button>`);
+}
+
+async function copiarDocs(id) {
+  const p = S.processos.find(x => x.id === id);
+  const txt = SO.textoDocumentos(p.tipo, p.empresa);
+  try { await navigator.clipboard.writeText(txt); toast('Lista copiada. Cole no e-mail ou WhatsApp do cliente.'); }
+  catch { modal('Lista de documentos', `<textarea style="min-height:260px" onfocus="this.select()">${esc(txt)}</textarea>`, `<button class="btn" onclick="abrir('${id}')">Voltar</button>`); }
+}
+
+// ── início ──
+(async () => {
+  try { await carregar(); render(); }
+  catch (e) { $('view').innerHTML = `<div class="empty">Não foi possível carregar os processos: ${esc(e.message)}</div>`; }
+})();
+</script>
+</body>
+</html>

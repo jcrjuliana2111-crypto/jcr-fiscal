@@ -182,6 +182,7 @@ function render() {
     <div class="head">
       <div><h1>🏛️ Painel Societário</h1><p>Abertura, alteração, transformação, encerramento e baixa — etapa por etapa, conforme os manuais do Facilita SP e do DREI.</p></div>
       <div class="acts">
+        <a class="btn sec" href="modelos.html">📄 Modelos de documentos</a>
         <a class="btn sec" href="${FACILITA}" target="_blank" rel="noopener">Facilita SP ↗</a>
         <button class="btn" onclick="editar()">+ Novo processo</button>
       </div>
@@ -330,6 +331,7 @@ function abrir(id) {
           <p class="muted">${t ? t.docs.length : 0} itens. Copie a lista e mande ao cliente.</p>
           <button class="btn sec sm" style="margin-top:8px" onclick="copiarDocs('${p.id}')">Copiar lista</button>
           ${t ? `<a class="btn sec sm" style="margin-top:8px" href="../procedimento.html?dep=societario&proc=${t.proc}" target="_blank">Ver procedimento</a>` : ''}
+          ${p.tipo === 'transformacao' ? `<a class="btn sm" style="margin-top:8px" href="modelos.html?processo=${p.id}">Gerar documento (Word)</a>` : ''}
         </div>
       </div>
     </div>`,

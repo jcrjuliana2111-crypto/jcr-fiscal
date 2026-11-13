@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/jcr-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Modelos de documentos · Painel Societário</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js"></script>
+<script src="modelos-core.js"></script>
+<style>
+:root{
+  --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;
+  --border:#2a2f42; --border2:#363d55;
+  --text:#e8eaf2; --text2:#9aa1b8; --text3:#626a85;
+  --accent:#60a5fa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh;font-size:14px}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+main{max-width:1400px;margin:0 auto;padding:24px 24px 90px}
+.crumbs{font-size:12.5px;color:var(--text3);margin-bottom:12px}
+.crumbs a{color:var(--text2);text-decoration:none}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:18px}
+.head h1{font:800 22px Syne,sans-serif}
+.head p{color:var(--text2);font-size:13px;margin-top:2px}
+.head .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--accent),#6b7ff7);color:#fff;white-space:nowrap}
+.btn:hover{filter:brightness(1.08)}
+.btn.sec{background:var(--surface2);border:1px solid var(--border2);color:var(--text)}
+.layout{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:18px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+.card h2{font:700 11.5px Syne,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin-bottom:12px}
+.campos{display:grid;gap:10px}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px}
+input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:8px 11px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{min-height:120px;resize:vertical}
+.help{font-size:11.5px;color:var(--text3);margin-top:4px;line-height:1.4}
+.pend{background:color-mix(in srgb,var(--warn) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);border-radius:12px;padding:10px 14px;font-size:12.5px;color:var(--text2);margin-bottom:12px}
+.pend b{color:var(--warn)}
+.pend.ok{background:color-mix(in srgb,var(--ok) 9%,var(--surface));border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
+.pend.ok b{color:var(--ok)}
+.previa{position:sticky;top:16px}
+.folha{background:#fff;color:#111;border-radius:6px;padding:48px 56px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.55;max-height:calc(100vh - 110px);overflow:auto}
+.folha p{text-align:justify;margin-bottom:9px}
+.folha .titulo{text-align:center;font-weight:700;margin-bottom:2px}
+.folha .centro{text-align:center;margin-bottom:14px}
+.folha .secao{font-weight:700;margin:12px 0 3px}
+.folha .item{margin:0 0 3px 18px}
+.folha .quebra{margin-top:30px;padding-top:24px;border-top:1px dashed #bbb}
+.folha table{border-collapse:collapse;width:100%;margin:4px 0 12px}
+.folha td{border:1px solid #444;padding:4px 8px}
+.folha tr:first-child td,.folha tr:last-child td{font-weight:700}
+.folha .ass{text-align:center;margin-top:40px}
+.folha .falta{color:#c00000;font-weight:700;background:#fff1f1;border-radius:3px;padding:0 2px}
+.toast{position:fixed;right:18px;bottom:18px;z-index:99;background:var(--surface3);border:1px solid var(--border2);border-left:4px solid var(--ok);padding:11px 16px;border-radius:10px;max-width:380px}
+.toast.err{border-left-color:var(--danger)}
+@media (max-width:900px){
+  main{padding:16px 16px 90px}
+  .layout,.f2{grid-template-columns:1fr}
+  .previa{position:static}
+  .folha{max-height:none;padding:24px 20px}
+}
+</style>
+</head>
+<body>
+<main>
+  <div class="crumbs"><a href="../index.html">Portal</a> › <a href="./">Painel Societário</a> › Modelos de documentos</div>
+  <div class="head">
+    <div><h1>📄 Modelos de documentos</h1><p id="fonte"></p></div>
+    <div class="acts">
+      <select id="modelo" style="width:auto"></select>
+      <button class="btn sec" onclick="limpar()">Limpar</button>
+      <button class="btn" onclick="baixar()">Baixar Word</button>
+    </div>
+  </div>
+  <div class="layout">
+    <div id="form"></div>
+    <div class="previa"><div id="pend"></div><div class="folha" id="folha"></div></div>
+  </div>
+</main>
+
+<script>
+const SUPABASE_URL = 'https://onecnoicxqjhgolqncjj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_paOFHdYEcMr7MZdOFx16Lw_sXt0n0-9';
+const M = window.ModelosSoc;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = s => { s = String(s ?? '').trim().replace(/\s|R\$/g, ''); return +(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s) || 0; };
+function toast(msg, erro) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (erro ? ' err' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), erro ? 6000 : 3000);
+}
+const hoje = new Date();
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const dataExtenso = d => `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
+
+// Campos do formulário: [chave, rótulo, tipo, opções/ajuda]
+const GRUPOS = [
+  ['Titular (empresário individual)', [
+    ['titular.nome', 'Nome completo'],
+    ['titular.nacionalidade', 'Nacionalidade', 'text', 'brasileiro'],
+    ['titular.estado_civil', 'Estado civil', 'select', ['solteiro', 'casado', 'divorciado', 'viúvo', 'solteiro, em união estável']],
+    ['titular.regime_bens', 'Regime de bens (se casado)', 'select', ['', 'comunhão parcial de bens', 'comunhão universal de bens', 'separação total de bens', 'participação final nos aquestos']],
+    ['titular.nascimento', 'Data de nascimento', 'text', 'dd/mm/aaaa'],
+    ['titular.naturalidade', 'Naturalidade (opcional)', 'text', 'Cidade/UF'],
+    ['titular.rg', 'RG e órgão emissor', 'text', '00.000.000 SSP/SP'],
+    ['titular.cpf', 'CPF'],
+    ['titular.endereco', 'Endereço residencial com CEP', 'textarea'],
+  ]],
+  ['Empresa individual hoje (ficha da Junta)', [
+    ['ei.nome', 'Nome empresarial atual', 'text', 'Exatamente como na ficha cadastral. MEI costuma ser "00.000.000 NOME DO TITULAR"'],
+    ['ei.cnpj', 'CNPJ'],
+    ['ei.nire', 'NIRE'],
+    ['ei.sede', 'Sede atual com CEP', 'textarea'],
+  ]],
+  ['Nova sociedade limitada', [
+    ['ltda.nome', 'Novo nome empresarial', 'text', 'Com "LTDA" no fim, igual à viabilidade/DBE'],
+    ['ltda.sede', 'Sede da LTDA', 'textarea', 'Deixe em branco se continuar no mesmo endereço'],
+    ['ltda.objeto', 'Atividades (uma por linha)', 'textarea', 'Descrição + CNAE, iguais ao DBE. Ex.: Carga e descarga (CNAE 5212-5/00)'],
+    ['ltda.forma_atuacao', 'Forma de atuação', 'select', ['em estabelecimento fixo, na sede', 'em estabelecimento fixo e por meio de internet', 'por meio de internet, sem estabelecimento fixo', 'em local de terceiros']],
+    ['ltda.inicio', 'Início das atividades', 'text', 'Data de abertura no cartão CNPJ'],
+    ['ltda.capital', 'Capital social (R$)', 'text', 'Valor do acervo que vira capital'],
+    ['ltda.valor_quota', 'Valor de cada quota (R$)', 'text', '1,00'],
+    ['ltda.enquadramento', 'Enquadramento', 'select', [['ME', 'Microempresa'], ['EPP', 'Empresa de pequeno porte'], ['', 'Nenhum (sem cláusula)']]],
+    ['ltda.foro', 'Foro (comarca)', 'text', 'Cidade/UF'],
+  ]],
+  ['Fecho', [
+    ['numero_alteracao', 'Número da alteração', 'text', '1 se for a primeira alteração na Junta (comum para ex-MEI)'],
+    ['local', 'Cidade/UF da assinatura'],
+    ['data', 'Data por extenso'],
+  ]],
+];
+const PADRAO = { 'titular.nacionalidade': 'brasileiro', 'titular.estado_civil': 'solteiro', 'ltda.valor_quota': '1,00',
+  'ltda.enquadramento': 'ME', 'ltda.forma_atuacao': 'em estabelecimento fixo, na sede', numero_alteracao: '1', data: dataExtenso(hoje) };
+
+function renderForm() {
+  $('form').innerHTML = GRUPOS.map(([titulo, campos]) => `<div class="card"><h2>${titulo}</h2><div class="campos">${campos.map(([k, rot, tipo, extra]) => {
+    const val = PADRAO[k] || '';
+    let campo;
+    if (tipo === 'select') campo = `<select id="${k}">${extra.map(o => { const [v, n] = Array.isArray(o) ? o : [o, o || '—']; return `<option value="${esc(v)}" ${v === val ? 'selected' : ''}>${esc(n)}</option>`; }).join('')}</select>`;
+    else if (tipo === 'textarea') campo = `<textarea id="${k}" style="min-height:${k === 'ltda.objeto' ? 140 : 60}px">${esc(val)}</textarea>`;
+    else campo = `<input id="${k}" value="${esc(val)}" ${extra && tipo === 'text' && extra.length < 30 ? `placeholder="${esc(extra)}"` : ''}>`;
+    const ajuda = tipo !== 'select' && extra && extra.length >= 30 ? `<div class="help">${esc(extra)}</div>` : '';
+    return `<div><label for="${k}">${rot}</label>${campo}${ajuda}</div>`;
+  }).join('')}</div></div>`).join('');
+  $('form').addEventListener('input', atualizar);
+  $('form').addEventListener('change', atualizar);
+}
+
+function dados() {
+  const d = {};
+  GRUPOS.forEach(([, campos]) => campos.forEach(([k]) => {
+    const [a, b] = k.split('.');
+    let val = $(k).value;
+    if (k === 'ltda.objeto') val = val.split('\n').map(s => s.trim()).filter(Boolean);
+    if (k === 'ltda.capital' || k === 'ltda.valor_quota') val = num(val) || null;
+    if (b) (d[a] = d[a] || {})[b] = val; else d[a] = val;
+  }));
+  return d;
+}
+
+function blocos() { return M.MODELOS[$('modelo').value].gerar(dados()); }
+
+const partesHtml = partes => partes.map(p => (typeof p === 'string' ? esc(p) : `<span class="falta">[${esc(p.falta)}]</span>`)).join('');
+
+function atualizar() {
+  const b = blocos(), falta = M.faltando(b);
+  $('pend').innerHTML = falta.length
+    ? `<div class="pend"><b>Falta preencher (${falta.length}):</b> ${falta.map(esc).join(' · ')}. Esses campos saem em vermelho no Word.</div>`
+    : '<div class="pend ok"><b>Tudo preenchido.</b> Confira o texto antes de baixar.</div>';
+  $('folha').innerHTML = b.map(x => {
+    if (x.tipo === 'tabela') return `<table>${x.linhas.map(l => `<tr>${l.map(c => `<td>${partesHtml([c])}</td>`).join('')}</tr>`).join('')}</table>`;
+    if (x.tipo === 'assinatura') return `<div class="ass">_____________________________________<br><b>${partesHtml(x.partes)}</b><br>${esc(x.cargo)}</div>`;
+    const cls = { titulo: 'titulo', centro: 'centro', secao: 'secao', item: 'item' }[x.tipo] || '';
+    return `<p class="${cls} ${x.quebra ? 'quebra' : ''}">${x.tipo === 'item' ? '• ' : ''}${partesHtml(x.partes)}</p>`;
+  }).join('');
+}
+
+// ── Word ──
+async function baixar() {
+  if (!window.docx) return toast('Não foi possível carregar o gerador de Word. Verifique a internet e recarregue a página.', true);
+  const D = window.docx, b = blocos();
+  const runs = (partes, extra = {}) => partes.map(p => (typeof p === 'string'
+    ? new D.TextRun({ text: p, ...extra })
+    : new D.TextRun({ text: `[${p.falta}]`, bold: true, color: 'C00000' })));
+  const just = D.AlignmentType.JUSTIFIED, centro = D.AlignmentType.CENTER;
+  const filhos = [];
+  b.forEach(x => {
+    if (x.tipo === 'tabela') {
+      filhos.push(new D.Table({
+        width: { size: 100, type: D.WidthType.PERCENTAGE },
+        rows: x.linhas.map((l, i) => new D.TableRow({ children: l.map(c => new D.TableCell({
+          children: [new D.Paragraph({ children: runs([c], { bold: i !== 1 }) })],
+          margins: { top: 40, bottom: 40, left: 100, right: 100 },
+        })) })),
+      }));
+      filhos.push(new D.Paragraph({ text: '' }));
+    } else if (x.tipo === 'assinatura') {
+      filhos.push(new D.Paragraph({ alignment: centro, spacing: { before: 800 }, children: [new D.TextRun('_____________________________________________')] }));
+      filhos.push(new D.Paragraph({ alignment: centro, children: runs(x.partes, { bold: true }) }));
+      filhos.push(new D.Paragraph({ alignment: centro, children: [new D.TextRun(x.cargo)] }));
+    } else {
+      const titulo = x.tipo === 'titulo', centrado = titulo || x.tipo === 'centro';
+      filhos.push(new D.Paragraph({
+        alignment: centrado ? centro : just,
+        pageBreakBefore: !!x.quebra,
+        indent: x.tipo === 'item' ? { left: 360 } : undefined,
+        spacing: { after: titulo ? 40 : x.tipo === 'item' ? 40 : x.tipo === 'centro' ? 280 : x.tipo === 'secao' ? 40 : 160, before: x.tipo === 'secao' ? 160 : 0 },
+        children: runs((x.tipo === 'item' ? ['• '] : []).concat(x.partes), { bold: titulo || x.tipo === 'secao', size: titulo ? 24 : undefined }),
+      }));
+    }
+  });
+  const doc = new D.Document({
+    styles: { default: { document: { run: { font: 'Arial', size: 22 } } } },
+    sections: [{ properties: { page: { margin: { top: 1134, bottom: 1134, left: 1418, right: 1418 } } }, children: filhos }],
+  });
+  const blob = await D.Packer.toBlob(doc);
+  const d = dados(), nome = (d.ltda && d.ltda.nome) || (d.ei && d.ei.nome) || 'documento';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Transformacao_EI_LTDA_${nome.normalize('NFD').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '')}.docx`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  const falta = M.faltando(b).length;
+  toast(falta ? `Word baixado com ${falta} campo(s) em vermelho para preencher.` : 'Word baixado.');
+}
+
+function limpar() {
+  if (!confirm('Limpar todos os campos?')) return;
+  renderForm(); atualizar();
+}
+
+// Vindo de um processo do painel: preenche o que já se sabe (empresa e CNPJ do cliente)
+async function preencherDoProcesso(id) {
+  if (!window.supabase) return;
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const r = await sb.from('soc_processos').select('*').eq('id', id).single();
+  if (r.error || !r.data) return;
+  const p = r.data;
+  if (p.empresa && /ltda/i.test(p.empresa)) $('ltda.nome').value = p.empresa;
+  if (p.cliente_id) {
+    const c = await sb.from('gclik_clientes').select('razao_social,cnpj').eq('id', p.cliente_id).single();
+    if (!c.error && c.data) {
+      if (c.data.cnpj) $('ei.cnpj').value = c.data.cnpj;
+      if (c.data.razao_social && !/ltda/i.test(c.data.razao_social)) $('ei.nome').value = c.data.razao_social;
+    }
+  }
+  atualizar();
+}
+
+$('modelo').innerHTML = Object.entries(M.MODELOS).map(([k, m]) => `<option value="${k}">${esc(m.nome)}</option>`).join('');
+$('fonte').textContent = 'Base: ' + M.MODELOS[$('modelo').value].fonte + '. Os dados ficam só nesta tela; nada é salvo.';
+renderForm(); atualizar();
+const proc = new URLSearchParams(location.search).get('processo');
+if (proc) preencherDoProcesso(proc).catch(() => {});
+</script>
+</body>
+</html>

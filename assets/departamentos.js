@@ -29,7 +29,8 @@ window.JCR_DEPARTAMENTOS = [
       { nome: 'Alerta de vencimento de certificados e alvarás', desc: 'Aviso automático (n8n) antes de vencer.', status: 'ideia' },
       { nome: 'Leitura dos e-mails da JUCESP e da REDESIM', desc: 'n8n lê deferimento, exigência e CNPJ emitido no Gmail e atualiza a etapa no painel.', status: 'ideia' },
       { nome: 'Alerta de processos parados e exigências', desc: 'Resumo diário por e-mail dos processos sem movimento e das exigências perto do prazo.', status: 'ideia' },
-      { nome: 'Modelos de contrato e alteração', desc: 'Minuta preenchida com os dados do cliente, para o fluxo tradicional.', status: 'ideia' },
+      { nome: 'Modelos de documentos', url: 'societario/modelos.html', desc: 'Transformação de empresário individual em LTDA (Modelo 2 do DREI): preenche os dados e baixa o Word.', status: 'ativa' },
+      { nome: 'Mais modelos (alteração contratual, distrato)', desc: 'Novos modelos no mesmo gerador de Word.', status: 'ideia' },
     ],
   },
   {

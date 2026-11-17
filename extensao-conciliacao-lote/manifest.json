@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Conciliação em lote – Conta Azul",
+  "version": "1.0.0",
+  "description": "Filtra a conciliação por descrição/fornecedor, marca os pares idênticos e seleciona em lote para conciliar.",
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "host_permissions": ["https://pro.contaazul.com/*"],
+  "content_scripts": [
+    { "matches": ["https://pro.contaazul.com/*"], "js": ["content.js"], "run_at": "document_idle", "world": "MAIN" }
+  ]
+}

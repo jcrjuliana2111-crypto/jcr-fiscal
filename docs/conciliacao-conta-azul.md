@@ -81,6 +81,13 @@ em `conciliacao/` do Portal JCR) e configurar o secret `CONTA_AZUL_ANEXO_PATH` (
 `/v1/financeiro/eventos-financeiros/parcelas/{parcela_id}/anexos`) e, se
 precisar, `CONTA_AZUL_ANEXO_CAMPO` (padrão `file`).
 
+## Anexar comprovantes no Conta Azul (extensão)
+
+Depois da baixa, **📎 Mandar comprovantes para a extensão** passa os
+comprovantes ligados às baixas para a extensão do Chrome/Edge, que coloca o
+arquivo no campo de anexo do lançamento no Conta Azul. Instalação e uso:
+`docs/extensao-comprovantes.md`.
+
 ## Excluir sugestão
 
 Cada sugestão ainda não baixada tem **✕ excluir**: o movimento volta para

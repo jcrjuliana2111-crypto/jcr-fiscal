@@ -474,3 +474,11 @@ test('DDA em tabela com células de várias linhas (Unicred): beneficiário pela
     ['ESPECIFARMA COM DE MEDICAMENTOS', '0028794301', '2026-10-24', 682.13]]);
   assert.deepStrictEqual(C.parseDDAItens([I(10, 10, 'qualquer coisa')]), []);
 });
+
+test('cópia do motor na extensão está igual à do robô', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const ler = p => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
+  assert.strictEqual(ler('extensao-comprovantes/conciliacao-core.js'), ler('conciliacao/conciliacao-core.js'),
+    'Copie conciliacao/conciliacao-core.js para extensao-comprovantes/');
+});

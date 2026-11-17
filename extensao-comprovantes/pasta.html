@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>JCR · Pasta de comprovantes</title>
+<style>
+  body { font-family: system-ui, 'Segoe UI', sans-serif; background: #f3f6fa; color: #1c2230; margin: 0; padding: 28px 16px; }
+  .caixa { max-width: 760px; margin: auto; background: #fff; border: 1px solid #d0d7e2; border-radius: 12px; padding: 22px; }
+  h1 { font-size: 20px; margin: 0 0 6px; } p { color: #4a5468; font-size: 14px; }
+  button { background: #1f6feb; color: #fff; border: 0; border-radius: 8px; padding: 9px 14px; font-size: 14px; cursor: pointer; margin-right: 8px; }
+  button.sec { background: #eef2f8; color: #1c2230; border: 1px solid #c9d2df; }
+  select { padding: 7px; border-radius: 8px; border: 1px solid #c9d2df; }
+  #status { margin: 14px 0; font-size: 14px; } .erro { color: #b42318; } .ok { color: #127a3a; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+  td, th { text-align: left; padding: 5px 6px; border-bottom: 1px solid #eef1f6; vertical-align: top; }
+  .aviso { color: #9a6700; }
+</style></head>
+<body><div class="caixa">
+  <h1>📂 Pasta de comprovantes</h1>
+  <p>A extensão lê os comprovantes desta pasta (nome do arquivo + texto do PDF, sem IA) e mostra o 📎 nos lançamentos do Conta Azul cujo <b>valor e nome</b> batem.</p>
+  <p>
+    <button id="escolher">Escolher pasta</button>
+    <button id="ler" class="sec">Ler de novo</button>
+    Arquivos dos últimos
+    <select id="dias"><option value="60">60 dias</option><option value="120" selected>120 dias</option><option value="365">12 meses</option><option value="0">tudo</option></select>
+  </p>
+  <div id="status">Nenhuma pasta escolhida.</div>
+  <table id="tab"></table>
+</div>
+<script src="idb.js"></script>
+<script src="conciliacao-core.js"></script>
+<script src="pdf.min.js"></script>
+<script src="pasta.js"></script>
+</body></html>

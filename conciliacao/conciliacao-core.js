@@ -156,6 +156,19 @@
     return tn.length === 1 ? c === 1 && tn[0].length >= 4 : c >= 2 && c / tn.length >= 0.5;
   }
 
+  // Como nomeForte, mas aceita abreviação e nome cortado pelo banco ("SERV" = "SERVICOS",
+  // "MEDIC" = "MEDICOS"): uma palavra de 3+ letras que é o começo da outra conta como igual.
+  // Maiúsculas/minúsculas e acentos já não importam (tokens normaliza).
+  function nomeParecido(texto, nome) {
+    if (nomeForte(texto, nome)) return true;
+    const tn = [...new Set(tokens(nome))];
+    const th = [...new Set(tokens(texto))];
+    if (!tn.length) return false;
+    const igual = (a, b) => a === b || (b.length >= 3 && a.startsWith(b)) || (a.length >= 3 && b.startsWith(a));
+    const c = tn.filter(t => th.some(h => igual(t, h))).length;
+    return tn.length === 1 ? c === 1 && tn[0].length >= 4 : c >= 2 && c / tn.length >= 0.5;
+  }
+
   // palavras de formulário que não são nome de ninguém (comprovantes)
   const FORMULARIO = new Set(['favorecido', 'fornecedor', 'valor', 'tipo', 'comprovante', 'data', 'vencimento',
     'beneficiario', 'pagador', 'documento', 'agendamento', 'agencia', 'banco', 'codigo', 'autenticacao', 'pago',
@@ -738,7 +751,7 @@
   }
 
   const api = { parseValorBR, parseData, parseOFX, parseCSV, parseExtrato, similaridadeNome, conciliar, dadosComprovante, casarComprovantes,
-    nomeNoExtrato, nomeBate, nomeForte, temNome, palavrasNome, ajusteDe, montarPar, reforcarComComprovantes, resumoFechamento,
+    nomeNoExtrato, nomeBate, nomeForte, nomeParecido, temNome, palavrasNome, ajusteDe, montarPar, reforcarComComprovantes, resumoFechamento,
     dadosLinhaDigitavel, parseDDA, parseDDAItens, conferirDDA, montarGrupo, agruparPagamentos, comprovantesDosMovimentos };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Conciliacao = api;

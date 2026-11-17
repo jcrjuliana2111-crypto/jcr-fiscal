@@ -482,3 +482,11 @@ test('cópia do motor na extensão está igual à do robô', () => {
   assert.strictEqual(ler('extensao-comprovantes/conciliacao-core.js'), ler('conciliacao/conciliacao-core.js'),
     'Copie conciliacao/conciliacao-core.js para extensao-comprovantes/');
 });
+
+test('nome parecido: abreviação, nome cortado e minúsculas contam como o mesmo nome', () => {
+  assert.ok(C.nomeParecido('RSETTI SERV MEDICOS', 'RSETTI SERVICOS MEDICOS LTDA'));
+  assert.ok(C.nomeParecido('MTP COM DE PROD', 'MTP Comercio de Produtos'));
+  assert.ok(C.nomeParecido('carlos roberto de oliv', 'CARLOS ROBERTO DE OLIVEIRA SANTOS'));
+  assert.ok(!C.nomeParecido('JOAO SOUZA', 'MARIA SOUZA LTDA'));
+  assert.ok(!C.nomeParecido('BETA SERVICOS', 'ALFA ENGENHARIA'));
+});

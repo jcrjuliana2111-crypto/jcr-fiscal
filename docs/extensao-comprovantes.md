@@ -89,14 +89,21 @@ selo em cada par sugerido pelo Conta Azul:
 
 | Selo | Quando |
 |---|---|
-| ✓ bate | valor igual, datas até 3 dias e o nome do banco (PIX/TED) bate com o fornecedor/cliente — ou, sem nome no banco (boleto), um comprovante da pasta com o mesmo valor e o nome do fornecedor |
+| ✓ bate | valor igual, datas até 3 dias e o nome do banco (PIX/TED) bate com o fornecedor/cliente — inclusive nome abreviado ou cortado pelo banco ("RSETTI SERV MEDICOS" = "RSETTI SERVICOS MEDICOS LTDA") e sem diferença de maiúsculas/minúsculas; ou o próprio Conta Azul marcou como **Idêntico**; ou, sem nome no banco (boleto), um comprovante da pasta com o mesmo valor e o nome do fornecedor |
 | ⚠ conferir | o banco não mostra o nome, ou as datas estão distantes |
 | ✕ nome diferente | o banco mostra outra pessoa/empresa (ex.: PIX para Daniel × fornecedor Ariane), ou o valor não bate |
 
-Passe o mouse no selo para ver o motivo. Na barra: **Todos / ✓ Batem / ⚠ Conferir /
+O selo **"Valor e data"** do Conta Azul só vira "Idêntico" quando o nome é
+escrito igual; o ✓ da extensão também aceita nome parecido (passe o mouse para
+ver "nome parecido").
+
+Passe o mouse no selo para ver o motivo. Ao abrir a tela, a extensão clica em
+**Carregar mais** do Conta Azul até aparecerem todos os lançamentos (o botão
+**⟳ Carregar todos** faz isso de novo). Na barra: **Todos / ✓ Batem / ⚠ Conferir /
 ✕ Nome diferente** mostram só aquele grupo; a busca filtra por nome ou valor;
-**☑ Marcar os que batem** marca a caixinha desses pares — depois é só clicar em
-**Conciliar** no topo do Conta Azul. A extensão nunca concilia sozinha.
+**☑ Marcar os do filtro** carrega tudo e marca a caixinha dos pares do filtro
+escolhido (em **Todos**, só os que batem) — depois é só clicar em **Conciliar**
+no topo do Conta Azul. A extensão nunca concilia sozinha.
 
 ## Limites desta primeira versão
 

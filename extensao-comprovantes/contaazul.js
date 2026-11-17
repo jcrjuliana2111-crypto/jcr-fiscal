@@ -495,7 +495,9 @@
     <button data-f="conferir">⚠ Conferir <span class="a" id="nA"></span></button>
     <button data-f="nome">✕ Nome diferente <span class="x" id="nX"></span></button>
     <input id="busca" placeholder="🔎 nome ou valor">
-    <button class="pri" id="marcar" title="Marca a caixinha dos pares que batem (visíveis). Depois clique em Conciliar no topo do Conta Azul.">☑ Marcar os que batem</button>
+    <button class="pri" id="marcar" title="Carrega todos e marca a caixinha dos pares do filtro escolhido (em Todos, só os que batem). Depois clique em Conciliar no topo do Conta Azul.">☑ Marcar os do filtro</button>
+    <button id="carregarTodos" title="Clica em &quot;Carregar mais&quot; até aparecerem todos os lançamentos">⟳ Carregar todos</button>
+    <span id="carregando" class="a"></span>
   </div>`;
   document.documentElement.appendChild(barra);
   const selos = document.createElement('div');
@@ -549,15 +551,19 @@
       const forn = ((/(?:fornecedor|cliente)\s*:\s*([^\n]+?)(?:\s{2,}|\s*categoria\s*:|\n|$)/i.exec(tc) || [])[1] || '').trim();
       const C = window.Conciliacao;
       const nomeB = C.nomeNoExtrato(tb);
+      // selo do próprio Conta Azul entre os dois cartões ("Idêntico", "Valor e data"…)
+      let meio = b; while (meio.parentElement && meio.parentElement.getBoundingClientRect().width < 260) meio = meio.parentElement;
+      const identicoCA = /id[eê]ntic/i.test(meio.innerText || '');
       const valorOk = vb !== null && vb === vc;
       const dataOk = db && dc ? diasEntre(db, dc) <= 3 : true;
       let st, motivo;
       // comprovante da pasta com o mesmo valor e o nome do fornecedor confirma quando o banco não mostra nome
       const comp = !nomeB && pasta && forn ? pasta.itens.find(p => p.valores.includes(Math.abs(vb)) && C.nomeForte(p.texto, forn)) : null;
       if (!valorOk) { st = 'nome'; motivo = 'valor diferente'; }
-      else if (nomeB && forn && !C.nomeForte(nomeB, forn) && !C.nomeForte(tb, forn)) { st = 'nome'; motivo = `banco: ${nomeB} × Conta Azul: ${forn}`; }
+      else if (identicoCA && dataOk) { st = 'bate'; motivo = 'o Conta Azul marcou como idêntico'; }
+      else if (nomeB && forn && !C.nomeParecido(nomeB, forn) && !C.nomeParecido(tb, forn)) { st = 'nome'; motivo = `banco: ${nomeB} × Conta Azul: ${forn}`; }
       else if (!dataOk) { st = 'conferir'; motivo = 'datas distantes'; }
-      else if (nomeB && forn) { st = 'bate'; motivo = 'valor, data e nome batem'; }
+      else if (nomeB && forn) { st = 'bate'; motivo = C.nomeForte(nomeB, forn) || C.nomeForte(tb, forn) ? 'valor, data e nome batem' : `valor e data batem; nome parecido (banco: ${nomeB} × Conta Azul: ${forn})`; }
       else if (comp) { st = 'bate'; motivo = `banco sem nome; comprovante ${comp.arquivo} confirma`; }
       else { st = 'conferir'; motivo = forn ? 'o banco não mostra o nome (boleto?) — confira' : 'sem fornecedor no Conta Azul'; }
       out.push({ b, banco: banco.c, ca: ca.c, st, motivo, txt: norm(tb + ' ' + tc) });
@@ -583,6 +589,35 @@
       if (!ok) for (const el of (p.els || (p.els = partes(p)))) { el.style.display = 'none'; escondidos.add(el); }
     }
   }
+  // "Carregar mais" do Conta Azul: clica até sumir, para o filtro e o "Marcar" valerem para a lista inteira
+  const todosConciliar = () => [...document.querySelectorAll('button, a, [role=button]')].filter(b => /^\s*conciliar\s*$/i.test(b.textContent || '') && !eNosso(b)).length;
+  const botaoCarregarMais = () => [...document.querySelectorAll('button, a, [role=button]')].find(b =>
+    /carregar\s+mais/i.test(b.textContent || '') && !eNosso(b) && !b.disabled && b.getBoundingClientRect().width > 0);
+  let carregando = null, carregouEm = '';
+  function carregarTodos() {
+    if (carregando) return carregando;
+    const st = rb.getElementById('carregando');
+    carregando = (async () => {
+      try {
+        for (let i = 0; i < 200; i++) {
+          const bt = botaoCarregarMais();
+          if (!bt) break;
+          st.textContent = `carregando… ${todosConciliar()}`;
+          const antes = todosConciliar();
+          bt.click();
+          for (let t = 0; t < 40; t++) { // até 10 s por página
+            await new Promise(r => setTimeout(r, 250));
+            if (todosConciliar() > antes || !bt.isConnected || !botaoCarregarMais()) break;
+          }
+          if (todosConciliar() === antes && botaoCarregarMais() === bt) break; // não carregou nada: para
+        }
+      } finally {
+        carregando = null; st.textContent = ''; atualizarConc();
+      }
+    })();
+    return carregando;
+  }
+
   function atualizarConc() {
     if (arrastando) return;
     // lê só os pares à mostra; os escondidos pelo filtro ficam com a leitura anterior
@@ -591,6 +626,8 @@
     const ocultos = paresConc.filter(p => p.oculto && p.b.isConnected && !vis.some(q => q.b === p.b));
     paresConc = [...vis, ...ocultos];
     barra.style.display = paresConc.length ? '' : 'none';
+    // ao abrir a tela de conciliação, já carrega todos os lançamentos (uma vez por endereço)
+    if (paresConc.length && carregouEm !== location.href && !carregando) { carregouEm = location.href; carregarTodos(); }
     selos.style.display = paresConc.length ? '' : 'none';
     const n = st => paresConc.filter(p => p.st === st).length;
     rb.getElementById('nT').textContent = paresConc.length;
@@ -610,15 +647,19 @@
     }
     requestAnimationFrame(seguirSelos);
   })();
-  rb.querySelectorAll('button[data-f]').forEach(bt => bt.addEventListener('click', () => {
+  rb.querySelectorAll('button[data-f]').forEach(bt => bt.addEventListener('click', async () => {
     filtroConc = bt.dataset.f;
     rb.querySelectorAll('button[data-f]').forEach(x => x.classList.toggle('on', x === bt));
     aplicarFiltro();
+    if (botaoCarregarMais()) { await carregarTodos(); aplicarFiltro(); }
   }));
+  rb.getElementById('carregarTodos').addEventListener('click', () => carregarTodos());
   rb.getElementById('busca').addEventListener('input', aplicarFiltro);
-  rb.getElementById('marcar').addEventListener('click', () => {
+  rb.getElementById('marcar').addEventListener('click', async () => {
+    if (botaoCarregarMais()) { await carregarTodos(); aplicarFiltro(); }
     let n = 0;
-    for (const p of paresConc.filter(p => p.st === 'bate' && !p.oculto)) {
+    // marca os do filtro escolhido; em "Todos", só os que batem (por segurança)
+    for (const p of paresConc.filter(p => p.st === (filtroConc || 'bate') && !p.oculto)) {
       const cx = p.banco.querySelector('input[type=checkbox], [role=checkbox]');
       const marcado = cx && (cx.checked || cx.getAttribute('aria-checked') === 'true');
       if (cx && !marcado) { cx.click(); n++; }

@@ -40,13 +40,29 @@
   const cents = (v) => Math.round(Math.abs(Number(v) || 0) * 100);
   const dateKey = (d) => String(d || '').slice(0, 10);
 
+  // palavras do extrato que não são nome de ninguém (não valem como abreviação)
+  const BANCO = new Set(['pix', 'ted', 'doc', 'str', 'atm', 'deb', 'cred', 'env', 'envio', 'enviado', 'recebido', 'transf',
+    'transferencia', 'pagamento', 'pagto', 'pgto', 'dda', 'boleto', 'titulo', 'conta', 'agencia', 'banco']);
+  // a palavra do nome aparece no extrato? Igual, ou abreviada/cortada pelo banco
+  // ("serv" = "servicos", "oliv" = "oliveira", "medic" = "medicos"), com 3+ letras.
+  function wordIn(t, words) {
+    if (words.has(t)) return true;
+    for (const w of words) {
+      if (w.length < 3 || BANCO.has(w)) continue;
+      if (t.startsWith(w) || (t.length >= 3 && w.startsWith(t))) return true;
+    }
+    return false;
+  }
   function nameMatches(negotiator, bankDesc) {
     const toks = norm(negotiator).split(' ').filter(t => t.length > 1 && !STOP.has(t));
     if (!toks.length) return false;
-    const words = new Set(norm(bankDesc).split(' '));
-    const hit = toks.filter(t => words.has(t)).length;
-    // primeiro nome obrigatório + pelo menos 80% dos nomes (extratos costumam cortar o fim)
-    return words.has(toks[0]) && hit / toks.length >= 0.8;
+    const words = new Set(norm(bankDesc).split(' ').filter(Boolean));
+    const hit = toks.filter(t => wordIn(t, words)).length;
+    // primeiro nome obrigatório (pode vir abreviado) + pelo menos 60% dos nomes
+    // (extratos cortam o fim e abreviam: "RSETTI SERV MEDICOS" = "RSETTI SERVICOS MEDICOS LTDA").
+    // Maiúsculas, minúsculas e acentos não importam (norm).
+    if (!wordIn(toks[0], words)) return false;
+    return toks.length === 1 ? true : hit >= 2 && hit / toks.length >= 0.6;
   }
 
   // ---------- leitura dos itens via Vue ----------
@@ -121,12 +137,14 @@
       <button type="button" class="caf-sel caf-pri">Selecionar visíveis</button>
       <button type="button" class="caf-clear">Limpar seleção</button>
       <button type="button" class="caf-reset">Limpar filtro</button>
+      <button type="button" class="caf-load" title="Clica em &quot;Carregar mais&quot; do Conta Azul até aparecerem todos os lançamentos">⟳ Carregar todos</button>
       <span class="caf-info"></span>`;
     const $ = (s) => bar.querySelector(s);
-    $('.caf-text').addEventListener('input', (e) => { state.text = e.target.value; apply(); });
-    $('.caf-ca').addEventListener('change', (e) => { state.ca = e.target.value; apply(); });
-    $('.caf-mode').addEventListener('change', (e) => { state.mode = e.target.value; apply(); });
+    $('.caf-text').addEventListener('input', (e) => { state.text = e.target.value; apply(); loadAll(); });
+    $('.caf-ca').addEventListener('change', (e) => { state.ca = e.target.value; apply(); loadAll(); });
+    $('.caf-mode').addEventListener('change', (e) => { state.mode = e.target.value; apply(); loadAll(); });
     $('.caf-sel').addEventListener('click', selectVisible);
+    $('.caf-load').addEventListener('click', () => loadAll());
     $('.caf-clear').addEventListener('click', () => setSelection(() => false));
     $('.caf-reset').addEventListener('click', () => {
       state.text = ''; state.ca = ''; state.mode = 'all';
@@ -163,7 +181,9 @@
     return n;
   }
 
-  function selectVisible() {
+  async function selectVisible() {
+    // carrega todos antes, para a seleção valer para a lista inteira
+    if (loadMoreBtn()) await loadAll();
     // desmarca o que está escondido e marca só os visíveis que têm lançamento sugerido
     const n = setSelection(it => passes(it) && !!it.match);
     flash(n ? `${n} par(es) selecionado(s). Confira e clique em "Conciliar" na barra do Conta Azul.` : 'Nenhum par visível com lançamento sugerido para selecionar.');
@@ -171,6 +191,36 @@
 
   let flashMsg = '', flashT = 0;
   function flash(msg) { flashMsg = msg; clearTimeout(flashT); flashT = setTimeout(() => { flashMsg = ''; apply(); }, 8000); apply(); }
+
+  // ---------- "Carregar mais" do Conta Azul: clica até aparecerem todos ----------
+  const loadMoreBtn = () => [...document.querySelectorAll('button, a, [role=button]')].find(b =>
+    /carregar\s+mais/i.test(b.textContent || '') && !(bar && bar.contains(b)) && !b.disabled && b.offsetParent !== null);
+  let loading = null, loadedFor = '';
+  function loadAll() {
+    if (loading) return loading;
+    loading = (async () => {
+      try {
+        for (let i = 0; i < 200; i++) {
+          const b = loadMoreBtn();
+          if (!b) break;
+          const before = readItems().length;
+          loadingMsg = `Carregando todos os lançamentos… ${before} até agora`; apply();
+          b.click();
+          let grew = false;
+          for (let t = 0; t < 40; t++) { // até 10 s por página
+            await new Promise(r => setTimeout(r, 250));
+            if (readItems().length > before) { grew = true; break; }
+            if (!b.isConnected || !loadMoreBtn()) break;
+          }
+          if (!grew && loadMoreBtn() === b) break; // não carregou nada: para
+        }
+      } finally {
+        loading = null; loadingMsg = ''; apply();
+      }
+    })();
+    return loading;
+  }
+  let loadingMsg = '';
 
   // ---------- aplica filtro e marcações ----------
   function apply() {
@@ -203,9 +253,9 @@
     btn.textContent = `Selecionar visíveis (${selectable})`;
     btn.disabled = !selectable;
     const total = totalPending();
-    bar.querySelector('.caf-info').textContent = flashMsg ||
+    bar.querySelector('.caf-info').textContent = flashMsg || loadingMsg ||
       `Mostrando ${vis} de ${items.length} carregados${total ? ` (total na conta: ${total})` : ''} · ${ident} idêntico(s) · ${selected} selecionado(s).` +
-      (total && items.length < total ? ' Role a lista até o fim para carregar mais lançamentos.' : '');
+      (loadMoreBtn() ? ' Ainda há lançamentos para carregar: clique em "⟳ Carregar todos".' : '');
   }
 
   let tabEl = null;
@@ -231,7 +281,7 @@
     if (tag.className !== cls) tag.className = cls;
     if (tag.textContent !== txt) tag.textContent = txt;
     tag.title = kind === 'full'
-      ? 'Mesmo valor, mesma data e o nome do fornecedor aparece no extrato'
+      ? 'Mesmo valor, mesma data e o nome do fornecedor aparece no extrato (igual, abreviado ou cortado pelo banco)'
       : 'Mesmo valor e data, mas o nome do fornecedor não aparece no extrato';
   }
 
@@ -241,7 +291,11 @@
     pending = false;
     const onRecon = /financeiro\/contas\//.test(location.hash);
     if (!onRecon) { if (bar && bar.isConnected) bar.remove(); return; }
-    if (placeBar()) apply();
+    if (placeBar()) {
+      apply();
+      // ao abrir a tela de conciliação, já carrega todos (uma vez por endereço)
+      if (loadedFor !== location.href && readItems().length) { loadedFor = location.href; loadAll(); }
+    }
   }
   const schedule = () => { if (!pending) { pending = true; setTimeout(tick, 300); } };
   new MutationObserver((muts) => {

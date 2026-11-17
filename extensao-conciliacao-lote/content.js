@@ -140,9 +140,9 @@
       <button type="button" class="caf-load" title="Clica em &quot;Carregar mais&quot; do Conta Azul até aparecerem todos os lançamentos">⟳ Carregar todos</button>
       <span class="caf-info"></span>`;
     const $ = (s) => bar.querySelector(s);
-    $('.caf-text').addEventListener('input', (e) => { state.text = e.target.value; apply(); loadAll(); });
-    $('.caf-ca').addEventListener('change', (e) => { state.ca = e.target.value; apply(); loadAll(); });
-    $('.caf-mode').addEventListener('change', (e) => { state.mode = e.target.value; apply(); loadAll(); });
+    $('.caf-text').addEventListener('input', (e) => { state.text = e.target.value; apply(); });
+    $('.caf-ca').addEventListener('change', (e) => { state.ca = e.target.value; apply(); });
+    $('.caf-mode').addEventListener('change', (e) => { state.mode = e.target.value; apply(); });
     $('.caf-sel').addEventListener('click', selectVisible);
     $('.caf-load').addEventListener('click', () => loadAll());
     $('.caf-clear').addEventListener('click', () => setSelection(() => false));
@@ -195,14 +195,23 @@
   // ---------- "Carregar mais" do Conta Azul: clica até aparecerem todos ----------
   const loadMoreBtn = () => [...document.querySelectorAll('button, a, [role=button]')].find(b =>
     /carregar\s+mais/i.test(b.textContent || '') && !(bar && bar.contains(b)) && !b.disabled && b.offsetParent !== null);
-  let loading = null, loadedFor = '';
+  // Devagar de propósito: o Conta Azul bloqueia (HTTP 429, "Tente novamente mais tarde")
+  // quem pede muitas páginas seguidas. Pausa entre páginas, limite por rodada e para
+  // de vez se aparecer o bloqueio.
+  const PAUSA_MS = 3000, MAX_PAGINAS = 25;
+  const bloqueado = () => /tente novamente mais tarde|grande volume de solicita|error 429/i.test(document.body ? document.body.innerText.slice(0, 5000) : '');
+  let loading = null, loadedFor = '', stopped = false;
   function loadAll() {
     if (loading) return loading;
+    if (stopped || bloqueado()) { stopped = true; flash('O Conta Azul pediu para esperar (muitas solicitações). Carregamento automático desligado até recarregar a página.'); return Promise.resolve(); }
     loading = (async () => {
       try {
-        for (let i = 0; i < 200; i++) {
+        for (let i = 0; i < MAX_PAGINAS; i++) {
+          if (bloqueado()) { stopped = true; break; }
           const b = loadMoreBtn();
           if (!b) break;
+          if (i > 0) await new Promise(r => setTimeout(r, PAUSA_MS));
+          if (!loadMoreBtn()) break;
           const before = readItems().length;
           loadingMsg = `Carregando todos os lançamentos… ${before} até agora`; apply();
           b.click();
@@ -255,7 +264,8 @@
     const total = totalPending();
     bar.querySelector('.caf-info').textContent = flashMsg || loadingMsg ||
       `Mostrando ${vis} de ${items.length} carregados${total ? ` (total na conta: ${total})` : ''} · ${ident} idêntico(s) · ${selected} selecionado(s).` +
-      (loadMoreBtn() ? ' Ainda há lançamentos para carregar: clique em "⟳ Carregar todos".' : '');
+      (stopped ? ' O Conta Azul pediu para esperar (muitas solicitações): aguarde alguns minutos e recarregue a página (F5).'
+        : loadMoreBtn() ? ' Ainda há lançamentos para carregar: clique em "⟳ Carregar todos".' : '');
   }
 
   let tabEl = null;

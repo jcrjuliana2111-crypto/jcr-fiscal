@@ -21,8 +21,11 @@ O QUE FAZ
 • "Selecionar visíveis": marca as caixas dos pares que estão aparecendo e desmarca os que estão escondidos.
   Depois clique no botão "Conciliar" da barra do próprio Conta Azul.
 • "Limpar seleção" e "Limpar filtro".
-• "⟳ Carregar todos": clica em "Carregar mais" do Conta Azul até aparecerem todos os lançamentos. Isso já
-  acontece sozinho ao abrir a tela, ao mudar o filtro e antes de "Selecionar visíveis".
+• "⟳ Carregar todos": clica em "Carregar mais" do Conta Azul até aparecerem todos os lançamentos, com uma
+  pausa de 3 s entre as páginas e no máximo 25 páginas por vez (clique de novo para continuar). Isso já
+  acontece sozinho ao abrir a tela e antes de "Selecionar visíveis".
+• Se o Conta Azul mostrar "Tente novamente mais tarde" (erro 429, muitas solicitações), a extensão para de
+  carregar sozinha. Espere alguns minutos e recarregue a página (F5).
 
 IMPORTANTE
 • A extensão carrega todos os lançamentos sozinha (botão "Carregar mais" do Conta Azul). A faixa mostra

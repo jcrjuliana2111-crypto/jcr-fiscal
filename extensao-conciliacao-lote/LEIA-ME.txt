@@ -1,0 +1,39 @@
+CONCILIAÇÃO EM LOTE – CONTA AZUL (extensão Chrome)
+
+ONDE APARECE
+Contas financeiras > (conta) > aba "Conciliações pendentes". Uma faixa "Filtro em lote" fica logo abaixo
+da barra "Selecionar lançamentos / Conciliar / Editar..." (sem botão flutuante).
+
+O QUE FAZ
+• Campo de texto: filtra pela descrição da Conta Azul, pelo fornecedor, pela categoria ou pelo texto do
+  extrato. Ignora acentos e maiúsculas; várias palavras = todas precisam aparecer (ex.: "folha multi ago").
+• Lista "Todas as descrições": mostra as descrições da Conta Azul com a quantidade de cada uma, das mais
+  repetidas para as menos repetidas (ex.: "FOLHA MULTI AGO 2026 (48)").
+• Modo:
+    - Todos os pares
+    - Só com sugestão: tem lançamento da Conta Azul ao lado
+    - Mesmo valor e data
+    - Idênticos: mesmo valor, mesma data e o nome do fornecedor aparece no texto do extrato — também quando o
+      banco abrevia ou corta o nome ("RSETTI SERV MEDICOS" = "RSETTI SERVICOS MEDICOS LTDA",
+      "carlos roberto de oliv" = "CARLOS ROBERTO DE OLIVEIRA SANTOS"); maiúsculas e acentos não importam
+• Etiquetas ao lado do botão Conciliar de cada par: "Idêntico" (verde) ou "Valor e data" (amarelo; o nome
+  do fornecedor não bate com o extrato — confira antes).
+• "Selecionar visíveis": marca as caixas dos pares que estão aparecendo e desmarca os que estão escondidos.
+  Depois clique no botão "Conciliar" da barra do próprio Conta Azul.
+• "Limpar seleção" e "Limpar filtro".
+• "⟳ Carregar todos": clica em "Carregar mais" do Conta Azul até aparecerem todos os lançamentos, com uma
+  pausa de 3 s entre as páginas e no máximo 25 páginas por vez (clique de novo para continuar). Isso já
+  acontece sozinho ao abrir a tela e antes de "Selecionar visíveis".
+• Se o Conta Azul mostrar "Tente novamente mais tarde" (erro 429, muitas solicitações), a extensão para de
+  carregar sozinha. Espere alguns minutos e recarregue a página (F5).
+
+IMPORTANTE
+• A extensão carrega todos os lançamentos sozinha (botão "Carregar mais" do Conta Azul). A faixa mostra
+  "Mostrando X de Y"; se ainda houver o que carregar, clique em "⟳ Carregar todos".
+• Pares sem lançamento sugerido nunca são selecionados.
+• Quem concilia é o Conta Azul: a extensão só filtra e marca as caixas.
+
+INSTALAR
+1. Extraia em C:\Users\jcrju\Documents\Extensoes (fica ...\Extensoes\conciliacao-em-lote-conta-azul).
+2. chrome://extensions → Modo do desenvolvedor → "Carregar sem compactação" → escolha a pasta.
+3. Recarregue o Conta Azul (F5).

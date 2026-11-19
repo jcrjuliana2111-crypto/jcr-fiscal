@@ -866,6 +866,22 @@ function tokenPortal() {
     return (s && s.access_token) || '';
   } catch (e) { return ''; }
 }
+// O bucket dos PDFs é privado: pede à função um link temporário a cada abertura.
+async function abrirPdf(ev, id) {
+  ev.preventDefault();
+  const item = dados.find(d => d.id === id);
+  if (!item || !item.pdfUrl) return;
+  const janela = window.open('', '_blank'); // abre já no clique, para o navegador não bloquear
+  try {
+    const r = await fetchProxy({ method: 'POST', headers: { 'Content-Type': 'application/json', 'x-action': 'pdf-link' }, body: JSON.stringify({ url: item.pdfUrl }) });
+    if (!r.ok) throw new Error(await r.text());
+    const { url } = await r.json();
+    if (janela) janela.location = url; else location.href = url;
+  } catch (e) {
+    if (janela) janela.close();
+    alert('Não foi possível abrir o PDF: ' + e.message);
+  }
+}
 async function fetchProxy(opts) {
   const headers = { ...(opts.headers || {}), Authorization: 'Bearer ' + tokenPortal() };
   const r = await fetch(PROXY, { ...opts, headers });
@@ -1174,7 +1190,7 @@ function renderTabela() {
     <tr class="clickable" onclick="editarItem('${d.id}')">
       <td data-label="PDF" onclick="event.stopPropagation()">
         ${d.pdfUrl
-          ? `<a href="${d.pdfUrl}" target="_blank" title="Abrir PDF" style="display:inline-flex;align-items:center;gap:5px;color:var(--accent2);font-size:13px;text-decoration:none;font-weight:600">📎 Ver PDF</a>`
+          ? `<a href="#" onclick="abrirPdf(event,'${d.id}')" title="Abrir PDF" style="display:inline-flex;align-items:center;gap:5px;color:var(--accent2);font-size:13px;text-decoration:none;font-weight:600">📎 Ver PDF</a>`
           : `<label title="Anexar PDF" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;color:var(--text2);font-size:12px;border:1px dashed var(--border);border-radius:6px;padding:4px 8px;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
                📤 Anexar<input type="file" accept=".pdf" style="display:none" onchange="uploadPdf(event,'${d.id}')">
              </label>`

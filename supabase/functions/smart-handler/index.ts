@@ -101,6 +101,26 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ url }), { headers: { ...cors, 'Content-Type': 'application/json' } })
   }
 
+  // PDF privado: devolve um link temporário (1 hora). Aceita a URL gravada na notificação.
+  if (action === 'pdf-link') {
+    const { url } = await req.json()
+    const marca = '/notificacoes-pdf/'
+    const i = typeof url === 'string' ? url.indexOf(marca) : -1
+    if (i < 0) return json({ error: 'PDF inválido' }, 400)
+    let path = url.slice(i + marca.length)
+    try { path = decodeURIComponent(path) } catch (_) { /* já estava decodificado */ }
+    if (path.includes('..')) return json({ error: 'PDF inválido' }, 400)
+    const caminho = path.split('/').map(encodeURIComponent).join('/')
+    const r = await fetch(`${SUPA_URL}/storage/v1/object/sign/notificacoes-pdf/${caminho}`, {
+      method: 'POST',
+      headers: { ...auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expiresIn: 3600 }),
+    })
+    if (!r.ok) return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'application/json' } })
+    const { signedURL } = await r.json()
+    return json({ url: `${SUPA_URL}/storage/v1${signedURL}` })
+  }
+
   // ---------------------------------------------------------------- obrigações
   if (action === 'obr-get' || action === 'obr-upsert' || action === 'obr-delete') {
     const body = await req.json().catch(() => ({}))

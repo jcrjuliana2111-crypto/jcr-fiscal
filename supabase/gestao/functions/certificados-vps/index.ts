@@ -3,7 +3,8 @@
 // o arquivo na mesma pasta do robô de notas fiscais (automacoes/n8n/receber-certificado.json).
 // Endereço e chave do webhook ficam só nos secrets: N8N_CERT_URL e N8N_CERT_CHAVE.
 //
-// Entrada (POST, usuário logado): { arquivo, conteudo (base64 do .pfx), senha, documento, titular, vencimento, emitido_em }
+// Entrada (POST, usuário logado): { arquivo: "<CNPJ>.pem", conteudo (base64 do .pem já convertido no navegador), documento, titular, vencimento, emitido_em }
+// A senha do .pfx não chega aqui: a conversão para .pem (formato do robô) é feita no navegador.
 // Saída: { ok: true } | { ok: false, erro }
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -30,14 +31,15 @@ Deno.serve(async (req) => {
   try { c = await req.json(); } catch { return json({ ok: false, erro: "JSON inválido." }, 400); }
   const arquivo = String(c.arquivo || "").replace(/^.*[\\/]/, "").trim();
   const conteudo = String(c.conteudo || "");
-  if (!/\.(pfx|p12)$/i.test(arquivo) || arquivo.includes("..")) return json({ ok: false, erro: "Arquivo deve ser .pfx ou .p12." }, 400);
+  const documento = String(c.documento || "").replace(/\D/g, "");
+  if (![11, 14].includes(documento.length) || arquivo !== `${documento}.pem`) return json({ ok: false, erro: "Arquivo deve ser <CNPJ>.pem." }, 400);
   if (!conteudo || conteudo.length > 300_000 || !/^[A-Za-z0-9+/=]+$/.test(conteudo)) return json({ ok: false, erro: "Conteúdo do certificado inválido." }, 400);
 
   try {
     const r = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Chave-JCR": chave },
-      body: JSON.stringify({ arquivo, conteudo, senha: String(c.senha ?? ""), documento: String(c.documento || ""), titular: String(c.titular || ""),
+      body: JSON.stringify({ arquivo, conteudo, documento, titular: String(c.titular || ""),
         vencimento: c.vencimento || null, emitido_em: c.emitido_em || null, enviado_por: user.email }),
       signal: AbortSignal.timeout(30_000),
     });

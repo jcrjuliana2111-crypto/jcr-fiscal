@@ -64,7 +64,7 @@ gravarDisco = {'id': uid(f + 'disco'), 'name': 'Gravar na pasta do robô', 'type
                'parameters': {'operation': 'write', 'fileName': '={{ $json.caminho }}', 'dataPropertyName': 'data', 'options': {}}}
 resposta = {'id': uid(f + 'resp'), 'name': 'Responder ao portal', 'type': 'n8n-nodes-base.respondToWebhook', 'typeVersion': 1.1, 'position': [880, 0],
             'parameters': {'respondWith': 'json', 'responseBody': "={{ JSON.stringify({ ok: true, arquivo: $('Preparar arquivo').first().json.arquivo }) }}", 'options': {}}}
-cfg = config([('pasta', '/caminho/da/pasta/dos/certificados'), ('padrao_nome', '{nome} - senha {senha}.pfx')], f); cfg['position'] = [220, 0]
+cfg = config([('pasta', '/home/node/.n8n/certs-nfse')], f); cfg['position'] = [220, 0]
 gravar(f + '.json', 'JCR — Certificados: receber do portal e gravar na VPS', [webhook, cfg, code('Preparar arquivo', 'receber-certificado.code.js', 440, f), gravarDisco, resposta])
 
 f = 'alerta-certificados'
@@ -82,7 +82,17 @@ lig[tg['name']] = {'main': [[{'node': telegram['name'], 'type': 'main', 'index':
 lig[cl['name']] = {'main': [[{'node': mail['name'], 'type': 'main', 'index': 0}]]}
 gravar(f + '.json', 'JCR — Certificados: avisos de vencimento (Telegram e cliente)', nos + [tg, cl, telegram, mail], lig)
 
-# Passo para colar no fluxo do robô que já salva certificados na VPS: avisa o portal do certificado novo
+# Sincronização VPS → portal: lê os <CNPJ>.pem da pasta do robô todo dia e atualiza a validade no portal
+f = 'sincronizar-certificados'
+ler = {'id': uid(f + 'ler'), 'name': 'Ler a pasta do robô', 'type': 'n8n-nodes-base.readWriteFile', 'typeVersion': 1, 'position': [440, 0],
+       'parameters': {'operation': 'read', 'fileSelector': "={{ $json.pasta.replace(/\\/+$/, '') + '/*.pem' }}", 'options': {}}}
+gravar(f + '.json', 'JCR — Certificados: sincronizar a pasta do robô (VPS) com o portal', [
+    agenda('Todo dia às 7h40', '40 7 * * *', f), config([('pasta', '/home/node/.n8n/certs-nfse'), ('mostrar_erros', False)], f), ler,
+    code('Ler validade dos certificados', 'sincronizar-certificados.code.js', 660, f),
+    rpc('Atualizar no portal (Supabase)', 'registrar_certificado',
+        "={{ JSON.stringify({ p_documento: $json.documento, p_titular: $json.titular, p_vencimento: $json.vencimento, p_arquivo: $json.arquivo, p_emitido: $json.emitido_em }) }}", 880, f)])
+
+# Passo opcional para colar no fluxo do robô (avisa o portal na hora, sem esperar a sincronização diária)
 f = 'passo-robo'
 passo = rpc('Avisar o portal (Supabase)', 'registrar_certificado',
             "={{ JSON.stringify({ p_documento: $json.documento, p_titular: $json.titular, p_vencimento: $json.vencimento, p_arquivo: $json.arquivo, p_emitido: $json.emitido_em || null }) }}", 0, f)

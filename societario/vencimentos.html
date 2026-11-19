@@ -174,11 +174,11 @@ function loteHtml() {
         <td>${d ? `<b>${dataBR(d.vencimento)}</b><br><span class="badge" style="--c:${s.cor}">${s.txt}</span>` : '—'}</td>
         <td>${d ? (cli ? esc(cli.razao_social) : '<span class="help">sem cadastro com este CNPJ — entra pelo nome do certificado</span>') + (ex ? `<div class="help">atualiza o vencimento de ${dataBR(ex.vencimento)}</div>` : '') : ''}</td>
         <td>${d ? '✓ achada no nome' : `<input id="ls-${i}" placeholder="digite a senha" style="max-width:150px"> <button class="btn sec sm" onclick="tentarSenha(${i})">Abrir</button>`}</td>
-        <td><input type="checkbox" ${it.enviar ? 'checked' : ''} onchange="S.lote[${i}].enviar=this.checked" title="Gravar o arquivo na pasta do robô na VPS"></td>
+        <td><input type="checkbox" ${it.enviar ? 'checked' : ''} onchange="S.lote[${i}].enviar=this.checked" title="Gravar <CNPJ>.pem na pasta do robô na VPS (certs-nfse)"></td>
         <td>${it.status || (d ? '<span class="help">pronto</span>' : '')}</td></tr>`; }).join('')}
     </tbody></table></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">
-      <span class="help" style="align-self:center;margin-right:auto">O portal guarda só titular e validade. O arquivo e a senha vão apenas para a VPS (marcados em "VPS"), com o mesmo nome do arquivo.</span>
+      <span class="help" style="align-self:center;margin-right:auto">O portal guarda só titular e validade. Para a VPS (marcados em "VPS") vai o certificado já convertido para &lt;CNPJ&gt;.pem, como o robô de notas usa; a senha não sai do computador.</span>
       <button class="btn sec" onclick="S.lote=[];pintarLote()">Limpar</button>
       <button class="btn" id="b-lote" ${ok ? '' : 'disabled'} onclick="confirmarLote()">Importar ${ok} certificado(s)</button></div></div>`;
 }
@@ -193,10 +193,12 @@ async function enviarVps(it) {
   const { data: { session } } = await sb.auth.getSession();
   const r = await fetch(SUPABASE_URL + '/functions/v1/certificados-vps', { method: 'POST',
     headers: { Authorization: 'Bearer ' + (session && session.access_token), apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ arquivo: it.arquivo, conteudo: base64(it.bytes), senha: it.senha, documento: it.dados.documento, titular: it.dados.titular, vencimento: it.dados.vencimento, emitido_em: it.dados.emitido_em }) });
+    // vai só o .pem (chave já aberta + certificado), como o robô usa; a senha fica no computador
+    body: JSON.stringify({ arquivo: `${it.dados.documento}.pem`, conteudo: btoa(Certificado.paraPem(forge, it.bytes, it.senha)), documento: it.dados.documento,
+      titular: it.dados.titular, vencimento: it.dados.vencimento, emitido_em: it.dados.emitido_em, original: it.arquivo }) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.ok) throw new Error(j.erro === 'nao_configurado' ? 'ponte com a VPS ainda não configurada' : (j.erro || 'HTTP ' + r.status));
-  try { return JSON.parse(j.vps).arquivo || it.arquivo; } catch (_) { return it.arquivo; } // nome final na pasta do robô
+  try { return JSON.parse(j.vps).arquivo || `${it.dados.documento}.pem`; } catch (_) { return `${it.dados.documento}.pem`; } // nome na pasta do robô
 }
 async function confirmarLote() {
   $('b-lote').disabled = true;
@@ -204,7 +206,7 @@ async function confirmarLote() {
   for (const it of S.lote.filter(x => x.dados && !x.feito)) {
     const d = it.dados, cli = clientePorDoc(d.documento, d.nome), ex = existentePorDoc(d.documento);
     const linha = { empresa: cli ? cli.razao_social : (ex ? ex.empresa : d.nome), cliente_id: cli ? cli.id : (ex ? ex.cliente_id : null), tipo: 'certificado_a1', vencimento: d.vencimento,
-      descricao: `${d.tipo} A1 — ${d.titular}`, cnpj: d.documento || null, titular: d.titular, emitido_em: d.emitido_em, arquivo: it.arquivo, origem: 'portal', updated_at: new Date().toISOString() };
+      descricao: `${d.tipo} A1 — ${d.titular}`, cnpj: d.documento || null, titular: d.titular, emitido_em: d.emitido_em, arquivo: `${d.documento}.pem`, origem: 'portal', updated_at: new Date().toISOString() };
     try {
       const r = ex ? await sb.from('soc_vencimentos').update(linha).eq('id', ex.id).select().single() : await sb.from('soc_vencimentos').insert(linha).select().single();
       if (r.error) throw new Error(r.error.message);

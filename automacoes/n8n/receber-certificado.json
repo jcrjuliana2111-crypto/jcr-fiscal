@@ -34,13 +34,7 @@
             {
               "id": "a6f77cf1-7f93-5de0-9580-26780c7478de",
               "name": "pasta",
-              "value": "/caminho/da/pasta/dos/certificados",
-              "type": "string"
-            },
-            {
-              "id": "19cf1069-bfd3-56ed-9511-a1be9724a940",
-              "name": "padrao_nome",
-              "value": "{nome} - senha {senha}.pfx",
+              "value": "/home/node/.n8n/certs-nfse",
               "type": "string"
             }
           ]
@@ -58,7 +52,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "// Nó \"Preparar arquivo\" do fluxo receber-certificado (n8n, nó Code em modo \"Run Once for All Items\").\n// Recebe do portal (Edge Function certificados-vps) o certificado A1 em base64 e devolve o arquivo binário\n// com o MESMO nome do arquivo original (a senha continua no nome, como o robô de notas já usa).\n// Responde ao portal com o nome final gravado.\n// Este arquivo é a fonte do código colado no nó (gerar-fluxos.py); mantenha os dois iguais.\n\nconst corpo = $('Recebe do portal').first().json.body || {};\nconst pasta = String($('Configuração').first().json.pasta || '').replace(/\\/+$/, '');\nconst original = String(corpo.arquivo || '').replace(/^.*[\\\\/]/, '').trim();\n// O robô lê a senha no nome do arquivo. Se a senha foi digitada no portal (não estava no nome),\n// o arquivo é renomeado pelo padrão da Configuração, ex.: \"{nome} - senha {senha}.pfx\".\nconst senha = String(corpo.senha ?? '');\nconst padrao = String($('Configuração').first().json.padrao_nome || '{nome} - senha {senha}.pfx');\nconst semExt = original.replace(/\\.(pfx|p12)$/i, '');\nconst arquivo = senha && !original.includes(senha)\n  ? padrao.replace('{nome}', semExt).replace('{senha}', senha).replace(/[\\\\/]/g, '-')\n  : original;\nif (!pasta) throw new Error('Preencha a pasta dos certificados no nó Configuração.');\nif (!/\\.(pfx|p12)$/i.test(original) || arquivo.includes('..')) throw new Error('Nome de arquivo inválido: ' + arquivo);\nif (!/^[A-Za-z0-9+/=]+$/.test(String(corpo.conteudo || ''))) throw new Error('Conteúdo do certificado inválido.');\nreturn [{\n  json: { arquivo, caminho: `${pasta}/${arquivo}`, documento: corpo.documento || '', titular: corpo.titular || '', vencimento: corpo.vencimento || null, enviado_por: corpo.enviado_por || '' },\n  binary: { data: { data: corpo.conteudo, mimeType: 'application/x-pkcs12', fileName: arquivo } },\n}];\n"
+        "jsCode": "// Nó \"Preparar arquivo\" do fluxo receber-certificado (n8n, nó Code em modo \"Run Once for All Items\").\n// Recebe do portal (Edge Function certificados-vps) o certificado JÁ CONVERTIDO para .pem no navegador\n// (chave privada aberta + certificado), igual ao que o robô de notas grava, e devolve o arquivo binário\n// \"<CNPJ>.pem\" para a pasta do robô (certs-nfse). Se já existir, é substituído (renovação).\n// Este arquivo é a fonte do código colado no nó (gerar-fluxos.py); mantenha os dois iguais.\n\nconst corpo = $('Recebe do portal').first().json.body || {};\nconst pasta = String($('Configuração').first().json.pasta || '').replace(/\\/+$/, '');\nconst documento = String(corpo.documento || '').replace(/\\D/g, '');\nconst conteudo = String(corpo.conteudo || '');\nif (!pasta) throw new Error('Preencha a pasta dos certificados no nó Configuração.');\nif (![11, 14].includes(documento.length)) throw new Error('CNPJ/CPF inválido: ' + corpo.documento);\nif (!/^[A-Za-z0-9+/=]+$/.test(conteudo)) throw new Error('Conteúdo do certificado inválido.');\nconst texto = typeof Buffer !== 'undefined' ? Buffer.from(conteudo, 'base64').toString('utf8') : atob(conteudo);\nif (!/-----BEGIN (RSA )?PRIVATE KEY-----/.test(texto) || !/-----BEGIN CERTIFICATE-----/.test(texto)) throw new Error('O arquivo não tem chave privada e certificado em PEM.');\nconst arquivo = `${documento}.pem`;\nreturn [{\n  json: { arquivo, caminho: `${pasta}/${arquivo}`, documento, titular: corpo.titular || '', vencimento: corpo.vencimento || null, enviado_por: corpo.enviado_por || '' },\n  binary: { data: { data: conteudo, mimeType: 'application/x-pem-file', fileName: arquivo } },\n}];\n"
       }
     },
     {

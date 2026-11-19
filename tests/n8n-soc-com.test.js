@@ -49,7 +49,8 @@ test('e-mails da Junta: protocolo e evento; e-mails sem relação são descartad
 test('fluxos gerados estão iguais aos arquivos de código', () => {
   const pares = [['alerta-societario.json', 'Montar e-mail', 'alerta-societario.code.js'], ['alerta-comercial.json', 'Montar e-mail', 'alerta-comercial.code.js'],
     ['emails-jucesp.json', 'Entender o e-mail', 'emails-jucesp.code.js'], ['receber-certificado.json', 'Preparar arquivo', 'receber-certificado.code.js'],
-    ['alerta-certificados.json', 'Mensagem do Telegram', 'alerta-certificados-telegram.code.js'], ['alerta-certificados.json', 'Avisos aos clientes', 'alerta-certificados-clientes.code.js']];
+    ['alerta-certificados.json', 'Mensagem do Telegram', 'alerta-certificados-telegram.code.js'], ['alerta-certificados.json', 'Avisos aos clientes', 'alerta-certificados-clientes.code.js'],
+    ['sincronizar-certificados.json', 'Ler validade dos certificados', 'sincronizar-certificados.code.js']];
   for (const [json, nome, code] of pares) {
     const f = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'automacoes', 'n8n', json), 'utf8'));
     const no = f.nodes.find(n => n.name === nome);
@@ -58,20 +59,18 @@ test('fluxos gerados estão iguais aos arquivos de código', () => {
   }
 });
 
-test('certificados: arquivo para a VPS com o mesmo nome; avisos sem expor a senha', () => {
+test('certificados: VPS recebe <CNPJ>.pem; avisos sem expor a senha', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'automacoes', 'n8n', 'receber-certificado.code.js'), 'utf8');
-  const nos = { 'Recebe do portal': { body: { arquivo: 'C:\\x\\EMPRESA LTDA - senha 1234.pfx', conteudo: 'AAAA', documento: '11222333000181' } }, 'Configuração': { pasta: '/dados/certificados/' } };
-  const [r] = new Function('$', src)(n => ({ first: () => ({ json: nos[n] }) }));
-  assert.strictEqual(r.json.caminho, '/dados/certificados/EMPRESA LTDA - senha 1234.pfx');
-  assert.strictEqual(r.binary.data.fileName, 'EMPRESA LTDA - senha 1234.pfx');
-  nos['Recebe do portal'].body.senha = '1234';
-  assert.strictEqual(new Function('$', src)(n => ({ first: () => ({ json: nos[n] }) }))[0].json.arquivo, 'EMPRESA LTDA - senha 1234.pfx'); // senha já no nome: não muda
-  nos['Recebe do portal'].body = { arquivo: 'SemSenha.pfx', conteudo: 'AAAA', senha: 'zz' };
-  assert.strictEqual(new Function('$', src)(n => ({ first: () => ({ json: nos[n] }) }))[0].json.arquivo, 'SemSenha - senha zz.pfx');
-  nos['Configuração'].padrao_nome = '{senha}_{nome}.pfx';
-  assert.strictEqual(new Function('$', src)(n => ({ first: () => ({ json: nos[n] }) }))[0].json.arquivo, 'zz_SemSenha.pfx');
-  nos['Recebe do portal'].body = { arquivo: '../../etc/passwd.pfx', conteudo: 'AAAA' };
-  assert.ok(new Function('$', src)(n => ({ first: () => ({ json: nos[n] }) }))[0].json.caminho.endsWith('/passwd.pfx'));
+  const pem = '-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n-----BEGIN CERTIFICATE-----\nBBBB\n-----END CERTIFICATE-----\n';
+  const nos = { 'Recebe do portal': { body: { arquivo: '11222333000181.pem', documento: '11.222.333/0001-81', conteudo: Buffer.from(pem).toString('base64') } }, 'Configuração': { pasta: '/home/node/.n8n/certs-nfse/' } };
+  const rodarR = () => new Function('$', src)(n => ({ first: () => ({ json: nos[n] }) }));
+  const [r] = rodarR();
+  assert.strictEqual(r.json.caminho, '/home/node/.n8n/certs-nfse/11222333000181.pem');
+  assert.strictEqual(r.binary.data.fileName, '11222333000181.pem');
+  nos['Recebe do portal'].body.conteudo = Buffer.from('so o certificado -----BEGIN CERTIFICATE-----').toString('base64');
+  assert.throws(rodarR, /chave privada/);
+  nos['Recebe do portal'].body = { documento: '../../etc', conteudo: 'AAAA' };
+  assert.throws(rodarR, /CNPJ\/CPF inválido/);
   const itens = [{ cliente: 'EMPRESA LTDA', cnpj: '11222333000181', vencimento: '2026-12-19', dias_restantes: 30, arquivo: 'EMPRESA - senha 1234.pfx', email_contato: 'c@x.com', contato_nome: 'Ana Lima' },
     { empresa: 'Outra', vencimento: '2026-11-12', dias_restantes: -7 }];
   const [tg] = rodar('alerta-certificados-telegram.code.js', [{ data: '2026-11-19', itens }]);
@@ -82,4 +81,20 @@ test('certificados: arquivo para a VPS com o mesmo nome; avisos sem expor a senh
   assert.strictEqual(cl.length, 1);
   assert.ok(cl[0].json.mensagem.startsWith('Olá, Ana!') && cl[0].json.assunto.includes('vence em 30 dias'));
   assert.deepStrictEqual(rodar('alerta-certificados-clientes.code.js', [{ itens }], { avisar_cliente: false }), []);
+});
+
+test('sincronização: lê titular e validade dos .pem da pasta do robô (sem biblioteca)', async () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'automacoes', 'n8n', 'sincronizar-certificados.code.js'), 'utf8');
+  const pem = fs.readFileSync(path.join(__dirname, 'fixtures', 'certificado-teste.pem'));
+  const itens = [{ binary: { data: { fileName: '11222333000181.pem', data: pem.toString('base64') } } },
+    { binary: { data: { fileName: 'quebrado.pem', data: Buffer.from('nada').toString('base64') } } }];
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  const cfg = { mostrar_erros: false };
+  const fn = new AsyncFunction('$input', '$', 'Buffer', src);
+  const out = await fn.call({}, { all: () => itens }, () => ({ first: () => ({ json: cfg }) }), Buffer);
+  assert.strictEqual(out.length, 1);
+  assert.deepStrictEqual(out[0].json, { documento: '11222333000181', titular: 'EMPRESA FICTÍCIA DE TESTE LTDA:11222333000181', vencimento: '2027-12-24', emitido_em: '2026-11-19', arquivo: '11222333000181.pem' });
+  cfg.mostrar_erros = true;
+  const comErros = await fn.call({}, { all: () => itens }, () => ({ first: () => ({ json: cfg }) }), Buffer);
+  assert.ok(comErros[1].json.erro.startsWith('quebrado.pem'));
 });

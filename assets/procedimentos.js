@@ -510,8 +510,8 @@ window.JCR_PROCEDIMENTOS = (function () {
       responsavel: 'Societário',
       prazo: 'Renovar com 30 dias de antecedência. A1 vale 1 ano; A3 de 1 a 3 anos.',
       passos: [
-        'Ao receber certificados A1: Painel Societário → "📅 Certificados e alvarás" → "📦 Importar certificados em lote". O portal acha a senha no nome do arquivo (ou você digita), lê titular, CNPJ e validade, liga ao cliente pelo CNPJ e grava o arquivo na pasta do robô da VPS (coluna "Na VPS").',
-        'Certificado que chega pelo robô da VPS (Telegram/n8n) aparece sozinho no portal, pelo passo "Avisar o portal" no fluxo do robô.',
+        'Ao receber certificados A1: Painel Societário → "📅 Certificados e alvarás" → "📦 Importar certificados em lote". O portal acha a senha no nome do arquivo (ou você digita), lê titular, CNPJ e validade, liga ao cliente pelo CNPJ e grava <CNPJ>.pem na pasta do robô de notas da VPS (coluna "Na VPS"). A senha não sai do computador.',
+        'Certificado enviado pelo robô do Telegram aparece sozinho no portal no dia seguinte (sincronização diária da pasta certs-nfse).',
         'A3 (token/cartão): cadastrar o vencimento à mão.',
         'Avisos automáticos (n8n): Telegram para o escritório e e-mail para o cliente aos 60, 45, 30, 15, 7, 1 e 0 dias; vencidos, lembrete semanal. No portal, o quadro "Atenção hoje" mostra os próximos 30 dias.',
         'Avisar o cliente e agendar a renovação; depois, "Renovado" com a nova data.',

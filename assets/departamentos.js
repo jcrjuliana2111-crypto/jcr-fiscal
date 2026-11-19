@@ -203,7 +203,9 @@ window.JCR_DEPARTAMENTOS = [
     ferramentas: [
       { nome: 'Comercial', url: 'hub/comercial.html', desc: 'Funil, scripts de WhatsApp e precificação.', status: 'ativa' },
       { nome: 'Clientes', url: 'hub/clientes.html', desc: 'Ficha por cliente com oportunidades e passivo fiscal.', status: 'ativa' },
-      { nome: 'Gerador de proposta comercial', desc: 'Proposta em PDF a partir do perfil do cliente.', status: 'ideia' },
+      { nome: 'Onboarding de clientes', url: 'comercial/', desc: 'Funil do orçamento ao cliente ativo: orçamento pela tabela de preços, proposta e contrato em Word, cadastro automático no Gestão Fiscal, JCR Entregas e Painel Societário, e-mail de boas-vindas e checklist de implantação.', status: 'ativa' },
+      { nome: 'Gerador de proposta comercial', url: 'comercial/', desc: 'Proposta em Word a partir do perfil do cliente e da tabela de preços (dentro do Onboarding).', status: 'ativa' },
+      { nome: 'Follow-up automático de propostas', desc: 'n8n avisa no WhatsApp/e-mail as propostas paradas há mais de 3 dias e as que vencem a validade.', status: 'ideia' },
     ],
   },
   {

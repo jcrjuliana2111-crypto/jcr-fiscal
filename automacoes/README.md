@@ -73,40 +73,50 @@ O código dos nós fica nos arquivos `*.code.js`. Depois de mudar um deles, rode
 
 ## Certificados digitais — portal ⇄ VPS e avisos de vencimento
 
+O robô de notas fiscais guarda cada certificado como **`<CNPJ>.pem`** (chave privada aberta + certificado,
+sem senha) em `/home/node/.n8n/certs-nfse/`, no volume do container do n8n (Coolify, VPS HostGator).
+O portal segue o mesmo formato:
+
 ```
-Portal (Importar em lote) ─► Edge Function certificados-vps ─► n8n "receber-certificado" ─► pasta do robô na VPS
-Robô da VPS (salvou certificado) ─► passo "Avisar o portal" ─► Supabase registrar_certificado
-Todo dia 8h15 ─► certificados_alerta (60/45/30/15/7/1/0 dias e vencidos) ─► Telegram (você) + e-mail (cliente)
+Portal (Importar em lote: .pfx + senha no nome) ─► converte para <CNPJ>.pem NO NAVEGADOR (a senha não sai do computador)
+      ─► Edge Function certificados-vps ─► n8n "receber-certificado" ─► /home/node/.n8n/certs-nfse/<CNPJ>.pem
+Todo dia 7h40: n8n "sincronizar-certificados" lê os .pem da pasta ─► validade no portal (registrar_certificado)
+Todo dia 8h15: certificados_alerta (60/45/30/15/7/1/0 dias e vencidos) ─► Telegram (você) + e-mail (cliente)
 ```
 
-### 1. `n8n/receber-certificado.json` — o portal grava o certificado na pasta do robô
+### 1. `n8n/receber-certificado.json` — o portal grava `<CNPJ>.pem` na pasta do robô
 
 1. Importe o fluxo. No nó **Recebe do portal**, crie a credencial **Header Auth**: nome `X-Chave-JCR` e,
    como valor, uma senha longa que você inventar (40+ letras e números).
-2. No nó **Configuração**: `pasta` = a mesma pasta onde o robô de notas guarda os certificados (o caminho
-   como o n8n enxerga, ex.: `/home/node/.n8n/certificados` no Docker), e `padrao_nome` = o padrão de nome
-   que o robô usa quando a senha precisa ir no nome (só é usado se você digitar a senha no portal;
-   ex.: `{nome} - senha {senha}.pfx`).
-3. Ative o fluxo e copie a **Production URL** do webhook.
+2. O nó **Configuração** já vem com `pasta = /home/node/.n8n/certs-nfse` (a do robô).
+3. Ative o fluxo e copie a **Production URL** do webhook (tem que ser https).
 4. No Supabase do portal → Edge Functions → Secrets: `N8N_CERT_URL` = a URL e `N8N_CERT_CHAVE` = a mesma
    senha do Header Auth. Não mande essa senha por mensagem.
 5. No portal, Certificados e alvarás → **Importar certificados em lote**: a coluna "Na VPS" mostra ✓.
 
-O portal guarda só titular, CNPJ/CPF, validade e o nome do arquivo. O arquivo e a senha ficam só na VPS.
+Se já existir `<CNPJ>.pem` daquela empresa, ele é substituído (renovação), como o robô faz.
 
-### 2. `n8n/passo-robo-registrar-certificado.json` — o robô avisa o portal
+### 2. `n8n/sincronizar-certificados.json` — a pasta do robô aparece no portal
 
-Abra o fluxo do robô que salva os certificados, cole este passo (copiar o conteúdo do arquivo e colar na tela
-do fluxo) logo depois de gravar o arquivo, e ajuste os campos do corpo para os nomes que o robô usa:
-`documento` (CNPJ/CPF), `titular`, `vencimento` (AAAA-MM-DD), `arquivo` e `emitido_em`. Use a credencial do
-Supabase (service role). O certificado aparece no portal ligado ao cliente pelo CNPJ (se já existir, só atualiza a data).
+Todo dia às 7h40 lê todos os `.pem` da pasta, tira do próprio certificado o titular e a validade (sem ler a
+chave privada) e atualiza o portal, ligando ao cliente pelo CNPJ. Assim os certificados que você manda pelo
+robô do Telegram aparecem no portal sem mexer no fluxo do robô. Use a credencial do Supabase (service role)
+no último nó. Rode uma vez na mão (**Test workflow**) para trazer os que já estão lá.
+
+(Opcional) `n8n/passo-robo-registrar-certificado.json`: um passo para colar no fluxo do robô se quiser que o
+portal seja avisado na hora, sem esperar a sincronização do dia seguinte.
 
 ### 3. `n8n/alerta-certificados.json` — avisos no Telegram e para o cliente
 
 - Todo dia às 8h15, os certificados que completam hoje 60, 45, 30, 15, 7, 1 ou 0 dias para vencer
   (lista em `marcos` na Configuração) e os vencidos (lembrete semanal por até 60 dias).
-- **Telegram**: crie a credencial do bot do Telegram no nó *Enviar no Telegram* e coloque o seu chat id em
-  `telegram_chat_id`. A mensagem não leva o nome do arquivo (que contém a senha).
-- **Cliente**: com `avisar_cliente = true`, manda e-mail pelo Gmail para o contato do cliente (JCR Entregas ou
+- **Telegram**: credencial do bot no nó *Enviar no Telegram* e o seu chat id em `telegram_chat_id`.
+- **Cliente**: com `avisar_cliente = true`, e-mail pelo Gmail para o contato do cliente (JCR Entregas ou
   Gestão Fiscal). O nó *Avisos aos clientes* também entrega `whatsapp` e `mensagem`, para ligar um nó de
   WhatsApp (ex.: Evolution API) se você usar.
+
+### Cuidados
+
+- Os `.pem` têm a chave privada aberta: quem acessa a VPS ou o n8n consegue usá-los. Guarde os `.pfx`
+  originais e as senhas num lugar seguro seu (não há cópia de segurança da pasta).
+- O portal não guarda arquivo, chave nem senha: só titular, CNPJ, validade e o nome do arquivo.

@@ -1,0 +1,153 @@
+{
+  "name": "JCR — Certificados: sincronizar a pasta do robô (VPS) com o portal",
+  "nodes": [
+    {
+      "id": "cd65cf83-4c7f-5ae8-87e9-d7f73f55ba90",
+      "name": "Todo dia às 7h40",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "40 7 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "e4b2f4e0-26ad-5fed-9842-95b12651c329",
+      "name": "Configuração",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e0e59997-5568-5f66-8ffa-9852dca4d743",
+              "name": "pasta",
+              "value": "/home/node/.n8n/certs-nfse",
+              "type": "string"
+            },
+            {
+              "id": "441fbf70-c237-58ab-9576-e18b62e1953a",
+              "name": "mostrar_erros",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3d922931-8f0f-54ad-9e66-8bb9542c85eb",
+      "name": "Ler a pasta do robô",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "={{ $json.pasta.replace(/\\/+$/, '') + '/*.pem' }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "dcb49cdf-a72a-51a0-b913-5719bc88d65c",
+      "name": "Ler validade dos certificados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Nó \"Ler validade dos certificados\" do fluxo sincronizar-certificados (n8n, nó Code em modo \"Run Once for All Items\").\n// Recebe os arquivos <CNPJ>.pem da pasta do robô (nó \"Ler a pasta do robô\") e, para cada um, lê no próprio\n// certificado: titular (CN), início e fim da validade. Não usa biblioteca nenhuma: decodifica o X.509 (ASN.1/DER).\n// Devolve um item por certificado para gravar no portal (função registrar_certificado). A chave privada não é lida.\n// Este arquivo é a fonte do código colado no nó (gerar-fluxos.py); mantenha os dois iguais.\n\nfunction lerDer(bytes) {\n  // Percorre o DER: devolve { tag, inicio, fim, filhos? }\n  function no(i) {\n    const tag = bytes[i]; let len = bytes[i + 1], p = i + 2;\n    if (len & 0x80) { const n = len & 0x7f; len = 0; for (let k = 0; k < n; k++) len = len * 256 + bytes[p++]; }\n    return { tag, inicio: p, fim: p + len };\n  }\n  const filhos = n => { const out = []; let i = n.inicio; while (i < n.fim) { const f = no(i); out.push(f); i = f.fim; } return out; };\n  const texto = n => String.fromCharCode(...bytes.slice(n.inicio, n.fim));\n  const data = n => { // UTCTime (0x17) AAMMDDhhmmssZ ou GeneralizedTime (0x18) AAAAMMDDhhmmssZ\n    const t = texto(n); const ano = n.tag === 0x17 ? (+t.slice(0, 2) >= 50 ? 1900 : 2000) + +t.slice(0, 2) : +t.slice(0, 4); const r = n.tag === 0x17 ? t.slice(2) : t.slice(4);\n    return new Date(Date.UTC(ano, +r.slice(0, 2) - 1, +r.slice(2, 4), +r.slice(4, 6), +r.slice(6, 8), +r.slice(8, 10)));\n  };\n  const cert = no(0), tbs = filhos(cert)[0]; let campos = filhos(tbs);\n  if (campos[0].tag === 0xa0) campos = campos.slice(1); // versão\n  const validade = filhos(campos[3]), sujeito = campos[4];\n  let cn = '';\n  for (const rdn of filhos(sujeito)) for (const atv of filhos(rdn)) {\n    const [oid, valor] = filhos(atv);\n    if (bytes.slice(oid.inicio, oid.fim).join('.') === '85.4.3') cn = decodeURIComponent(escape(texto(valor))); // 2.5.4.3 = commonName\n  }\n  return { cn, inicio: data(validade[0]), fim: data(validade[1]) };\n}\nconst iso = d => d.toISOString().slice(0, 10);\nconst saida = [];\nconst itens = $input.all();\nfor (let i = 0; i < itens.length; i++) {\n  const bin = (itens[i].binary || {}).data || {};\n  const nome = bin.fileName || '';\n  try {\n    const buf = this && this.helpers && this.helpers.getBinaryDataBuffer ? await this.helpers.getBinaryDataBuffer(i, 'data') : Buffer.from(bin.data, 'base64');\n    const pem = buf.toString('utf8');\n    const b64 = (/-----BEGIN CERTIFICATE-----([\\s\\S]+?)-----END CERTIFICATE-----/.exec(pem) || [])[1];\n    if (!b64) throw new Error('sem certificado no arquivo');\n    const c = lerDer(Uint8Array.from(Buffer.from(b64.replace(/\\s+/g, ''), 'base64')));\n    const doc = (nome.replace(/\\.pem$/i, '').replace(/\\D/g, '')) || (c.cn.split(':')[1] || '').replace(/\\D/g, '');\n    saida.push({ json: { documento: doc, titular: c.cn, vencimento: iso(c.fim), emitido_em: iso(c.inicio), arquivo: nome } });\n  } catch (e) {\n    saida.push({ json: { erro: `${nome}: ${e.message}` } });\n  }\n}\nreturn saida.filter(x => !x.json.erro || $('Configuração').first().json.mostrar_erros);\n"
+      }
+    },
+    {
+      "id": "8974ddc8-1b12-5d6a-87dc-36bff7f4404c",
+      "name": "Atualizar no portal (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://onecnoicxqjhgolqncjj.supabase.co/rest/v1/rpc/registrar_certificado",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_documento: $json.documento, p_titular: $json.titular, p_vencimento: $json.vencimento, p_arquivo: $json.arquivo, p_emitido: $json.emitido_em }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Todo dia às 7h40": {
+      "main": [
+        [
+          {
+            "node": "Configuração",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuração": {
+      "main": [
+        [
+          {
+            "node": "Ler a pasta do robô",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler a pasta do robô": {
+      "main": [
+        [
+          {
+            "node": "Ler validade dos certificados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler validade dos certificados": {
+      "main": [
+        [
+          {
+            "node": "Atualizar no portal (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {}
+}

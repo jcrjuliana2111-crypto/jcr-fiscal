@@ -53,7 +53,24 @@
     return null;
   }
 
-  const api = { candidatosSenha, abrir, descobrir, dadosCertificado };
+  /*
+   * Converte o .pfx para o formato do robô da VPS: um único .pem com a chave privada aberta (PKCS#8,
+   * "BEGIN PRIVATE KEY", igual ao "openssl pkcs12 -nodes") seguida do certificado e da cadeia.
+   * Feito aqui no navegador: a senha não sai do computador.
+   */
+  function paraPem(forge, bytes, senha) {
+    const bin = forge.util.binary.raw.encode(bytes);
+    const p12 = forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(bin), senha);
+    const chaves = [...(p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag })[forge.pki.oids.pkcs8ShroudedKeyBag] || []),
+      ...(p12.getBags({ bagType: forge.pki.oids.keyBag })[forge.pki.oids.keyBag] || [])].map(b => b.key).filter(Boolean);
+    const certs = (p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag] || []).map(b => b.cert).filter(Boolean);
+    if (!chaves.length || !certs.length) throw new Error('certificado sem chave privada');
+    const folha = certs.find(c => !(c.extensions || []).some(e => e.name === 'basicConstraints' && e.cA)) || certs[0];
+    const chave = forge.pki.privateKeyInfoToPem(forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(chaves[0])));
+    return [chave, forge.pki.certificateToPem(folha), ...certs.filter(c => c !== folha).map(c => forge.pki.certificateToPem(c))].join('').replace(/\r\n/g, '\n');
+  }
+
+  const api = { candidatosSenha, abrir, descobrir, dadosCertificado, paraPem };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Certificado = api;
 })(typeof window !== 'undefined' ? window : globalThis);

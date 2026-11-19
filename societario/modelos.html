@@ -12,6 +12,9 @@
 <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js"></script>
 <script src="modelos-core.js"></script>
 <script src="links.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="conferidor-core.js"></script>
+<script src="leitor-core.js"></script>
 <style>
 :root{
   --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;
@@ -75,6 +78,22 @@ textarea{min-height:64px;resize:vertical}
 .folha .ass{text-align:center;margin-top:36px}
 .folha .falta{color:#c00000;font-weight:700;background:#fff1f1;border-radius:3px;padding:0 2px}
 .salvo{font-size:12px;color:var(--text3)}
+.docs-lista{display:grid;gap:6px;margin-top:10px}
+.doc{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);font-size:12.5px}
+.doc .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc .t{color:var(--text3);font-size:11.5px}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:860px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.modal-h{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.modal-h h3{font:700 16px Syne,sans-serif}
+.modal-b{padding:14px 18px;max-height:62vh;overflow:auto}
+.modal-f{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--border)}
+.sug{width:100%;border-collapse:collapse;font-size:13px}
+.sug th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)}
+.sug td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+.sug td.atual{color:var(--text3)}
+.sug tr.conf td{background:color-mix(in srgb,var(--warn) 7%,transparent)}
+.sug .av{font-size:11.5px;color:var(--warn);margin-top:3px}
 .toast{position:fixed;right:18px;bottom:18px;z-index:99;background:var(--surface3);border:1px solid var(--border2);border-left:4px solid var(--ok);padding:11px 16px;border-radius:10px;max-width:380px}
 .toast.err{border-left-color:var(--danger)}
 @media (max-width:1000px){
@@ -98,6 +117,7 @@ textarea{min-height:64px;resize:vertical}
       <button class="btn" onclick="baixar()">Baixar Word</button>
     </div>
   </div>
+  <div id="modal-root"></div>
   <div class="layout">
     <div id="form"></div>
     <div class="previa"><div id="pend"></div><div class="folha" id="folha"></div></div>
@@ -136,7 +156,7 @@ const vazio = tipo => ({ tipo, numero_alteracao: tipo === 'transformacao' ? '1' 
   distrato: { data_encerramento: '', haveres: 'nao_ha', partilha_texto: '', ativo_passivo: '', livros_nome: '', livros_endereco: '' },
   clausulas_adicionais: [] });
 
-const S = { d: vazio('constituicao'), processo: null, sb: null, timer: null, sujo: false };
+const S = { d: vazio('constituicao'), processo: null, sb: null, timer: null, sujo: false, docs: [], up: { tipo: 'pessoal', socio: 0 }, uid: null };
 
 // ── leitura e escrita por caminho ("socios.0.nome") ──
 function pegar(o, caminho) { return caminho.split('.').reduce((x, k) => (x == null ? x : x[k]), o); }
@@ -148,7 +168,7 @@ function por(o, caminho, valor) {
 
 // ── campos ──
 function campo(caminho, rotulo, tam = 'c3', o = {}) {
-  const val = pegar(S.d, caminho);
+  const val = caminho.startsWith('_up.') ? S.up[caminho.slice(4)] : pegar(S.d, caminho);
   const id = 'f-' + caminho.replace(/\./g, '-');
   const re = o.re ? 'data-re="1"' : '';
   let html;
@@ -200,6 +220,16 @@ function renderForm() {
     ${campo('tipo', 'Ato', 'c6', { tipo: 'select', re: true, opcoes: Object.entries(M.MODELOS).map(([k, m]) => [k, m.nome]) })}
     ${S.processo ? `<div class="c6 help">Processo: <b>${esc(S.processo.empresa)}</b>. Os dados ficam salvos no processo.</div>` : '<div class="c6 help">Sem processo vinculado: os dados ficam só nesta tela. Abra pelo Painel Societário para salvar.</div>'}
   </div>`);
+
+  h += card('Documentos do processo', S.processo ? `<div class="campos">
+      ${campo('_up.tipo', 'Tipo de documento', 'c3', { tipo: 'select', re: true, opcoes: Object.entries(LeitorSoc.TIPOS_DOC) })}
+      ${LeitorSoc.DO_SOCIO.has(S.up.tipo) ? `<div class="c3"><label for="f-up-socio">De qual sócio</label><select id="f-up-socio" onchange="S.up.socio=+this.value">${d.socios.map((s, i) => `<option value="${i}" ${i === S.up.socio ? 'selected' : ''}>${esc(s.nome || 'Sócio ' + (i + 1))}</option>`).join('')}<option value="${d.socios.length}" ${S.up.socio === d.socios.length ? 'selected' : ''}>+ novo sócio</option></select></div>` : '<div class="c3"></div>'}
+      <div class="c6"><input type="file" id="f-up-arq" accept="application/pdf,image/jpeg,image/png,image/webp" onchange="enviarDocumento(this)">
+        <div class="help">PDF, JPG ou PNG (até 15 MB). O arquivo fica guardado no processo e o portal lê os dados: você confere cada campo antes de aplicar. Ficha da JUCESP em PDF é lida aqui mesmo; fotos e outros documentos são lidos pela IA.</div></div>
+    </div>
+    <div class="docs-lista">${S.docs.map(x => `<div class="doc"><span>📎</span><span class="n" title="${esc(x.nome_arquivo)}">${esc(x.nome_arquivo)}<br><span class="t">${esc(LeitorSoc.TIPOS_DOC[x.tipo_doc] || x.tipo_doc)}${x.socio != null && LeitorSoc.DO_SOCIO.has(x.tipo_doc) ? ' · ' + esc((d.socios[x.socio] || {}).nome || 'sócio ' + (x.socio + 1)) : ''} · ${new Date(x.created_at).toLocaleDateString('pt-BR')}${x.lido_por ? ' · lido ' + (x.lido_por === 'ia' ? 'pela IA' : 'no navegador') : ''}</span></span>
+      <button class="btn sec sm" onclick="verDocumento('${x.id}')">Ver</button><button class="btn sec sm" onclick="lerDocumento('${x.id}')">Ler e preencher</button><button class="btn sec sm" onclick="excluirDocumento('${x.id}')">✕</button></div>`).join('') || '<div class="help">Nenhum documento enviado ainda.</div>'}</div>`
+    : '<div class="help">Abra este formulário pelo processo no Painel Societário para enviar documentos (RG/CNH, comprovante, IPTU, contrato anterior, ficha da JUCESP, cartão CNPJ). Eles ficam guardados no processo e preenchem os campos.</div>');
 
   if (t === 'constituicao') h += card('Empresa', `<div class="campos">
     ${campo('empresa.nome', 'Nome empresarial (com LTDA)', 'c6', { help: 'Igual ao aprovado na viabilidade/busca de nome.' })}
@@ -287,11 +317,12 @@ function renderForm() {
 
 // ── eventos do formulário ──
 document.addEventListener('input', ev => {
-  const el = ev.target; if (!el.dataset || !el.dataset.k || el.tagName === 'SELECT' || el.dataset.check) return;
+  const el = ev.target; if (!el.dataset || !el.dataset.k || el.tagName === 'SELECT' || el.dataset.check || el.dataset.k.startsWith('_up.')) return;
   aplicar(el); atualizar(); marcarSujo();
 });
 document.addEventListener('change', ev => {
   const el = ev.target; if (!el.dataset || !el.dataset.k) return;
+  if (el.dataset.k.startsWith('_up.')) { S.up[el.dataset.k.slice(4)] = el.value; renderForm(); return; }
   aplicar(el);
   if (el.dataset.k === 'tipo') trocarTipo(el.value);
   if (el.dataset.re) { const foco = el.id; renderForm(); const f = document.getElementById(foco); if (f && f.tagName === 'INPUT' && !el.dataset.check) f.focus(); }
@@ -373,10 +404,108 @@ async function carregarProcesso(id) {
       }
     }
   }
+  const u = await S.sb.auth.getUser();
+  S.uid = u.data && u.data.user ? u.data.user.id : null;
+  await carregarDocs();
   $('b-salvar').hidden = false;
   $('sub').textContent = `${M.MODELOS[S.d.tipo].nome} · ${p.empresa}`;
   $('salvo').textContent = temDados ? 'dados carregados do processo' : 'novo preenchimento';
   renderForm(); atualizar();
+}
+
+// ── documentos: enviar, guardar, ler e sugerir ──
+async function carregarDocs() {
+  const r = await S.sb.from('soc_documentos').select('*').eq('processo_id', S.processo.id).order('created_at', { ascending: false });
+  S.docs = r.error ? [] : r.data;
+}
+async function enviarDocumento(input) {
+  const f = input.files[0]; input.value = '';
+  if (!f || !S.processo) return;
+  if (f.size > 15 * 1024 * 1024) return toast('Arquivo maior que 15 MB.', true);
+  if (!S.uid) return toast('Faça login de novo para enviar documentos.', true);
+  const ext = (f.name.split('.').pop() || '').toLowerCase();
+  if (!['pdf', 'jpg', 'jpeg', 'png', 'webp'].includes(ext)) return toast('Envie PDF, JPG, PNG ou WEBP.', true);
+  const nomeLimpo = f.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.-]+/g, '_');
+  const caminho = `${S.uid}/${S.processo.id}/${Date.now()}-${nomeLimpo}`;
+  toast('Enviando…');
+  const up = await S.sb.storage.from('societario').upload(caminho, f, { contentType: f.type || undefined });
+  if (up.error) return toast('Erro ao enviar: ' + up.error.message, true);
+  const socio = LeitorSoc.DO_SOCIO.has(S.up.tipo) ? S.up.socio : null;
+  const r = await S.sb.from('soc_documentos').insert({ processo_id: S.processo.id, tipo_doc: S.up.tipo, socio, nome_arquivo: f.name, caminho, tamanho: f.size, mime: f.type }).select().single();
+  if (r.error) return toast('Erro ao registrar: ' + r.error.message, true);
+  S.docs.unshift(r.data); renderForm();
+  lerDocumento(r.data.id, f);
+}
+async function textoDoPdf(blob) {
+  if (!window.pdfjsLib) return null;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+  const paginas = [];
+  for (let i = 1; i <= doc.numPages; i++) paginas.push({ numero: i, texto: Conferidor.linhasDePagina((await (await doc.getPage(i)).getTextContent()).items) });
+  return paginas;
+}
+async function lerDocumento(id, arquivo) {
+  const doc = S.docs.find(x => x.id === id); if (!doc) return;
+  toast('Lendo o documento…');
+  let dados = null, por = null;
+  try {
+    // 1) formulários da JUCESP em PDF: leitura local, sem IA
+    if (/pdf$/i.test(doc.caminho) && !LeitorSoc.DO_SOCIO.has(doc.tipo_doc) && doc.tipo_doc !== 'iptu') {
+      const blob = arquivo || (await S.sb.storage.from('societario').download(doc.caminho)).data;
+      const paginas = blob ? await textoDoPdf(blob) : null;
+      const x = paginas && LeitorSoc.lerFormulariosJucesp(paginas, Conferidor.campo);
+      if (x && (x.nome_empresarial || x.socios.length)) { dados = x; por = 'local'; }
+    }
+    // 2) demais: leitura pela IA (função no Supabase)
+    if (!dados) {
+      const r = await S.sb.functions.invoke('ler-documento-societario', { body: { caminho: doc.caminho, tipo_doc: doc.tipo_doc } });
+      let corpo = r.data;
+      if (r.error) { try { corpo = await r.error.context.json(); } catch { corpo = { erro: r.error.message }; } }
+      if (!corpo || !corpo.ok) {
+        const e = corpo && corpo.erro;
+        return toast(e === 'sem_chave' ? 'A leitura por IA ainda não está configurada: falta a chave ANTHROPIC_API_KEY nos secrets do Supabase.' : 'Não consegui ler: ' + (e || 'erro desconhecido'), true);
+      }
+      dados = corpo.dados; por = 'ia';
+    }
+  } catch (e) { return toast('Erro na leitura: ' + e.message, true); }
+  await S.sb.from('soc_documentos').update({ extraido: dados, lido_por: por }).eq('id', id);
+  Object.assign(doc, { extraido: dados, lido_por: por });
+  mostrarSugestoes(doc, dados);
+}
+function mostrarSugestoes(doc, dados) {
+  const sug = LeitorSoc.propostas(doc.tipo_doc, dados, S.d, doc.socio || 0);
+  S.sug = sug;
+  const fmt = v => v == null ? '<i>vazio</i>' : Array.isArray(v) ? v.map(esc).join('<br>') : typeof v === 'boolean' ? (v ? 'sim' : 'não')
+    : typeof v === 'number' ? v.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : esc(v);
+  $('modal-root').innerHTML = `<div class="ov" onclick="if(event.target===this)fecharModal()"><div class="modal">
+    <div class="modal-h"><h3>Conferir dados lidos · ${esc(doc.nome_arquivo)}</h3></div>
+    <div class="modal-b">${sug.length ? `<p class="help" style="margin-bottom:8px">Lido ${doc.lido_por === 'ia' ? 'pela IA' : 'no navegador'}. Marcados: campos vazios. Em amarelo: campo já preenchido com valor diferente — marque só se o documento estiver certo.</p>
+      <table class="sug"><tr><th></th><th>Campo</th><th>Hoje</th><th>Lido no documento</th></tr>
+      ${sug.map((x, i) => `<tr class="${x.conflito ? 'conf' : ''}"><td><input type="checkbox" id="sug-${i}" ${x.marcar ? 'checked' : ''}></td><td><label for="sug-${i}" style="margin:0;color:var(--text)">${esc(x.rotulo)}</label>${x.socio_novo ? '<div class="av">sócio novo no formulário</div>' : ''}</td>
+        <td class="atual">${fmt(x.atual)}</td><td>${fmt(x.novo)}${x.aviso ? `<div class="av">⚠️ ${esc(x.aviso)}</div>` : ''}</td></tr>`).join('')}</table>`
+      : '<p>Nada novo: os dados deste documento já estão no formulário (ou não foram encontrados nele).</p>'}</div>
+    <div class="modal-f"><button class="btn sec" onclick="fecharModal()">Fechar</button>${sug.length ? '<button class="btn" onclick="aplicarSugestoes()">Aplicar marcados</button>' : ''}</div></div></div>`;
+}
+function fecharModal() { $('modal-root').innerHTML = ''; }
+function aplicarSugestoes() {
+  const escolhidas = (S.sug || []).filter((x, i) => $('sug-' + i) && $('sug-' + i).checked);
+  LeitorSoc.aplicar(S.d, escolhidas, () => socioVazio());
+  fecharModal(); renderForm(); atualizar(); marcarSujo();
+  toast(`${escolhidas.length} campo(s) preenchido(s). Confira o texto ao lado.`);
+}
+async function verDocumento(id) {
+  const doc = S.docs.find(x => x.id === id);
+  const r = await S.sb.storage.from('societario').createSignedUrl(doc.caminho, 120);
+  if (r.error) return toast('Erro: ' + r.error.message, true);
+  window.open(r.data.signedUrl, '_blank', 'noopener');
+}
+async function excluirDocumento(id) {
+  const doc = S.docs.find(x => x.id === id);
+  if (!confirm(`Excluir "${doc.nome_arquivo}" do processo? O arquivo é apagado.`)) return;
+  const a = await S.sb.storage.from('societario').remove([doc.caminho]);
+  if (a.error) return toast('Erro ao apagar o arquivo: ' + a.error.message, true);
+  await S.sb.from('soc_documentos').delete().eq('id', id);
+  S.docs = S.docs.filter(x => x.id !== id); renderForm();
 }
 
 // ── Word ──

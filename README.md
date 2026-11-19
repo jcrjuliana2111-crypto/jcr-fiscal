@@ -77,7 +77,7 @@ ficam liberadas. Para dar acesso a alguém, crie o usuário no Supabase
         fechadas para acesso direto.
   - [x] `extrair-cnpj` e `ler-documento-societario` exigem login.
   - [x] Bucket `notificacoes-pdf` privado: o PDF abre por link temporário (1 hora) pedido pela página.
-  - [ ] Tabelas `rafael_*` (app separado, fora do portal) continuam abertas.
+  - [x] Tabelas `rafael_*` (app de teste fora do portal) excluídas em 19/11/2026.
   - [ ] Tabela `clientes` tem coluna `senha` em texto puro: apagar se não for usada.
 - [ ] Recursos de IA (Analisador XML, Conhecimento, Radar e IA do Gestão Fiscal) chamam
       `api.anthropic.com` direto do navegador e não funcionam fora do claude.ai.

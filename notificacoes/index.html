@@ -857,9 +857,28 @@
 // --- SUPABASE CONFIG ---
 const PROXY = 'https://qftusjwnlyjokilcjuzb.supabase.co/functions/v1/smart-handler';
 
+// A função só atende quem está logado no portal: manda o token da sessão em cada chamada.
+// Sessão vencida (401) → volta ao portal, que renova ou pede login, e retorna para cá.
+function tokenPortal() {
+  try {
+    let s = JSON.parse(localStorage.getItem('sb-onecnoicxqjhgolqncjj-auth-token') || 'null');
+    if (s && s.currentSession) s = s.currentSession;
+    return (s && s.access_token) || '';
+  } catch (e) { return ''; }
+}
+async function fetchProxy(opts) {
+  const headers = { ...(opts.headers || {}), Authorization: 'Bearer ' + tokenPortal() };
+  const r = await fetch(PROXY, { ...opts, headers });
+  if (r.status === 401) {
+    location.href = '../index.html?next=' + encodeURIComponent(location.href);
+    throw new Error('Sessão expirada. Entre novamente no portal.');
+  }
+  return r;
+}
+
 const supa = {
   async get() {
-    const r = await fetch(PROXY, {
+    const r = await fetchProxy({
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-action': 'get' },
       body: JSON.stringify({})
@@ -869,7 +888,7 @@ const supa = {
     return rows.map(fromDb);
   },
   async upsert(item) {
-    const r = await fetch(PROXY, {
+    const r = await fetchProxy({
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-action': 'upsert' },
       body: JSON.stringify(toDb(item))
@@ -877,7 +896,7 @@ const supa = {
     if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
   },
   async delete(id) {
-    const r = await fetch(PROXY, {
+    const r = await fetchProxy({
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-action': 'delete' },
       body: JSON.stringify({ id })
@@ -944,7 +963,7 @@ async function uploadPdf(event, id) {
     }
     base64 = btoa(base64);
 
-    const r = await fetch(PROXY, {
+    const r = await fetchProxy({
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-action': 'upload-pdf' },
       body: JSON.stringify({ id, filename: file.name, base64 })
@@ -1419,7 +1438,7 @@ Retorne SOMENTE este JSON:
 TEXTO DO DOCUMENTO:
 ${texto.slice(0, 8000)}`;
 
-    const response = await fetch(PROXY, {
+    const response = await fetchProxy({
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-action': 'claude' },
       body: JSON.stringify({
@@ -1458,7 +1477,7 @@ async function extrairTextoViaVisao(file) {
   }
   base64 = btoa(base64);
 
-  const response = await fetch(PROXY, {
+  const response = await fetchProxy({
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-action': 'claude' },
     body: JSON.stringify({

@@ -69,9 +69,16 @@ ficam liberadas. Para dar acesso a alguém, crie o usuário no Supabase
 
 - **O código continua público enquanto o repositório for público.** A proteção
   do portal é de navegação. A proteção real dos dados vem do Supabase:
-  - [ ] Conferir se as tabelas `gclik_*` têm RLS ativado (só usuário logado lê e grava).
-  - [ ] Fazer a Edge Function `smart-handler` (Notificações) exigir login. Hoje ela
-        aceita chamadas de qualquer pessoa.
+  - [x] Todas as tabelas do projeto `onecnoicxqjhgolqncjj` com RLS: só usuário logado
+        (`clientes` e `clientes_pj` fechadas em 19/11/2026, cópia em `backup.*`).
+  - [x] Edge Function `smart-handler` (Notificações) exige o login do portal; as ações
+        `obr-*` aceitam também a `ROBO_KEY` (cabeçalho `x-robo-key`). Código em
+        `supabase/functions/smart-handler/`. Tabelas `notificacoes_fiscais` e `obr_*`
+        fechadas para acesso direto.
+  - [x] `extrair-cnpj` e `ler-documento-societario` exigem login.
+  - [ ] Bucket `notificacoes-pdf` é público: quem tiver o link do PDF abre.
+  - [ ] Tabelas `rafael_*` (app separado, fora do portal) continuam abertas.
+  - [ ] Tabela `clientes` tem coluna `senha` em texto puro: apagar se não for usada.
 - [ ] Recursos de IA (Analisador XML, Conhecimento, Radar e IA do Gestão Fiscal) chamam
       `api.anthropic.com` direto do navegador e não funcionam fora do claude.ai.
       O certo é passar por uma Edge Function com a chave guardada no servidor.

@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script src="reforma-core.js"></script>
+<script src="xml-core.js"></script>
 <style>
 :root{
   --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;
@@ -105,12 +106,12 @@ const redTxt = c => { const r = R.reducoes(c); return r.cbs === r.ibs_uf && r.ib
 
 // ── abas ──
 const ABAS = [
-  ['sim', '🧮 Simulador'], ['tab', '🔎 Consultar tabelas'], ['crono', '🗓️ Cronograma'], ['api', '🔌 Calculadora oficial'],
+  ['sim', '🧮 Simulador'], ['calc', '🧾 Calculadora oficial'], ['lote', '📥 Classificar XMLs'], ['tab', '🔎 Consultar tabelas'], ['crono', '🗓️ Cronograma'], ['api', '⚙️ Servidor oficial'],
 ];
 let aba = (location.hash || '#sim').slice(1);
 function tabs() { $('tabs').innerHTML = ABAS.map(([k, n]) => `<button class="tab ${aba === k ? 'on' : ''}" onclick="ir('${k}')">${n}</button>`).join(''); }
 function ir(k) { aba = k; history.replaceState(null, '', '#' + k); tabs(); render(); }
-function render() { ({ sim: telaSimulador, tab: telaTabelas, crono: telaCronograma, api: telaApi })[aba](); }
+function render() { (({ sim: telaSimulador, calc: telaCalc, lote: telaLote, tab: telaTabelas, crono: telaCronograma, api: telaApi })[aba] || telaSimulador)(); }
 
 // ═════════════════════════ SIMULADOR ═════════════════════════
 let CLIENTES = [], SIMS = [];
@@ -324,25 +325,298 @@ function telaCronograma() {
     <p class="help">Base: EC 132/2023 e LC 214/2025 (arts. 342 a 347 e 293 §4º para as alíquotas da transição). Confira mudanças da LC 227/2026.</p></div>`;
 }
 
-// ═════════════════════════ CALCULADORA OFICIAL ═════════════════════════
-function telaApi() {
-  const ex = { id: 'teste-1', versao: '1.0.0', dhFatoGerador: '2027-03-10T10:00:00-03:00', municipio: 3552403, uf: 'SP',
-    itens: [{ numero: 1, nbs: '122011200', cst: '200', cClassTrib: '200028', baseCalculo: 1200.0, aliquotasNominais: { cbs: 8.8, ibsEstadual: 0.05, ibsMunicipal: 0.05 } }] };
+// ═════════════════════════ CALCULADORA OFICIAL (servidor da Receita) ═════════════════════════
+const X = window.ReformaXml;
+const hoje = () => new Date().toISOString().slice(0, 10);
+let SERV = { estado: 'nao_verificado' };   // estado do servidor oficial
+
+// Chamada à calculadora oficial pela Edge Function (exige login; a chave do servidor fica no Supabase)
+async function rtc(caminho, corpo, extra = {}) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { location.href = '../index.html?next=' + encodeURIComponent(location.href); throw new Error('Sessão expirada.'); }
+  const r = await fetch(SUPABASE_URL + '/functions/v1/calculadora-rtc', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + session.access_token, apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ caminho, corpo, ...extra }),
+  });
+  const texto = await r.text();
+  let json = null; try { json = JSON.parse(texto); } catch (_) { /* XML ou texto */ }
+  return { status: r.status, texto, json };
+}
+async function verificarServidor() {
+  SERV = { estado: 'verificando' }; pintarServidor();
+  try {
+    const r = await rtc('dados-abertos/versao', undefined, { metodo: 'GET' });
+    if (r.status === 200 && r.json) SERV = { estado: 'ok', v: r.json };
+    else if (r.json && r.json.erro === 'nao_configurado') SERV = { estado: 'nao_configurado' };
+    else if (r.json && r.json.erro === 'acordando') SERV = { estado: 'acordando' };
+    else SERV = { estado: 'erro', msg: (r.json && (r.json.erro || r.json.detail)) || ('HTTP ' + r.status) };
+  } catch (e) { SERV = { estado: 'erro', msg: e.message }; }
+  pintarServidor();
+}
+function pintarServidor() {
+  const el = $('serv'); if (!el) return;
+  const m = {
+    nao_verificado: ['var(--text3)', 'Servidor oficial: não verificado'],
+    verificando: ['var(--warn)', 'Conectando ao servidor oficial… (se estiver dormindo, leva até 1 minuto)'],
+    ok: ['var(--ok)', SERV.v ? `Servidor oficial da Receita ligado · calculadora ${esc(SERV.v.versaoApp)} · base ${esc(SERV.v.versaoDb)} (${esc((SERV.v.dataVersaoDb || '').split('-').reverse().join('/'))})` : ''],
+    nao_configurado: ['var(--warn)', 'Servidor oficial ainda não configurado. <a href="#api" onclick="ir(\'api\')">Ver como ligar</a> (uma vez só, cerca de 10 minutos).'],
+    acordando: ['var(--warn)', 'O servidor estava dormindo e está acordando. <a href="#" onclick="verificarServidor();return false">Tentar de novo</a>'],
+    erro: ['var(--danger)', 'Servidor oficial fora do ar: ' + esc(SERV.msg || '') + ' <a href="#" onclick="verificarServidor();return false">Tentar de novo</a>'],
+  }[SERV.estado];
+  el.innerHTML = `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${m[0]};margin-right:7px"></span>${m[1]}`;
+}
+
+let MUN = null;
+async function municipios() { if (!MUN) MUN = await tabela('municipios'); return MUN; }
+const UFS = 'AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' ');
+
+const aliqPadrao = data => { const a = R.aliquotasAno(+String(data).slice(0, 4) || 2027, R.REFERENCIA_PADRAO); return { cbs: a.cbs, ibs_uf: a.ibs_uf, ibs_mun: a.ibs_mun }; };
+let C = { data: '2027-01-15', uf: 'SP', municipio: 3552403, tpdoc: 'nfe', aliq: aliqPadrao('2027-01-15'), itens: [{ tipo: 'ncm', cod: '', cc: '000001', base: 0, qtd: 1, un: 'UN', desc: '' }], resp: null, roc: null, xml: '', valido: null };
+
+async function telaCalc() {
+  const mun = await municipios();
+  const ano = +C.data.slice(0, 4);
+  const linha = (it, i) => `<tr>
+    <td><select onchange="C.itens[${i}].tipo=this.value"><option value="ncm" ${it.tipo === 'ncm' ? 'selected' : ''}>NCM</option><option value="nbs" ${it.tipo === 'nbs' ? 'selected' : ''}>NBS</option></select></td>
+    <td><input value="${esc(it.cod)}" placeholder="${it.tipo === 'nbs' ? '1.2201.12.00' : '1006.30.21'}" oninput="C.itens[${i}].cod=this.value"><div class="muted">${esc(it.desc || '')}</div></td>
+    <td><input list="dl-cclass" value="${esc(CC.find(c => c.cd === it.cc) ? rotuloCC(CC.find(c => c.cd === it.cc)) : it.cc)}" onchange="ccCalc(${i},this)"></td>
+    <td style="width:70px"><input value="${esc(cstDe(it.cc))}" disabled title="CST vem da cClassTrib"></td>
+    <td style="width:120px"><input value="${it.base || ''}" inputmode="decimal" oninput="C.itens[${i}].base=num(this.value)"></td>
+    <td style="width:80px"><input value="${it.qtd}" inputmode="decimal" oninput="C.itens[${i}].qtd=num(this.value)||1"></td>
+    <td style="width:70px"><input value="${esc(it.un)}" oninput="C.itens[${i}].un=this.value"></td>
+    <td><button class="icon-btn" onclick="C.itens.splice(${i},1);telaCalc()">✕</button></td></tr>`;
   $('view').innerHTML = `
-    <div class="card"><h3>O que a Receita publicou</h3><ul style="padding-left:18px;line-height:1.7">
-      <li><a href="https://github.com/ReceitaFederal/calculadora-rtc-regime-regular" target="_blank" rel="noopener">calculadora-rtc-regime-regular ↗</a> — API (Java 21) que calcula CBS, IBS e Imposto Seletivo do regime regular, gera e valida os grupos do XML (NF-e, NFC-e, NFS-e, CT-e) e serve as tabelas.</li>
-      <li><a href="https://github.com/ReceitaFederal/calculadora-rtc-simples-nacional" target="_blank" rel="noopener">calculadora-rtc-simples-nacional ↗</a> — API de CBS e IBS para optantes do Simples.</li>
-      <li>Licença MIT. As tabelas oficiais desta página saem do mesmo repositório (script <code>reforma/scripts/gerar_dados.py</code>).</li></ul></div>
-    <div class="card"><h3>Como rodar no computador do escritório</h3>
-      <pre>git clone https://github.com/ReceitaFederal/calculadora-rtc-regime-regular
-cd calculadora-rtc-regime-regular
-./mvnw flyway:migrate -Dflyway.configFiles=./flyway/flyway-pro.conf --batch-mode --errors
-./mvnw spring-boot:run -Dspring-boot.run.profiles=offline
-# documentação: http://localhost:8080/api/swagger-ui.html</pre>
-      <p class="help">Precisa do Java 21. No Windows, troque <code>./mvnw</code> por <code>mvnw.cmd</code>. A API não libera chamadas do navegador (CORS); use pelo n8n (nó HTTP Request), pelo Swagger ou por curl.</p></div>
-    <div class="card"><h3>Exemplo de chamada (n8n ou curl)</h3>
-      <p class="help">POST <code>http://localhost:8080/api/calculadora/observabilidade/regime-geral</code> — devolve, por item, os valores e a memória de cálculo, e aponta erros como NCM não vinculado à cClassTrib.</p>
-      <pre>${esc(JSON.stringify(ex, null, 2))}</pre></div>`;
+    <div class="card" id="serv" style="font-size:13px"></div>
+    <div class="card"><h3>Operação</h3>
+      <div class="g g4">
+        <div><label>Data do fato gerador</label><input type="date" value="${C.data}" onchange="C.data=this.value;C.aliq=aliqPadrao(this.value);telaCalc()"></div>
+        <div><label>UF</label><select onchange="C.uf=this.value;C.municipio=(MUN.find(m=>m[1]===this.value)||[])[0];telaCalc()">${UFS.map(u => `<option ${u === C.uf ? 'selected' : ''}>${u}</option>`).join('')}</select></div>
+        <div><label>Município (local da operação)</label><select onchange="C.municipio=+this.value">${mun.filter(m => m[1] === C.uf).map(m => `<option value="${m[0]}" ${m[0] === C.municipio ? 'selected' : ''}>${esc(m[2])}</option>`).join('')}</select></div>
+        <div><label>Documento (para o XML)</label><select onchange="C.tpdoc=this.value">${[['nfe', 'NF-e'], ['nfce', 'NFC-e'], ['cte', 'CT-e'], ['nfse', 'NFS-e (validar)']].map(([k, n]) => `<option value="${k}" ${C.tpdoc === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+      </div>
+      ${ano >= 2027 ? `<div class="g g3" style="margin-top:10px">
+        <div><label>CBS nominal (%)</label><input value="${C.aliq.cbs}" inputmode="decimal" oninput="C.aliq.cbs=num(this.value)"></div>
+        <div><label>IBS estadual nominal (%)</label><input value="${C.aliq.ibs_uf}" inputmode="decimal" oninput="C.aliq.ibs_uf=num(this.value)"></div>
+        <div><label>IBS municipal nominal (%)</label><input value="${C.aliq.ibs_mun}" inputmode="decimal" oninput="C.aliq.ibs_mun=num(this.value)"></div></div>
+        <p class="help">A partir de 2027 a calculadora oficial pede as alíquotas, porque o Senado ainda não fixou os valores. Preenchidas com a estimativa do simulador para o ano.</p>`
+      : '<p class="help">Em 2026 a calculadora usa as alíquotas de teste (CBS 0,9% e IBS 0,1%) da própria base oficial.</p>'}
+    </div>
+    <div class="card"><h3>Itens</h3>
+      <div class="tbl" style="border:0"><table><thead><tr><th>Tipo</th><th>Código</th><th>cClassTrib</th><th>CST</th><th>Base (R$)</th><th>Qtde</th><th>Un.</th><th></th></tr></thead><tbody>${C.itens.map(linha).join('')}</tbody></table></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn sec sm" onclick="C.itens.push({tipo:'ncm',cod:'',cc:'000001',base:0,qtd:1,un:'UN'});telaCalc()">+ item</button>
+        <label class="btn sec sm" style="margin:0">📄 Importar itens de um XML<input type="file" accept=".xml" style="display:none" onchange="importarXmlCalc(this)"></label>
+      </div></div>
+    <div class="card no-print" style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="b-calc" onclick="calcularOficial()">Calcular na calculadora oficial</button>
+      <button class="btn sec" onclick="gerarXml()">Gerar grupo IBS/CBS do XML</button>
+      ${C.xml ? '<button class="btn sec" onclick="validarXml()">Validar XML</button><button class="btn sec" onclick="baixarXml()">Baixar XML</button>' : ''}
+    </div>
+    <div id="calc-res">${resultadoCalc()}</div>`;
+  pintarServidor();
+  if (SERV.estado === 'nao_verificado') verificarServidor();
+}
+const cstDe = cd => (CC.find(c => c.cd === cd) || {}).cst || '';
+function ccCalc(i, el) {
+  const c = acharCC(el.value);
+  if (!c) { el.style.borderColor = 'var(--danger)'; return; }
+  C.itens[i].cc = c.cd; telaCalc();
+}
+async function importarXmlCalc(inp) {
+  const f = inp.files[0]; if (!f) return;
+  try {
+    const nota = X.lerXml(await f.text());
+    const tabs = { cclass: CC, ncm_aplicavel: await tabela('ncm_aplicavel'), nbs_aplicavel: await tabela('nbs_aplicavel'), lc116: await tabela('lc116') };
+    C.itens = nota.itens.map(it => {
+      const sug = X.sugerir(it, tabs)[0];
+      return { tipo: it.ncm ? 'ncm' : 'nbs', cod: it.ncm || it.nbs || '', cc: it.cclass_nota || (sug && sug.cclass.cd) || '000001', base: it.valor, qtd: it.quantidade, un: it.unidade, desc: it.descricao };
+    });
+    if (nota.uf) C.uf = nota.uf;
+    if (nota.municipio) C.municipio = nota.municipio;
+    if (nota.tipo === 'NFC-e') C.tpdoc = 'nfce'; else if (nota.tipo === 'NFS-e') C.tpdoc = 'nfse'; else C.tpdoc = 'nfe';
+    C.resp = null; C.roc = null; C.xml = '';
+    toast(`${nota.tipo} ${nota.numero || ''}: ${nota.itens.length} itens importados. Confira a cClassTrib de cada um.`);
+  } catch (e) { toast(e.message, true); }
+  telaCalc();
+}
+const opCalc = () => X.operacao({ data: C.data, uf: C.uf, municipio: C.municipio, aliquotas: C.aliq,
+  itens: C.itens.filter(it => it.cod || it.base).map(it => ({ [it.tipo]: it.cod, cst: cstDe(it.cc), cClassTrib: it.cc, baseCalculo: it.base, quantidade: it.qtd, unidade: it.un })) });
+async function calcularOficial() {
+  const b = $('b-calc'); b.disabled = true; b.textContent = 'Calculando… (até 1 min se o servidor estiver dormindo)';
+  try {
+    const r = await rtc('observabilidade/regime-geral', opCalc());
+    if (r.status !== 200) throw new Error(erroRtc(r));
+    C.resp = r.json; C.xml = ''; C.valido = null; SERV.estado = SERV.estado === 'ok' ? 'ok' : SERV.estado;
+  } catch (e) { toast(e.message, true); }
+  telaCalc();
+}
+function erroRtc(r) {
+  const j = r.json || {};
+  if (j.erro === 'nao_configurado') return 'O servidor oficial ainda não foi configurado (aba "Servidor oficial").';
+  if (j.erro === 'acordando') return 'O servidor estava dormindo: tente de novo em alguns segundos.';
+  return j.detail || j.erro || j.title || ('HTTP ' + r.status + ' ' + r.texto.slice(0, 200));
+}
+function resultadoCalc() {
+  if (!C.resp) return '';
+  const itens = X.resumoResposta(C.resp);
+  const ok = itens.filter(i => !i.erros.length);
+  const tot = k => R.arred(ok.reduce((s, i) => s + (k(i) || 0), 0));
+  return `<div class="card"><h3>Resultado da calculadora oficial</h3>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${brl(tot(i => i.base))}</div><div class="l">Base IBS/CBS</div></div>
+      <div class="kpi"><div class="v">${brl(tot(i => i.cbs.v))}</div><div class="l">CBS</div></div>
+      <div class="kpi"><div class="v">${brl(tot(i => i.ibs))}</div><div class="l">IBS (UF + município)</div></div>
+      ${tot(i => i.is) ? `<div class="kpi"><div class="v">${brl(tot(i => i.is))}</div><div class="l">Imposto Seletivo</div></div>` : ''}
+      <div class="kpi"><div class="v">${ok.length}/${itens.length}</div><div class="l">Itens calculados</div></div>
+    </div>
+    <div class="tbl"><table><thead><tr><th>#</th><th>CST / cClassTrib</th><th class="n">Base</th><th class="n">CBS</th><th class="n">IBS UF</th><th class="n">IBS Mun</th><th>Memória / erro</th></tr></thead><tbody>
+    ${itens.map(i => i.erros.length ? `<tr><td>${i.n}</td><td colspan="5"><span class="badge" style="--c:var(--danger)">${esc(i.estado)}</span></td><td>${i.erros.map(e => `<b>${esc(e.code)}</b> ${esc(e.title)} — ${esc(e.detail)}`).join('<br>')}</td></tr>`
+      : `<tr><td>${i.n}</td><td>${esc(i.cst)} · ${esc(i.cClassTrib)}</td><td class="n">${brl(i.base)}</td>
+        <td class="n">${brl(i.cbs.v)}<div class="muted">${pct(i.cbs.p)}${i.cbs.red ? ` −${i.cbs.red}% = ${pct(i.cbs.efet)}` : ''}</div></td>
+        <td class="n">${brl(i.ibsuf.v)}<div class="muted">${pct(i.ibsuf.p)}</div></td><td class="n">${brl(i.ibsmun.v)}<div class="muted">${pct(i.ibsmun.p)}</div></td>
+        <td><details><summary>memória de cálculo</summary><pre>${esc(i.cbs.memoria)}</pre></details></td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="help">Valores calculados pelo programa oficial da Receita (Serpro). Itens com erro mostram o código e a explicação oficial.</p></div>
+    ${C.xml ? `<div class="card"><h3>Grupo IBS/CBS do XML (${esc(C.tpdoc.toUpperCase())}) ${C.valido === true ? '<span class="badge" style="--c:var(--ok)">válido no schema oficial</span>' : C.valido === false ? '<span class="badge" style="--c:var(--danger)">inválido</span>' : ''}</h3><pre style="max-height:420px;overflow:auto">${esc(C.xml)}</pre></div>` : ''}`;
+}
+async function gerarXml() {
+  if (C.tpdoc === 'nfse') return toast('Para NFS-e a calculadora só valida o XML; a geração é para NF-e, NFC-e e CT-e.', true);
+  try {
+    const r = await rtc('regime-geral', opCalc());
+    if (r.status !== 200) throw new Error(erroRtc(r));
+    C.roc = r.json; C.resp = C.resp || r.json;
+    const x = await rtc('xml/generate?tipo=' + C.tpdoc, C.roc);
+    if (x.status !== 200) throw new Error(erroRtc(x));
+    C.xml = x.texto; C.valido = null;
+  } catch (e) { toast(e.message, true); }
+  telaCalc();
+}
+async function validarXml() {
+  try {
+    const r = await rtc(`xml/validate?tipo=${C.tpdoc}&subtipo=grupo`, C.xml, { tipo: 'xml' });
+    C.valido = r.status === 200 && r.texto.trim() === 'true';
+    if (!C.valido) toast('XML inválido: ' + erroRtc(r), true);
+  } catch (e) { toast(e.message, true); }
+  telaCalc();
+}
+function baixarXml() {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([C.xml], { type: 'application/xml' }));
+  a.download = `ibscbs-${C.tpdoc}-${C.data}.xml`; a.click(); URL.revokeObjectURL(a.href);
+}
+
+// ═════════════════════════ CLASSIFICAR XMLs (lote) ═════════════════════════
+let LT = { cliente_id: '', notas: [], erros: [], itens: [], salvos: {}, escolha: {} };
+async function telaLote() {
+  const opCli = ['<option value="">— escolha o cliente —</option>'].concat(CLIENTES.map(c => `<option value="${c.id}" ${c.id === LT.cliente_id ? 'selected' : ''}>${esc(c.razao_social)}${c.cnpj ? ' · ' + esc(c.cnpj) : ''}</option>`)).join('');
+  const tabs = { cclass: CC, ncm_aplicavel: await tabela('ncm_aplicavel'), nbs_aplicavel: await tabela('nbs_aplicavel'), lc116: await tabela('lc116') };
+  const linhas = LT.itens.map((it, i) => {
+    const sug = X.sugerir(it, tabs);
+    const salvo = LT.salvos[it.chave];
+    const atual = LT.escolha[it.chave] || (salvo && salvo.cclasstrib) || it.cclass_nota || (sug[0] && sug[0].cclass.cd) || '000001';
+    LT.escolha[it.chave] = atual;
+    const c = CC.find(x => x.cd === atual);
+    const opcoes = sug.map(s => `<option value="${s.cclass.cd}" ${s.cclass.cd === atual ? 'selected' : ''}>${esc(s.cclass.cd)} · ${esc(s.cclass.desc.slice(0, 70))} (${esc(redTxt(s.cclass))})</option>`).join('')
+      + (sug.some(s => s.cclass.cd === atual) ? '' : `<option value="${esc(atual)}" selected>${esc(atual)} · ${esc(c ? c.desc.slice(0, 70) : '')}</option>`);
+    const motivo = (sug.find(s => s.cclass.cd === atual) || {}).motivo || (salvo ? 'Classificação salva' : 'Escolhida manualmente');
+    const diverge = it.cclass_nota && it.cclass_nota !== atual;
+    return `<tr><td><b>${esc(it.codigo)}</b><div>${esc(it.descricao)}</div></td>
+      <td>${it.ncm ? 'NCM ' + esc(it.ncm) : ''}${it.nbs ? 'NBS ' + esc(it.nbs) : ''}${it.item_lc116 ? '<div class="muted">LC 116 item ' + esc(it.item_lc116) + '</div>' : ''}</td>
+      <td class="n">${brl(it.valor)}<div class="muted">${it.notas} nota(s)</div></td>
+      <td>${it.cclass_nota ? `${esc(it.cst_nota)} · ${esc(it.cclass_nota)}` : '<span class="muted">—</span>'}</td>
+      <td><select onchange="LT.escolha['${esc(it.chave)}']=this.value;telaLote()">${opcoes}</select>
+        <input list="dl-cclass" placeholder="outra cClassTrib…" style="margin-top:4px" onchange="const c=acharCC(this.value);if(c){LT.escolha['${esc(it.chave)}']=c.cd;telaLote()}">
+        <div class="muted">${esc(motivo)}${diverge ? ' · <b style="color:var(--warn)">diferente da nota</b>' : ''}${salvo ? ' · salva' : ''}</div></td>
+      <td>${esc(c ? c.cst : '')}</td></tr>`;
+  }).join('');
+  $('view').innerHTML = `
+    <div class="card"><h3>XMLs do cliente</h3>
+      <div class="g" style="grid-template-columns:1fr auto">
+        <div><label>Cliente</label><select onchange="trocarClienteLote(this.value)">${opCli}</select></div>
+        <div style="display:flex;align-items:flex-end"><label class="btn" style="margin:0">📥 Escolher XMLs<input type="file" accept=".xml" multiple style="display:none" onchange="lerXmlsLote(this)"></label></div>
+      </div>
+      <p class="help">NF-e, NFC-e e NFS-e do padrão nacional, de saída do cliente (pode escolher centenas de uma vez). Os arquivos são lidos aqui no navegador; só a classificação escolhida é salva.</p>
+      ${LT.notas.length ? `<p style="margin-top:8px">${LT.notas.length} nota(s) lida(s), ${LT.itens.length} item(ns) diferente(s).${LT.erros.length ? ` <span style="color:var(--danger)">${LT.erros.length} arquivo(s) não lido(s): ${esc(LT.erros.slice(0, 3).join('; '))}</span>` : ''}</p>` : ''}
+    </div>
+    ${LT.itens.length ? `<div class="card"><h3>Classificação sugerida</h3>
+      <div class="tbl" style="border:0"><table><thead><tr><th>Item</th><th>NCM / serviço</th><th class="n">Valor</th><th>Na nota</th><th>cClassTrib</th><th>CST</th></tr></thead><tbody>${linhas}</tbody></table></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn" onclick="salvarLote()">💾 Salvar classificação do cliente</button>
+        <button class="btn sec" onclick="csvLote()">⬇️ Exportar CSV (para o sistema emissor)</button>
+        <button class="btn sec" onclick="loteParaCalc()">🧾 Calcular na calculadora oficial</button>
+      </div>
+      <p class="help">Sugestão pelos vínculos oficiais de NCM, NBS e LC 116. Mais de uma opção quer dizer que depende da descrição exata do produto ou de quem presta o serviço: confira antes de salvar.</p></div>` : ''}`;
+}
+async function trocarClienteLote(id) {
+  LT.cliente_id = id; LT.salvos = {}; LT.escolha = {};
+  if (id) {
+    const r = await sb.from('rt_classificacoes').select('*').eq('cliente_id', id).limit(10000);
+    if (r.error) toast(r.error.message, true);
+    (r.data || []).forEach(x => { LT.salvos[x.chave] = x; });
+    if (!LT.itens.length && r.data && r.data.length) {
+      LT.itens = r.data.map(x => ({ chave: x.chave, codigo: x.codigo, descricao: x.descricao, ncm: x.ncm || '', nbs: x.nbs || '', item_lc116: x.item_lc116 || '', valor: +x.valor_amostra || 0, notas: x.notas_amostra || 0, quantidade: 1, unidade: 'UN', cclass_nota: '', cst_nota: '' }));
+      toast(`${r.data.length} item(ns) já classificado(s) para este cliente.`);
+    }
+  }
+  telaLote();
+}
+async function lerXmlsLote(inp) {
+  const arqs = [...inp.files]; LT.erros = [];
+  const notas = [];
+  for (const f of arqs) {
+    try { const n = X.lerXml(await f.text()); if (n.saida !== false) notas.push(n); }
+    catch (e) { LT.erros.push(f.name + ': ' + e.message); }
+  }
+  LT.notas = notas; LT.itens = X.agrupar(notas); LT.escolha = {};
+  const cnpjs = [...new Set(notas.map(n => n.emitente.cnpj))];
+  if (cnpjs.length > 1) toast('Atenção: os XMLs são de ' + cnpjs.length + ' emitentes diferentes.', true);
+  if (!LT.cliente_id && cnpjs.length === 1) {
+    const c = CLIENTES.find(x => String(x.cnpj || '').replace(/\D/g, '') === cnpjs[0]);
+    if (c) { await trocarClienteLote(c.id); return; }
+  }
+  telaLote();
+}
+async function salvarLote() {
+  if (!LT.cliente_id) return toast('Escolha o cliente antes de salvar.', true);
+  const linhas = LT.itens.map(it => {
+    const cd = LT.escolha[it.chave]; const c = CC.find(x => x.cd === cd) || {};
+    return { cliente_id: LT.cliente_id, chave: it.chave, codigo: it.codigo, descricao: it.descricao, ncm: it.ncm || null, nbs: it.nbs || null, item_lc116: it.item_lc116 || null,
+      cst: c.cst || null, cclasstrib: cd, valor_amostra: it.valor, notas_amostra: it.notas, updated_at: new Date().toISOString() };
+  });
+  const r = await sb.from('rt_classificacoes').upsert(linhas, { onConflict: 'user_id,cliente_id,chave' });
+  if (r.error) return toast('Não salvou: ' + r.error.message, true);
+  linhas.forEach(l => { LT.salvos[l.chave] = l; });
+  toast(`${linhas.length} item(ns) salvos para o cliente.`); telaLote();
+}
+function csvLote() {
+  const cab = ['Código', 'Descrição', 'NCM', 'NBS', 'Item LC 116', 'CST', 'cClassTrib', 'Descrição cClassTrib', 'Redução', 'Valor nas notas'];
+  const linhas = LT.itens.map(it => { const cd = LT.escolha[it.chave]; const c = CC.find(x => x.cd === cd) || {};
+    return [it.codigo, it.descricao, it.ncm, it.nbs, it.item_lc116, c.cst, cd, c.desc, c.red ? redTxt(c) : '', String(it.valor).replace('.', ',')]; });
+  const cli = (CLIENTES.find(c => c.id === LT.cliente_id) || {}).razao_social || 'cliente';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + X.csv([cab, ...linhas])], { type: 'text/csv;charset=utf-8' }));
+  a.download = `classificacao-ibs-cbs-${cli.replace(/[^\w]+/g, '-').toLowerCase()}.csv`; a.click(); URL.revokeObjectURL(a.href);
+}
+function loteParaCalc() {
+  C.itens = LT.itens.map(it => ({ tipo: it.ncm ? 'ncm' : 'nbs', cod: it.ncm || it.nbs || '', cc: LT.escolha[it.chave], base: it.valor, qtd: it.quantidade || 1, unidade: it.unidade || 'UN', un: it.unidade || 'UN', desc: it.descricao }));
+  const n = LT.notas[0]; if (n && n.uf) { C.uf = n.uf; if (n.municipio) C.municipio = n.municipio; }
+  C.resp = null; C.xml = ''; ir('calc');
+}
+
+// ═════════════════════════ SERVIDOR OFICIAL ═════════════════════════
+function telaApi() {
+  $('view').innerHTML = `
+    <div class="card" id="serv" style="font-size:13px"></div>
+    <div class="card"><h3>O que é</h3><p style="line-height:1.6">A aba "Calculadora oficial" usa o programa da própria Receita Federal (<a href="https://github.com/ReceitaFederal/calculadora-rtc-regime-regular" target="_blank" rel="noopener">calculadora-rtc-regime-regular ↗</a>, licença MIT), sem nenhuma alteração, rodando num servidor do escritório no Render. O portal conversa com ele por uma função do Supabase que exige o seu login; o servidor só aceita quem tem a chave secreta.</p></div>
+    <div class="card"><h3>Como ligar (uma vez só)</h3><ol style="padding-left:20px;line-height:1.8">
+      <li>Crie uma conta em <a href="https://render.com" target="_blank" rel="noopener">render.com ↗</a> entrando com o GitHub (pode usar o plano gratuito).</li>
+      <li>No Render: <b>New → Blueprint</b>, escolha o repositório <b>jcr-fiscal</b> e confirme. Ele lê o arquivo <code>render.yaml</code> e cria o serviço <b>jcr-calculadora-rtc</b> com uma chave secreta gerada automaticamente. A primeira montagem leva uns 10 minutos.</li>
+      <li>Quando ficar "Live", copie o endereço do serviço (algo como <code>https://jcr-calculadora-rtc.onrender.com</code>) e, em <b>Environment</b>, o valor de <b>RTC_CHAVE</b>.</li>
+      <li>No Supabase (projeto do portal) → <b>Edge Functions → Secrets</b>, crie <b>RTC_URL</b> com o endereço e <b>RTC_CHAVE</b> com a chave. Não mande a chave por mensagem.</li>
+      <li>Volte aqui e clique em "Tentar de novo" acima: deve aparecer "Servidor oficial da Receita ligado".</li></ol>
+      <p class="help">Plano gratuito do Render: o servidor dorme depois de 15 minutos sem uso e a primeira conta do dia demora até 1 minuto. Para ficar sempre ligado, troque o plano do serviço para Starter (cerca de US$ 7/mês). Quando a Receita publicar versão nova, a rotina mensal do repositório atualiza o servidor e as tabelas.</p></div>`;
+  pintarServidor();
+  if (SERV.estado === 'nao_verificado') verificarServidor();
 }
 
 // ═════════════════════════ início ═════════════════════════
@@ -359,6 +633,7 @@ cd calculadora-rtc-regime-regular
   await carregarSims();
   render();
 })();
+window.addEventListener('hashchange', () => { const k = location.hash.slice(1); if (k && k !== aba && ABAS.some(a => a[0] === k)) ir(k); });
 </script>
 </body>
 </html>

@@ -69,6 +69,13 @@ As tabelas ficam em `reforma/dados/` e saem do repositório aberto da Receita
     git clone --depth 1 https://github.com/ReceitaFederal/calculadora-rtc-regime-regular /tmp/rtc
     python3 reforma/scripts/gerar_dados.py /tmp/rtc
 
+A aba "Calculadora oficial" usa o próprio programa da Receita, sem alteração, num servidor no
+Render (`reforma/servidor`, `render.yaml`), acessado pela Edge Function `calculadora-rtc` (exige
+login; secrets `RTC_URL` e `RTC_CHAVE`). "Classificar XMLs" lê NF-e/NFC-e/NFS-e no navegador e
+salva a classificação em `rt_classificacoes`. A rotina `.github/workflows/reforma-tabelas.yml`
+confere todo mês a versão da Receita e abre um pull request com tabelas e servidor atualizados.
+Como ligar o servidor: `reforma/servidor/LEIA-ME.md`.
+
 ## Licenças por atividade
 
 `societario/licencas.js` lista os registros exigidos pela atividade (CRC, CORE, OAB, CREA,

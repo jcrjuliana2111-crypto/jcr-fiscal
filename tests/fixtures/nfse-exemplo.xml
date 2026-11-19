@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<NFSe xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00"><infNFSe Id="NFS35524032200000000000191000000000000126110000000001"><nNFSe>45</nNFSe>
+<emit><CNPJ>00000000000191</CNPJ><xNome>ESCRITORIO EXEMPLO</xNome><enderNac><UF>SP</UF></enderNac></emit>
+<DPS><infDPS Id="DPS1"><dhEmi>2026-11-05T09:00:00-03:00</dhEmi><cLocEmi>3552403</cLocEmi><prest><CNPJ>00000000000191</CNPJ></prest>
+<serv><cServ><cTribNac>171901</cTribNac><xDescServ>Servicos de contabilidade - novembro</xDescServ><cNBS>113011000</cNBS></cServ></serv>
+<valores><vServPrest><vServ>3500.00</vServ></vServPrest></valores></infDPS></DPS></infNFSe></NFSe>

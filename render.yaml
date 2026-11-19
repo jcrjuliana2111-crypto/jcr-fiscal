@@ -1,0 +1,17 @@
+# Render (render.com): calculadora oficial da Reforma Tributária usada pelo portal.
+# New → Blueprint → escolha este repositório. Detalhes em reforma/servidor/LEIA-ME.md.
+services:
+  - type: web
+    name: jcr-calculadora-rtc
+    runtime: docker
+    plan: free
+    dockerfilePath: ./reforma/servidor/Dockerfile
+    dockerContext: ./reforma/servidor
+    healthCheckPath: /saude
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - reforma/servidor/**
+    envVars:
+      - key: RTC_CHAVE
+        generateValue: true

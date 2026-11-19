@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00"><NFe><infNFe Id="NFe35261100000000000191550010000001231000001230" versao="4.00">
+<ide><cUF>35</cUF><mod>55</mod><nNF>123</nNF><dhEmi>2026-11-10T10:00:00-03:00</dhEmi><tpNF>1</tpNF></ide>
+<emit><CNPJ>00000000000191</CNPJ><xNome>EMPRESA EXEMPLO LTDA</xNome><enderEmit><cMun>3552403</cMun><UF>SP</UF></enderEmit></emit>
+<det nItem="1"><prod><cProd>A1</cProd><xProd>ARROZ BRANCO TIPO 1 5KG</xProd><NCM>10063021</NCM><CFOP>5102</CFOP><uCom>UN</uCom><qCom>10.0000</qCom><vProd>250.00</vProd><vDesc>10.00</vDesc></prod>
+<imposto><IBSCBS><CST>200</CST><cClassTrib>200003</cClassTrib></IBSCBS></imposto></det>
+<det nItem="2"><prod><cProd>B7</cProd><xProd>PARAFUSO &amp; PORCA</xProd><NCM>73181500</NCM><CFOP>5102</CFOP><uCom>CX</uCom><qCom>2</qCom><vProd>80.00</vProd></prod><imposto></imposto></det>
+</infNFe></NFe></nfeProc>

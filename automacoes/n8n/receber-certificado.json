@@ -1,0 +1,147 @@
+{
+  "name": "JCR — Certificados: receber do portal e gravar na VPS",
+  "nodes": [
+    {
+      "id": "93d8a1f4-30c2-5f73-b5e3-e6b36264337f",
+      "name": "Recebe do portal",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "808b194a-83ce-537d-a8b3-973a1af15b06",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "jcr-certificado",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "0d9044a6-e00b-5d23-be7e-1048086aeb87",
+      "name": "Configuração",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a6f77cf1-7f93-5de0-9580-26780c7478de",
+              "name": "pasta",
+              "value": "/caminho/da/pasta/dos/certificados",
+              "type": "string"
+            },
+            {
+              "id": "19cf1069-bfd3-56ed-9511-a1be9724a940",
+              "name": "padrao_nome",
+              "value": "{nome} - senha {senha}.pfx",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "692cdcef-ec0b-5a24-a40a-51104b8f8c7a",
+      "name": "Preparar arquivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Nó \"Preparar arquivo\" do fluxo receber-certificado (n8n, nó Code em modo \"Run Once for All Items\").\n// Recebe do portal (Edge Function certificados-vps) o certificado A1 em base64 e devolve o arquivo binário\n// com o MESMO nome do arquivo original (a senha continua no nome, como o robô de notas já usa).\n// Responde ao portal com o nome final gravado.\n// Este arquivo é a fonte do código colado no nó (gerar-fluxos.py); mantenha os dois iguais.\n\nconst corpo = $('Recebe do portal').first().json.body || {};\nconst pasta = String($('Configuração').first().json.pasta || '').replace(/\\/+$/, '');\nconst original = String(corpo.arquivo || '').replace(/^.*[\\\\/]/, '').trim();\n// O robô lê a senha no nome do arquivo. Se a senha foi digitada no portal (não estava no nome),\n// o arquivo é renomeado pelo padrão da Configuração, ex.: \"{nome} - senha {senha}.pfx\".\nconst senha = String(corpo.senha ?? '');\nconst padrao = String($('Configuração').first().json.padrao_nome || '{nome} - senha {senha}.pfx');\nconst semExt = original.replace(/\\.(pfx|p12)$/i, '');\nconst arquivo = senha && !original.includes(senha)\n  ? padrao.replace('{nome}', semExt).replace('{senha}', senha).replace(/[\\\\/]/g, '-')\n  : original;\nif (!pasta) throw new Error('Preencha a pasta dos certificados no nó Configuração.');\nif (!/\\.(pfx|p12)$/i.test(original) || arquivo.includes('..')) throw new Error('Nome de arquivo inválido: ' + arquivo);\nif (!/^[A-Za-z0-9+/=]+$/.test(String(corpo.conteudo || ''))) throw new Error('Conteúdo do certificado inválido.');\nreturn [{\n  json: { arquivo, caminho: `${pasta}/${arquivo}`, documento: corpo.documento || '', titular: corpo.titular || '', vencimento: corpo.vencimento || null, enviado_por: corpo.enviado_por || '' },\n  binary: { data: { data: corpo.conteudo, mimeType: 'application/x-pkcs12', fileName: arquivo } },\n}];\n"
+      }
+    },
+    {
+      "id": "c4433d44-e0b3-5f92-a7ac-4d22debf8c56",
+      "name": "Gravar na pasta do robô",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $json.caminho }}",
+        "dataPropertyName": "data",
+        "options": {}
+      }
+    },
+    {
+      "id": "5a7cce95-c1d4-572f-8bc9-5b90744530cc",
+      "name": "Responder ao portal",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, arquivo: $('Preparar arquivo').first().json.arquivo }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Recebe do portal": {
+      "main": [
+        [
+          {
+            "node": "Configuração",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuração": {
+      "main": [
+        [
+          {
+            "node": "Preparar arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar arquivo": {
+      "main": [
+        [
+          {
+            "node": "Gravar na pasta do robô",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gravar na pasta do robô": {
+      "main": [
+        [
+          {
+            "node": "Responder ao portal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {}
+}

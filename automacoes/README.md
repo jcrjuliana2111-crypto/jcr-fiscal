@@ -70,3 +70,43 @@ mensagem certa para cada etapa), pesquisas de satisfação sem resposta e notas 
 
 O código dos nós fica nos arquivos `*.code.js`. Depois de mudar um deles, rode
 `python3 automacoes/n8n/gerar-fluxos.py` para atualizar os `.json` (os testes conferem se estão iguais).
+
+## Certificados digitais — portal ⇄ VPS e avisos de vencimento
+
+```
+Portal (Importar em lote) ─► Edge Function certificados-vps ─► n8n "receber-certificado" ─► pasta do robô na VPS
+Robô da VPS (salvou certificado) ─► passo "Avisar o portal" ─► Supabase registrar_certificado
+Todo dia 8h15 ─► certificados_alerta (60/45/30/15/7/1/0 dias e vencidos) ─► Telegram (você) + e-mail (cliente)
+```
+
+### 1. `n8n/receber-certificado.json` — o portal grava o certificado na pasta do robô
+
+1. Importe o fluxo. No nó **Recebe do portal**, crie a credencial **Header Auth**: nome `X-Chave-JCR` e,
+   como valor, uma senha longa que você inventar (40+ letras e números).
+2. No nó **Configuração**: `pasta` = a mesma pasta onde o robô de notas guarda os certificados (o caminho
+   como o n8n enxerga, ex.: `/home/node/.n8n/certificados` no Docker), e `padrao_nome` = o padrão de nome
+   que o robô usa quando a senha precisa ir no nome (só é usado se você digitar a senha no portal;
+   ex.: `{nome} - senha {senha}.pfx`).
+3. Ative o fluxo e copie a **Production URL** do webhook.
+4. No Supabase do portal → Edge Functions → Secrets: `N8N_CERT_URL` = a URL e `N8N_CERT_CHAVE` = a mesma
+   senha do Header Auth. Não mande essa senha por mensagem.
+5. No portal, Certificados e alvarás → **Importar certificados em lote**: a coluna "Na VPS" mostra ✓.
+
+O portal guarda só titular, CNPJ/CPF, validade e o nome do arquivo. O arquivo e a senha ficam só na VPS.
+
+### 2. `n8n/passo-robo-registrar-certificado.json` — o robô avisa o portal
+
+Abra o fluxo do robô que salva os certificados, cole este passo (copiar o conteúdo do arquivo e colar na tela
+do fluxo) logo depois de gravar o arquivo, e ajuste os campos do corpo para os nomes que o robô usa:
+`documento` (CNPJ/CPF), `titular`, `vencimento` (AAAA-MM-DD), `arquivo` e `emitido_em`. Use a credencial do
+Supabase (service role). O certificado aparece no portal ligado ao cliente pelo CNPJ (se já existir, só atualiza a data).
+
+### 3. `n8n/alerta-certificados.json` — avisos no Telegram e para o cliente
+
+- Todo dia às 8h15, os certificados que completam hoje 60, 45, 30, 15, 7, 1 ou 0 dias para vencer
+  (lista em `marcos` na Configuração) e os vencidos (lembrete semanal por até 60 dias).
+- **Telegram**: crie a credencial do bot do Telegram no nó *Enviar no Telegram* e coloque o seu chat id em
+  `telegram_chat_id`. A mensagem não leva o nome do arquivo (que contém a senha).
+- **Cliente**: com `avisar_cliente = true`, manda e-mail pelo Gmail para o contato do cliente (JCR Entregas ou
+  Gestão Fiscal). O nó *Avisos aos clientes* também entrega `whatsapp` e `mensagem`, para ligar um nó de
+  WhatsApp (ex.: Evolution API) se você usar.

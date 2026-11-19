@@ -11,6 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/forge/1.3.1/forge.min.js"></script>
 <script src="societario-core.js"></script>
+<script src="certificado-core.js"></script>
 <style>
 :root{--bg:#0d0f14;--surface:#13161e;--surface2:#1a1e2a;--surface3:#222739;--border:#2a2f42;--border2:#363d55;--text:#e8eaf2;--text2:#9aa1b8;--text3:#626a85;--accent:#60a5fa;--ok:#34d399;--warn:#fbbf24;--danger:#f87171;--orange:#fb923c}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -52,7 +53,8 @@ function toast(m, e) { const t = document.createElement('div'); t.className = 't
 const TIPOS = { certificado_a1: 'Certificado digital A1', certificado_a3: 'Certificado digital A3 (token/cartão)', alvara: 'Alvará / licença de funcionamento',
   licenca_sanitaria: 'Licença sanitária (VISA)', avcb: 'Bombeiros (AVCB/CLCB)', conselho: 'Registro em conselho (CRC, CRM, CREA…)', cetesb: 'Licença ambiental (CETESB)',
   procuracao: 'Procuração eletrônica (e-CAC etc.)', outro: 'Outro' };
-const S = { itens: [], clientes: [], filtro: '60', ed: null };
+const S = { itens: [], clientes: [], filtro: '60', ed: null, lote: [] };
+const SUPABASE_URL = 'https://onecnoicxqjhgolqncjj.supabase.co', SUPABASE_KEY = 'sb_publishable_paOFHdYEcMr7MZdOFx16Lw_sXt0n0-9';
 
 async function carregar() {
   const [v, c] = await Promise.all([sb.from('soc_vencimentos').select('*').order('vencimento').limit(5000), sb.from('gclik_clientes').select('id,razao_social,cnpj,status').order('razao_social').limit(5000)]);
@@ -69,13 +71,15 @@ function render() {
   $('view').innerHTML = `
     <div class="crumbs"><a href="../index.html">Portal</a> › <a href="./">Painel Societário</a> › Certificados e alvarás</div>
     <div class="head"><div><h1>📅 Certificados, alvarás e licenças</h1><p>Vencimentos de todos os clientes. Os próximos 30 dias aparecem no Painel Societário e no e-mail diário do n8n.</p></div>
-      <div class="acts"><label class="btn sec" style="margin:0">🔐 Ler certificado A1 (.pfx)<input type="file" accept=".pfx,.p12" style="display:none" onchange="lerCertificado(this)"></label><button class="btn" onclick="editar()">+ Novo vencimento</button></div></div>
+      <div class="acts"><label class="btn" style="margin:0">📦 Importar certificados em lote<input type="file" accept=".pfx,.p12" multiple style="display:none" onchange="importarLote(this)"></label>
+        <label class="btn sec" style="margin:0">🔐 Ler um certificado (.pfx)<input type="file" accept=".pfx,.p12" style="display:none" onchange="lerCertificado(this)"></label><button class="btn sec" onclick="editar()">+ Novo vencimento</button></div></div>
+    <div id="lote">${loteHtml()}</div>
     <div class="kpis">${kpi('vencido', cont.vencido, 'Vencidos', 'var(--danger)')}${kpi('30', cont['30'], 'Vencem em 30 dias', 'var(--orange)')}${kpi('60', cont.vencido + cont['30'] + cont['60'], 'Até 60 dias (inclui vencidos)', 'var(--warn)')}${kpi('todos', S.itens.length, 'Todos', 'var(--accent)')}</div>
     <div id="form"></div>
-    <div class="tbl"><table><thead><tr><th>Vencimento</th><th>Empresa</th><th>O quê</th><th>Responsável</th><th></th></tr></thead><tbody>
+    <div class="tbl"><table><thead><tr><th>Vencimento</th><th>Empresa</th><th>O quê</th><th>Responsável</th><th>Na VPS</th><th></th></tr></thead><tbody>
       ${lista.map(v => { const s = situacao(v); return `<tr><td><b>${dataBR(v.vencimento)}</b><br><span class="badge" style="--c:${s[1]}">${s[2]}</span></td><td>${esc(v.empresa)}</td>
-        <td>${esc(TIPOS[v.tipo] || v.tipo)}${v.descricao ? `<div class="help">${esc(v.descricao)}</div>` : ''}</td><td>${esc(v.responsavel || '')}</td>
-        <td style="white-space:nowrap"><button class="btn sec sm" onclick="renovar('${v.id}')">Renovado</button> <button class="btn sec sm" onclick="editar('${v.id}')">Editar</button></td></tr>`; }).join('') || '<tr><td colspan="5" class="help">Nada neste filtro.</td></tr>'}
+        <td>${esc(TIPOS[v.tipo] || v.tipo)}${v.descricao ? `<div class="help">${esc(v.descricao)}</div>` : ''}</td><td>${esc(v.responsavel || '')}</td><td>${v.na_vps_em ? `<span class="badge" style="--c:var(--ok)" title="${esc(v.arquivo || '')}">✓ ${dataBR(String(v.na_vps_em).slice(0, 10))}</span>` : /certificado_a1/.test(v.tipo) ? '<span class="help">não</span>' : ''}</td>
+        <td style="white-space:nowrap"><button class="btn sec sm" onclick="renovar('${v.id}')">Renovado</button> <button class="btn sec sm" onclick="editar('${v.id}')">Editar</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="help">Nada neste filtro.</td></tr>'}
     </tbody></table></div>`;
   if (S.ed) formulario();
 }
@@ -117,26 +121,104 @@ async function renovar(id) {
   if (r.error) return toast(r.error.message, true); await carregar(); render(); toast('Vencimento atualizado.');
 }
 
-// Lê o certificado A1 aqui no navegador (o arquivo e a senha não saem do computador) e preenche o vencimento
+// ── Certificados A1: senha pelo nome do arquivo, leitura local e envio para a VPS (pasta do robô do n8n) ──
+const bytesDe = async f => new Uint8Array(await f.arrayBuffer());
+const base64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 8192) s += String.fromCharCode(...bytes.subarray(i, i + 8192)); return btoa(s); };
+const soDig = s => String(s || '').replace(/\D/g, '');
+const clientePorDoc = (doc, nome) => S.clientes.find(c => soDig(c.cnpj) && soDig(c.cnpj) === doc) || (nome ? S.clientes.find(c => c.razao_social && c.razao_social.toUpperCase() === nome.toUpperCase()) : null);
+const existentePorDoc = doc => S.itens.find(v => v.tipo === 'certificado_a1' && (v.cnpj === doc || (!v.cnpj && v.descricao && v.descricao.includes(doc))));
+
+// Um certificado: tenta as senhas do nome do arquivo; se nenhuma abrir, pergunta
 async function lerCertificado(inp) {
   const f = inp.files[0]; inp.value = ''; if (!f) return;
   if (!window.forge) return toast('Leitor de certificado não carregou. Recarregue a página.', true);
-  const senha = prompt('Senha do certificado (só para ler a validade; não é guardada):'); if (senha === null) return;
-  try {
-    const bin = forge.util.binary.raw.encode(new Uint8Array(await f.arrayBuffer()));
-    const p12 = forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(bin), senha);
-    const certs = (p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag] || []).map(b => b.cert).filter(Boolean);
-    const cert = certs.find(c => !(c.extensions || []).some(e => e.name === 'basicConstraints' && e.cA)) || certs[0];
-    if (!cert) throw new Error('nenhum certificado no arquivo');
-    const cn = (cert.subject.getField('CN') || {}).value || '';
-    const [nome, doc] = cn.split(':');
-    const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const cnpj = (doc || '').replace(/\D/g, '');
-    const cli = S.clientes.find(c => (c.cnpj || '').replace(/\D/g, '') === cnpj) || S.clientes.find(c => c.razao_social && nome && c.razao_social.toUpperCase() === nome.toUpperCase());
-    editar(null, { tipo: 'certificado_a1', empresa: cli ? cli.razao_social : nome, cliente_id: cli ? cli.id : null, vencimento: iso(cert.validity.notAfter),
-      descricao: `${cnpj.length === 14 ? 'e-CNPJ' : 'e-CPF'} A1 — ${cn}`, obs: `Emitido em ${dataBR(iso(cert.validity.notBefore))}. Lido do arquivo ${f.name}.` });
-    toast('Certificado lido: confira e salve.');
-  } catch (e) { toast('Não foi possível ler: senha errada ou arquivo inválido (' + e.message + ').', true); }
+  const bytes = await bytesDe(f);
+  let r = Certificado.descobrir(forge, bytes, f.name);
+  if (!r) { const senha = prompt('A senha não está no nome do arquivo. Digite a senha (só para ler a validade; não é guardada):'); if (senha === null) return; r = Certificado.descobrir(forge, bytes, '', [senha]); }
+  if (!r) return toast('Senha errada ou arquivo inválido.', true);
+  const d = r.dados, cli = clientePorDoc(d.documento, d.nome);
+  editar(null, { tipo: 'certificado_a1', empresa: cli ? cli.razao_social : d.nome, cliente_id: cli ? cli.id : null, vencimento: d.vencimento,
+    descricao: `${d.tipo} A1 — ${d.titular}`, obs: `Emitido em ${dataBR(d.emitido_em)}. Arquivo ${f.name}.` });
+  toast('Certificado lido: confira e salve. Para guardar também na VPS, use "Importar certificados em lote".');
+}
+
+// Lote: lê todos, mostra a prévia; importar grava no portal e manda para a VPS
+async function importarLote(inp) {
+  const arqs = [...inp.files]; inp.value = ''; if (!arqs.length) return;
+  if (!window.forge) return toast('Leitor de certificado não carregou. Recarregue a página.', true);
+  toast(`Lendo ${arqs.length} certificado(s)…`);
+  S.lote = [];
+  for (const f of arqs) {
+    const bytes = await bytesDe(f);
+    const item = { arquivo: f.name, bytes, enviar: true, status: '' };
+    await new Promise(r => setTimeout(r, 0)); // deixa a tela respirar entre um e outro
+    const r = Certificado.descobrir(forge, bytes, f.name);
+    if (r) Object.assign(item, { senha: r.senha, dados: r.dados });
+    S.lote.push(item);
+  }
+  pintarLote();
+}
+function situacaoLote(it) {
+  if (!it.dados) return { cor: 'var(--danger)', txt: 'senha não encontrada no nome' };
+  const d = SO.diasEntre(hojeISO(), it.dados.vencimento);
+  return d < 0 ? { cor: 'var(--danger)', txt: `vencido há ${-d} dia(s)` } : { cor: d <= 60 ? 'var(--orange)' : 'var(--ok)', txt: `vence em ${d} dia(s)` };
+}
+function loteHtml() {
+  if (!S.lote.length) return '';
+  const ok = S.lote.filter(i => i.dados && !i.feito).length;
+  return `<div class="card"><h3>Importação em lote — ${S.lote.length} arquivo(s), ${S.lote.filter(i => i.dados).length} lido(s)</h3>
+    <div class="tbl" style="border:0"><table><thead><tr><th>Arquivo</th><th>Titular</th><th>Validade</th><th>Cliente no portal</th><th>Senha</th><th>VPS</th><th>Situação</th></tr></thead><tbody>
+    ${S.lote.map((it, i) => { const d = it.dados, cli = d && clientePorDoc(d.documento, d.nome), ex = d && existentePorDoc(d.documento), s = situacaoLote(it);
+      return `<tr><td>${esc(it.arquivo)}</td>
+        <td>${d ? `${esc(d.nome)}<div class="help">${esc(d.tipo)} ${esc(d.documento)}</div>` : '—'}</td>
+        <td>${d ? `<b>${dataBR(d.vencimento)}</b><br><span class="badge" style="--c:${s.cor}">${s.txt}</span>` : '—'}</td>
+        <td>${d ? (cli ? esc(cli.razao_social) : '<span class="help">sem cadastro com este CNPJ — entra pelo nome do certificado</span>') + (ex ? `<div class="help">atualiza o vencimento de ${dataBR(ex.vencimento)}</div>` : '') : ''}</td>
+        <td>${d ? '✓ achada no nome' : `<input id="ls-${i}" placeholder="digite a senha" style="max-width:150px"> <button class="btn sec sm" onclick="tentarSenha(${i})">Abrir</button>`}</td>
+        <td><input type="checkbox" ${it.enviar ? 'checked' : ''} onchange="S.lote[${i}].enviar=this.checked" title="Gravar o arquivo na pasta do robô na VPS"></td>
+        <td>${it.status || (d ? '<span class="help">pronto</span>' : '')}</td></tr>`; }).join('')}
+    </tbody></table></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">
+      <span class="help" style="align-self:center;margin-right:auto">O portal guarda só titular e validade. O arquivo e a senha vão apenas para a VPS (marcados em "VPS"), com o mesmo nome do arquivo.</span>
+      <button class="btn sec" onclick="S.lote=[];pintarLote()">Limpar</button>
+      <button class="btn" id="b-lote" ${ok ? '' : 'disabled'} onclick="confirmarLote()">Importar ${ok} certificado(s)</button></div></div>`;
+}
+function pintarLote() { $('lote').innerHTML = loteHtml(); }
+function tentarSenha(i) {
+  const it = S.lote[i], senha = $('ls-' + i).value;
+  const r = Certificado.descobrir(forge, it.bytes, '', [senha]);
+  if (!r) return toast('Essa senha não abriu o certificado.', true);
+  Object.assign(it, { senha: r.senha, dados: r.dados }); pintarLote();
+}
+async function enviarVps(it) {
+  const { data: { session } } = await sb.auth.getSession();
+  const r = await fetch(SUPABASE_URL + '/functions/v1/certificados-vps', { method: 'POST',
+    headers: { Authorization: 'Bearer ' + (session && session.access_token), apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ arquivo: it.arquivo, conteudo: base64(it.bytes), senha: it.senha, documento: it.dados.documento, titular: it.dados.titular, vencimento: it.dados.vencimento, emitido_em: it.dados.emitido_em }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.ok) throw new Error(j.erro === 'nao_configurado' ? 'ponte com a VPS ainda não configurada' : (j.erro || 'HTTP ' + r.status));
+  try { return JSON.parse(j.vps).arquivo || it.arquivo; } catch (_) { return it.arquivo; } // nome final na pasta do robô
+}
+async function confirmarLote() {
+  $('b-lote').disabled = true;
+  let vpsDesligada = false;
+  for (const it of S.lote.filter(x => x.dados && !x.feito)) {
+    const d = it.dados, cli = clientePorDoc(d.documento, d.nome), ex = existentePorDoc(d.documento);
+    const linha = { empresa: cli ? cli.razao_social : (ex ? ex.empresa : d.nome), cliente_id: cli ? cli.id : (ex ? ex.cliente_id : null), tipo: 'certificado_a1', vencimento: d.vencimento,
+      descricao: `${d.tipo} A1 — ${d.titular}`, cnpj: d.documento || null, titular: d.titular, emitido_em: d.emitido_em, arquivo: it.arquivo, origem: 'portal', updated_at: new Date().toISOString() };
+    try {
+      const r = ex ? await sb.from('soc_vencimentos').update(linha).eq('id', ex.id).select().single() : await sb.from('soc_vencimentos').insert(linha).select().single();
+      if (r.error) throw new Error(r.error.message);
+      it.status = '✓ no portal';
+      if (it.enviar && !vpsDesligada) {
+        try { const nome = await enviarVps(it); await sb.from('soc_vencimentos').update({ na_vps_em: new Date().toISOString(), arquivo: nome }).eq('id', r.data.id); it.status += ' · ✓ na VPS'; }
+        catch (e) { it.status += ' · ⚠️ VPS: ' + esc(e.message); if (/não configurada/.test(e.message)) vpsDesligada = true; }
+      }
+      it.feito = true;
+    } catch (e) { it.status = '⚠️ ' + esc(e.message); }
+    pintarLote();
+  }
+  await carregar(); render();
+  toast(vpsDesligada ? 'Importado no portal. A ponte com a VPS ainda não está configurada (veja o LEIA-ME das automações).' : 'Importação concluída.', vpsDesligada);
 }
 
 (async () => { try { await carregar(); render(); } catch (e) { $('view').innerHTML = `<div class="card">Não foi possível carregar: ${esc(e.message)}</div>`; } })();

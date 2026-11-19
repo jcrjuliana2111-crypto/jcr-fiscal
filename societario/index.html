@@ -401,7 +401,12 @@ async function copiarDocs(id) {
 
 // ── início ──
 (async () => {
-  try { await carregar(); render(); }
+  try {
+    await carregar(); render();
+    // Link direto para um processo (ex.: vindo do onboarding de clientes)
+    const pid = new URLSearchParams(location.search).get('processo');
+    if (pid && S.processos.some(x => x.id === pid)) abrir(pid);
+  }
   catch (e) { $('view').innerHTML = `<div class="empty">Não foi possível carregar os processos: ${esc(e.message)}</div>`; }
 })();
 </script>

@@ -76,6 +76,14 @@ salva a classificação em `rt_classificacoes`. A rotina `.github/workflows/refo
 confere todo mês a versão da Receita e abre um pull request com tabelas e servidor atualizados.
 Como ligar o servidor: `reforma/servidor/LEIA-ME.md`.
 
+## Onboarding de clientes
+
+`comercial/` leva o cliente do orçamento à implantação: tabela de preços do escritório,
+orçamento, proposta e contrato de prestação de serviços contábeis em Word, cadastro automático
+no Gestão Fiscal (honorário e vencimento, que o Financeiro JCR lê), no JCR Entregas (obrigações
+do regime e portal do cliente) e no Painel Societário, e-mail de boas-vindas e checklist de
+implantação. Tabelas `com_config` e `com_oportunidades`. Regras em `comercial/onboarding-core.js`.
+
 ## Licenças por atividade
 
 `societario/licencas.js` lista os registros exigidos pela atividade (CRC, CORE, OAB, CREA,

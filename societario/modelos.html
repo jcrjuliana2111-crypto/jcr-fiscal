@@ -5,12 +5,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>Modelos de documentos · Painel Societário</title>
+<title>Dados e documentos · Painel Societário</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js"></script>
 <script src="modelos-core.js"></script>
+<script src="links.js"></script>
 <style>
 :root{
   --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;
@@ -22,32 +23,46 @@
 html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh;font-size:14px}
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:var(--accent)}
-main{max-width:1400px;margin:0 auto;padding:24px 24px 90px}
+main{max-width:1440px;margin:0 auto;padding:24px 24px 90px}
 .crumbs{font-size:12.5px;color:var(--text3);margin-bottom:12px}
 .crumbs a{color:var(--text2);text-decoration:none}
-.head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:18px}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px}
 .head h1{font:800 22px Syne,sans-serif}
 .head p{color:var(--text2);font-size:13px;margin-top:2px}
-.head .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
-.btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--accent),#6b7ff7);color:#fff;white-space:nowrap}
+.head .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--accent),#6b7ff7);color:#fff;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
 .btn:hover{filter:brightness(1.08)}
 .btn.sec{background:var(--surface2);border:1px solid var(--border2);color:var(--text)}
-.layout{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:18px;align-items:start}
+.btn.sm{padding:5px 10px;font-size:12.5px;border-radius:8px}
+.layout{display:grid;grid-template-columns:minmax(0,520px) minmax(0,1fr);gap:18px;align-items:start}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
-.card h2{font:700 11.5px Syne,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin-bottom:12px}
-.campos{display:grid;gap:10px}
-.f2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card h2{font:700 11.5px Syne,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card h2 .acao{margin-left:auto;text-transform:none;letter-spacing:0}
+.campos{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.c6{grid-column:span 6}.c4{grid-column:span 4}.c3{grid-column:span 3}.c2{grid-column:span 2}.c1{grid-column:span 1}
 label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px}
 input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:8px 11px;outline:none}
 input:focus,select:focus,textarea:focus{border-color:var(--accent)}
-textarea{min-height:120px;resize:vertical}
+input[type=checkbox]{width:auto;accent-color:var(--accent)}
+textarea{min-height:64px;resize:vertical}
 .help{font-size:11.5px;color:var(--text3);margin-top:4px;line-height:1.4}
-.pend{background:color-mix(in srgb,var(--warn) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);border-radius:12px;padding:10px 14px;font-size:12.5px;color:var(--text2);margin-bottom:12px}
-.pend b{color:var(--warn)}
-.pend.ok{background:color-mix(in srgb,var(--ok) 9%,var(--surface));border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
-.pend.ok b{color:var(--ok)}
+.check{display:flex;align-items:center;gap:8px;font-weight:600;color:var(--text);margin:0;cursor:pointer}
+.checks{display:flex;flex-wrap:wrap;gap:8px 16px}
+.socio{border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--surface2)}
+.socio .topo{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-weight:700}
+.socio .topo .x{margin-left:auto}
+.links{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.links a{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--border2);text-decoration:none;color:var(--text);background:var(--surface2)}
+.links a:hover{border-color:var(--accent)}
+.links a.pres{border-style:dashed}
 .previa{position:sticky;top:16px}
-.folha{background:#fff;color:#111;border-radius:6px;padding:48px 56px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.55;max-height:calc(100vh - 110px);overflow:auto}
+.pend{border-radius:12px;padding:10px 14px;font-size:12.5px;color:var(--text2);margin-bottom:10px;border:1px solid}
+.pend b{display:block;margin-bottom:3px}
+.pend ul{padding-left:18px;line-height:1.55}
+.p-erro{background:color-mix(in srgb,var(--danger) 9%,var(--surface));border-color:color-mix(in srgb,var(--danger) 40%,transparent)} .p-erro b{color:var(--danger)}
+.p-falta{background:color-mix(in srgb,var(--warn) 9%,var(--surface));border-color:color-mix(in srgb,var(--warn) 35%,transparent)} .p-falta b{color:var(--warn)}
+.p-ok{background:color-mix(in srgb,var(--ok) 9%,var(--surface));border-color:color-mix(in srgb,var(--ok) 35%,transparent)} .p-ok b{color:var(--ok)}
+.folha{background:#fff;color:#111;border-radius:6px;padding:48px 56px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.55;max-height:calc(100vh - 170px);overflow:auto}
 .folha p{text-align:justify;margin-bottom:9px}
 .folha .titulo{text-align:center;font-weight:700;margin-bottom:2px}
 .folha .centro{text-align:center;margin-bottom:14px}
@@ -57,27 +72,29 @@ textarea{min-height:120px;resize:vertical}
 .folha table{border-collapse:collapse;width:100%;margin:4px 0 12px}
 .folha td{border:1px solid #444;padding:4px 8px}
 .folha tr:first-child td,.folha tr:last-child td{font-weight:700}
-.folha .ass{text-align:center;margin-top:40px}
+.folha .ass{text-align:center;margin-top:36px}
 .folha .falta{color:#c00000;font-weight:700;background:#fff1f1;border-radius:3px;padding:0 2px}
+.salvo{font-size:12px;color:var(--text3)}
 .toast{position:fixed;right:18px;bottom:18px;z-index:99;background:var(--surface3);border:1px solid var(--border2);border-left:4px solid var(--ok);padding:11px 16px;border-radius:10px;max-width:380px}
 .toast.err{border-left-color:var(--danger)}
-@media (max-width:900px){
+@media (max-width:1000px){
   main{padding:16px 16px 90px}
-  .layout,.f2{grid-template-columns:1fr}
-  .previa{position:static}
-  .folha{max-height:none;padding:24px 20px}
+  .layout{grid-template-columns:1fr}
+  .campos{grid-template-columns:1fr 1fr}
+  .c6,.c4,.c3{grid-column:span 2}.c2,.c1{grid-column:span 1}
+  .previa{position:static}.folha{max-height:none;padding:24px 20px}
 }
 </style>
 </head>
 <body>
 <main>
-  <div class="crumbs"><a href="../index.html">Portal</a> › <a href="./">Painel Societário</a> › Modelos de documentos</div>
+  <div class="crumbs"><a href="../index.html">Portal</a> › <a href="./">Painel Societário</a> › Dados e documentos</div>
   <div class="head">
-    <div><h1>📄 Modelos de documentos</h1><p id="fonte"></p></div>
+    <div><h1>📄 Dados e documentos</h1><p id="sub">Preencha os dados uma vez: o documento sai pronto, com o texto das cláusulas revisado.</p></div>
     <div class="acts">
-      <a class="btn sec" href="conferidor.html" style="text-decoration:none">🔎 Conferir PDFs</a>
-      <select id="modelo" style="width:auto"></select>
-      <button class="btn sec" onclick="limpar()">Limpar</button>
+      <span class="salvo" id="salvo"></span>
+      <a class="btn sec" href="conferidor.html">🔎 Conferir PDFs</a>
+      <button class="btn sec" id="b-salvar" onclick="salvar()" hidden>Salvar no processo</button>
       <button class="btn" onclick="baixar()">Baixar Word</button>
     </div>
   </div>
@@ -90,10 +107,11 @@ textarea{min-height:120px;resize:vertical}
 <script>
 const SUPABASE_URL = 'https://onecnoicxqjhgolqncjj.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_paOFHdYEcMr7MZdOFx16Lw_sXt0n0-9';
-const M = window.ModelosSoc;
+const M = window.ModelosSoc, L = window.LinksSoc;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const num = s => { s = String(s ?? '').trim().replace(/\s|R\$/g, ''); return +(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s) || 0; };
+const num = s => { s = String(s ?? '').trim().replace(/\s|R\$/g, ''); if (!s) return null; return +(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s) || 0; };
+const fmtNum = v => (v == null || v === '' ? '' : String(v).replace('.', ','));
 function toast(msg, erro) {
   const t = document.createElement('div');
   t.className = 'toast' + (erro ? ' err' : '');
@@ -101,85 +119,215 @@ function toast(msg, erro) {
   document.body.appendChild(t);
   setTimeout(() => t.remove(), erro ? 6000 : 3000);
 }
-const hoje = new Date();
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const hoje = new Date();
 const dataExtenso = d => `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
+const TIPO_DO_PROCESSO = { abertura: 'constituicao', alteracao: 'alteracao', transformacao: 'transformacao', encerramento: 'extincao' };
+const FORMAS = ['em estabelecimento fixo, na sede', 'em estabelecimento fixo e por meio de internet', 'por meio de internet, sem estabelecimento fixo', 'em local de terceiros'];
 
-// Campos do formulário: [chave, rótulo, tipo, opções/ajuda]
-const GRUPOS = [
-  ['Titular (empresário individual)', [
-    ['titular.nome', 'Nome completo'],
-    ['titular.nacionalidade', 'Nacionalidade', 'text', 'brasileiro'],
-    ['titular.estado_civil', 'Estado civil', 'select', ['solteiro', 'casado', 'divorciado', 'viúvo', 'solteiro, em união estável']],
-    ['titular.regime_bens', 'Regime de bens (se casado)', 'select', ['', 'comunhão parcial de bens', 'comunhão universal de bens', 'separação total de bens', 'participação final nos aquestos']],
-    ['titular.profissao', 'Profissão', 'text', 'Ex.: empresário. Exigida pelo Manual de LTDA do DREI (item 3)'],
-    ['titular.nascimento', 'Data de nascimento', 'text', 'dd/mm/aaaa'],
-    ['titular.naturalidade', 'Naturalidade (opcional)', 'text', 'Cidade/UF'],
-    ['titular.rg', 'RG e órgão emissor', 'text', '00.000.000 SSP/SP'],
-    ['titular.cpf', 'CPF'],
-    ['titular.endereco', 'Endereço residencial com CEP', 'textarea'],
-  ]],
-  ['Empresa individual hoje (ficha da Junta)', [
-    ['ei.nome', 'Nome empresarial atual', 'text', 'Exatamente como na ficha cadastral. MEI costuma ser "00.000.000 NOME DO TITULAR"'],
-    ['ei.cnpj', 'CNPJ'],
-    ['ei.nire', 'NIRE'],
-    ['ei.sede', 'Sede atual com CEP', 'textarea'],
-  ]],
-  ['Nova sociedade limitada', [
-    ['ltda.nome', 'Novo nome empresarial', 'text', 'Com "LTDA" no fim, igual à viabilidade/DBE'],
-    ['ltda.sede', 'Sede da LTDA', 'textarea', 'Deixe em branco se continuar no mesmo endereço'],
-    ['ltda.objeto', 'Atividades (uma por linha)', 'textarea', 'Descrição + CNAE, iguais ao DBE. Ex.: Carga e descarga (CNAE 5212-5/00)'],
-    ['ltda.forma_atuacao', 'Forma de atuação', 'select', ['em estabelecimento fixo, na sede', 'em estabelecimento fixo e por meio de internet', 'por meio de internet, sem estabelecimento fixo', 'em local de terceiros']],
-    ['ltda.inicio', 'Início das atividades', 'text', 'Data de abertura no cartão CNPJ'],
-    ['ltda.capital', 'Capital social (R$)', 'text', 'Valor do acervo que vira capital'],
-    ['ltda.valor_quota', 'Valor de cada quota (R$)', 'text', '1,00'],
-    ['ltda.enquadramento', 'Enquadramento', 'select', [['ME', 'Microempresa'], ['EPP', 'Empresa de pequeno porte'], ['', 'Nenhum (sem cláusula)']]],
-    ['ltda.foro', 'Foro (comarca)', 'text', 'Cidade/UF'],
-  ]],
-  ['Fecho', [
-    ['numero_alteracao', 'Número da alteração', 'text', '1 se for a primeira alteração na Junta (comum para ex-MEI)'],
-    ['local', 'Cidade/UF da assinatura'],
-    ['data', 'Data por extenso'],
-  ]],
-];
-const PADRAO = { 'titular.nacionalidade': 'brasileiro', 'titular.estado_civil': 'solteiro', 'ltda.valor_quota': '1,00',
-  'ltda.enquadramento': 'ME', 'ltda.forma_atuacao': 'em estabelecimento fixo, na sede', numero_alteracao: '1', data: dataExtenso(hoje) };
+const socioVazio = () => ({ nome: '', sexo: 'M', nacionalidade: 'brasileiro', estado_civil: 'solteiro', regime_bens: '', profissao: '', nascimento: '',
+  naturalidade: '', rg: '', cpf: '', endereco: '', quotas: null, administrador: false, situacao: 'permanece' });
+const vazio = tipo => ({ tipo, numero_alteracao: tipo === 'transformacao' ? '1' : '', local: '', data: dataExtenso(hoje),
+  empresa: { nome: '', nome_ei: '', cnpj: '', nire: '', logradouro: '', numero: '', complemento: '', bairro: '', municipio: '', uf: 'SP', cep: '', iptu: '', area: '',
+    objeto: [], forma_atuacao: FORMAS[0], inicio: '', capital: null, valor_quota: 1, integralizacao: 'imediata', integralizacao_prazo: '',
+    enquadramento: 'ME', foro: '', administracao: 'isoladamente', advogado: '' },
+  socios: [{ ...socioVazio(), administrador: true }],
+  alteracao: { muda: {}, nome_novo: '', endereco_novo: { uf: 'SP' }, objeto_novo: [], capital_novo: null, cessoes: [], consolidar: true },
+  distrato: { data_encerramento: '', haveres: 'nao_ha', partilha_texto: '', ativo_passivo: '', livros_nome: '', livros_endereco: '' },
+  clausulas_adicionais: [] });
+
+const S = { d: vazio('constituicao'), processo: null, sb: null, timer: null, sujo: false };
+
+// ── leitura e escrita por caminho ("socios.0.nome") ──
+function pegar(o, caminho) { return caminho.split('.').reduce((x, k) => (x == null ? x : x[k]), o); }
+function por(o, caminho, valor) {
+  const ks = caminho.split('.'); let x = o;
+  ks.slice(0, -1).forEach((k, i) => { if (x[k] == null) x[k] = /^\d+$/.test(ks[i + 1]) ? [] : {}; x = x[k]; });
+  x[ks[ks.length - 1]] = valor;
+}
+
+// ── campos ──
+function campo(caminho, rotulo, tam = 'c3', o = {}) {
+  const val = pegar(S.d, caminho);
+  const id = 'f-' + caminho.replace(/\./g, '-');
+  const re = o.re ? 'data-re="1"' : '';
+  let html;
+  if (o.tipo === 'select') html = `<select id="${id}" data-k="${caminho}" ${re}>${o.opcoes.map(x => { const [v, n] = Array.isArray(x) ? x : [x, x || '—']; return `<option value="${esc(v)}" ${String(v) === String(val ?? '') ? 'selected' : ''}>${esc(n)}</option>`; }).join('')}</select>`;
+  else if (o.tipo === 'linhas') html = `<textarea id="${id}" data-k="${caminho}" data-linhas="1" style="min-height:110px">${esc((val || []).join('\n'))}</textarea>`;
+  else if (o.tipo === 'textarea') html = `<textarea id="${id}" data-k="${caminho}">${esc(val)}</textarea>`;
+  else if (o.tipo === 'check') return `<div class="${tam}"><label class="check"><input type="checkbox" id="${id}" data-k="${caminho}" data-check="1" ${re} ${val ? 'checked' : ''}> ${rotulo}</label></div>`;
+  else html = `<input id="${id}" data-k="${caminho}" ${o.numero ? 'data-num="1" inputmode="decimal"' : ''} value="${esc(o.numero ? fmtNum(val) : val)}" ${o.ph ? `placeholder="${esc(o.ph)}"` : ''}>`;
+  return `<div class="${tam}"><label for="${id}">${rotulo}</label>${html}${o.help ? `<div class="help">${o.help}</div>` : ''}</div>`;
+}
+const linksHtml = lista => lista.length ? `<div class="links">${lista.map(l => `<a href="${esc(l.interno ? '../' + l.url : l.url)}" target="_blank" rel="noopener" class="${l.modo === 'presencial' ? 'pres' : ''}">${l.modo === 'presencial' ? '🏢 ' : '🌐 '}${esc(l.nome)}${l.conferir ? ' (confirmar)' : ''}</a>`).join('')}</div>` : '';
+
+function enderecoCampos(base, titulo) {
+  const mun = pegar(S.d, base + '.municipio');
+  return `<div class="c6" style="font-weight:700;color:var(--text2);font-size:12px;margin-top:4px">${titulo}</div>
+    ${campo(base + '.logradouro', 'Logradouro (como no IPTU)', 'c4', { ph: 'Rua …' })}${campo(base + '.numero', 'Número', 'c2')}
+    ${campo(base + '.complemento', 'Complemento', 'c2')}${campo(base + '.bairro', 'Bairro', 'c4')}
+    ${campo(base + '.municipio', 'Município', 'c3', { re: true })}${campo(base + '.uf', 'UF', 'c1')}${campo(base + '.cep', 'CEP', 'c2', { ph: '00000-000' })}
+    <div class="c6">${linksHtml(L.resolver(['viabilidade_municipal', 'viabilidade_servico', 'vre', 'facilita'], mun))}</div>`;
+}
+const atividades = (k, rot) => campo(k, rot, 'c6', { tipo: 'linhas', help: 'Uma por linha: descrição + CNAE, iguais à viabilidade e ao DBE. Ex.: Consultoria em gestão empresarial (CNAE 7020-4/00).' });
+const forma = k => campo(k, 'Forma de atuação', 'c6', { tipo: 'select', opcoes: FORMAS });
+const enquadr = (k, tam) => campo(k, 'Enquadramento', tam, { tipo: 'select', re: true, opcoes: [['ME', 'Microempresa'], ['EPP', 'Empresa de pequeno porte'], ['', 'Demais (sem enquadramento)']] });
+const modoAdm = (k, tam) => campo(k, 'Administradores agem', tam, { tipo: 'select', opcoes: [['isoladamente', 'isoladamente'], ['conjuntamente', 'em conjunto']] });
+
+function socioCard(s, i, t) {
+  const alt = t === 'alteracao', transf = t === 'transformacao', dist = t === 'extincao';
+  const k = `socios.${i}`;
+  return `<div class="socio"><div class="topo">${transf ? 'Titular' : `Sócio ${i + 1}`}${s.nome ? ' · ' + esc(s.nome) : ''}
+      ${!transf && S.d.socios.length > 1 ? `<button class="btn sec sm x" onclick="removerSocio(${i})">Remover</button>` : ''}</div>
+    <div class="campos">
+      ${campo(k + '.nome', 'Nome civil completo', 'c4')}${campo(k + '.sexo', 'Gênero (texto)', 'c2', { tipo: 'select', opcoes: [['M', 'masculino'], ['F', 'feminino']] })}
+      ${campo(k + '.nacionalidade', 'Nacionalidade', 'c2')}${campo(k + '.estado_civil', 'Estado civil', 'c2', { tipo: 'select', re: true, opcoes: ['solteiro', 'solteira', 'casado', 'casada', 'divorciado', 'divorciada', 'viúvo', 'viúva', 'solteiro, em união estável', 'solteira, em união estável'] })}
+      ${/casad|uni/i.test(s.estado_civil || '') ? campo(k + '.regime_bens', 'Regime de bens', 'c2', { tipo: 'select', opcoes: ['', 'comunhão parcial de bens', 'comunhão universal de bens', 'separação total de bens', 'participação final nos aquestos'] }) : '<div class="c2"></div>'}
+      ${campo(k + '.profissao', 'Profissão', 'c2', { ph: 'empresário' })}${campo(k + '.nascimento', 'Nascimento', 'c2', { ph: 'dd/mm/aaaa' })}${campo(k + '.naturalidade', 'Naturalidade (opcional)', 'c2', { ph: 'Cidade/UF' })}
+      ${campo(k + '.rg', 'RG e órgão emissor', 'c3', { ph: '00.000.000 SSP/SP' })}${campo(k + '.cpf', 'CPF', 'c3')}
+      ${campo(k + '.endereco', 'Endereço residencial completo com CEP', 'c6', { ph: 'Rua …, nº …, bairro, cidade/UF, CEP …' })}
+      ${!dist && !transf ? campo(k + '.quotas', alt ? 'Quotas após a alteração' : 'Quotas', 'c2', { numero: true }) : ''}
+      ${!dist && !transf ? campo(k + '.administrador', 'Administrador', 'c2', { tipo: 'check' }) : ''}
+      ${alt ? campo(k + '.situacao', 'Nesta alteração', 'c2', { tipo: 'select', re: true, opcoes: [['permanece', 'permanece'], ['entra', 'entra (ingressante)'], ['sai', 'sai (retira-se)']] }) : ''}
+    </div></div>`;
+}
 
 function renderForm() {
-  $('form').innerHTML = GRUPOS.map(([titulo, campos]) => `<div class="card"><h2>${titulo}</h2><div class="campos">${campos.map(([k, rot, tipo, extra]) => {
-    const val = PADRAO[k] || '';
-    let campo;
-    if (tipo === 'select') campo = `<select id="${k}">${extra.map(o => { const [v, n] = Array.isArray(o) ? o : [o, o || '—']; return `<option value="${esc(v)}" ${v === val ? 'selected' : ''}>${esc(n)}</option>`; }).join('')}</select>`;
-    else if (tipo === 'textarea') campo = `<textarea id="${k}" style="min-height:${k === 'ltda.objeto' ? 140 : 60}px">${esc(val)}</textarea>`;
-    else campo = `<input id="${k}" value="${esc(val)}" ${extra && tipo === 'text' && extra.length < 30 ? `placeholder="${esc(extra)}"` : ''}>`;
-    const ajuda = tipo !== 'select' && extra && extra.length >= 30 ? `<div class="help">${esc(extra)}</div>` : '';
-    return `<div><label for="${k}">${rot}</label>${campo}${ajuda}</div>`;
-  }).join('')}</div></div>`).join('');
-  $('form').addEventListener('input', atualizar);
-  $('form').addEventListener('change', atualizar);
+  const d = S.d, t = d.tipo, e = d.empresa, a = d.alteracao;
+  const mun = e.municipio;
+  const card = (titulo, corpo, acao = '') => `<div class="card"><h2>${titulo}${acao ? `<span class="acao">${acao}</span>` : ''}</h2>${corpo}</div>`;
+  let h = card('Documento', `<div class="campos">
+    ${campo('tipo', 'Ato', 'c6', { tipo: 'select', re: true, opcoes: Object.entries(M.MODELOS).map(([k, m]) => [k, m.nome]) })}
+    ${S.processo ? `<div class="c6 help">Processo: <b>${esc(S.processo.empresa)}</b>. Os dados ficam salvos no processo.</div>` : '<div class="c6 help">Sem processo vinculado: os dados ficam só nesta tela. Abra pelo Painel Societário para salvar.</div>'}
+  </div>`);
+
+  if (t === 'constituicao') h += card('Empresa', `<div class="campos">
+    ${campo('empresa.nome', 'Nome empresarial (com LTDA)', 'c6', { help: 'Igual ao aprovado na viabilidade/busca de nome.' })}
+    ${enderecoCampos('empresa', 'Sede')}
+    ${campo('empresa.iptu', 'Inscrição imobiliária (carnê do IPTU)', 'c3')}${campo('empresa.area', 'Área do imóvel (m²)', 'c3', { help: 'Pedidas na viabilidade e no Facilita SP.' })}
+    ${atividades('empresa.objeto', 'Atividades')}${forma('empresa.forma_atuacao')}
+    ${campo('empresa.capital', 'Capital social (R$)', 'c2', { numero: true })}${campo('empresa.valor_quota', 'Valor da quota (R$)', 'c2', { numero: true })}
+    ${campo('empresa.integralizacao', 'Integralização', 'c2', { tipo: 'select', re: true, opcoes: [['imediata', 'no ato'], ['prazo', 'até uma data']] })}
+    ${e.integralizacao === 'prazo' ? campo('empresa.integralizacao_prazo', 'Integralizar até', 'c2', { ph: 'dd/mm/aaaa' }) : ''}
+    ${campo('empresa.inicio', 'Início das atividades (opcional)', 'c2', { ph: 'dd/mm/aaaa', help: 'Em branco = data do registro. Nunca antes da assinatura.' })}
+    ${enquadr('empresa.enquadramento', 'c2')}${modoAdm('empresa.administracao', 'c2')}
+    ${campo('empresa.foro', 'Foro (comarca)', 'c3', { ph: 'Campinas/SP' })}
+    ${!e.enquadramento ? campo('empresa.advogado', 'Visto de advogado (nome e OAB)', 'c3') : ''}
+  </div>`);
+  if (t === 'alteracao' || t === 'extincao') h += card(t === 'alteracao' ? 'Empresa hoje (ficha da JUCESP)' : 'Empresa (ficha da JUCESP)', `<div class="campos">
+    ${campo('empresa.nome', 'Nome empresarial atual', 'c6')}${campo('empresa.cnpj', 'CNPJ', 'c3')}${campo('empresa.nire', 'NIRE', 'c3')}
+    ${enderecoCampos('empresa', 'Sede atual')}
+    ${t === 'alteracao' ? `
+      ${atividades('empresa.objeto', 'Atividades atuais')}${forma('empresa.forma_atuacao')}
+      ${campo('empresa.capital', 'Capital atual (R$)', 'c2', { numero: true })}${campo('empresa.valor_quota', 'Valor da quota (R$)', 'c2', { numero: true })}
+      ${campo('empresa.inicio', 'Início das atividades', 'c2', { ph: 'dd/mm/aaaa' })}
+      ${enquadr('empresa.enquadramento', 'c2')}${modoAdm('empresa.administracao', 'c2')}${campo('empresa.foro', 'Foro (comarca)', 'c2')}` : ''}
+  </div>`);
+  if (t === 'transformacao') h += card('Empresa individual e nova LTDA', `<div class="campos">
+    ${campo('empresa.nome_ei', 'Nome empresarial atual (ficha da JUCESP)', 'c6', { help: 'Exatamente como na ficha. Ex-MEI: "00.000.000 NOME DO TITULAR".' })}
+    ${campo('empresa.cnpj', 'CNPJ', 'c3')}${campo('empresa.nire', 'NIRE', 'c3')}
+    ${campo('empresa.nome', 'Novo nome empresarial (com LTDA)', 'c6')}
+    ${enderecoCampos('empresa', 'Sede')}
+    ${campo('empresa.iptu', 'Inscrição imobiliária (IPTU)', 'c3')}${campo('empresa.area', 'Área do imóvel (m²)', 'c3')}
+    ${atividades('empresa.objeto', 'Atividades')}${forma('empresa.forma_atuacao')}
+    ${campo('empresa.inicio', 'Início das atividades', 'c2', { ph: 'dd/mm/aaaa', help: 'Data de abertura no cartão CNPJ.' })}
+    ${campo('empresa.capital', 'Capital (acervo) R$', 'c2', { numero: true })}${campo('empresa.valor_quota', 'Valor da quota (R$)', 'c2', { numero: true })}
+    ${enquadr('empresa.enquadramento', 'c3')}${campo('empresa.foro', 'Foro (comarca)', 'c3')}
+    ${!e.enquadramento ? campo('empresa.advogado', 'Visto de advogado (nome e OAB)', 'c6') : ''}
+    <div class="c6">${linksHtml(L.resolver(['simples'], mun))}<div class="help">Ex-MEI: desenquadramento do SIMEI antes, com a cópia anexada ao processo.</div></div>
+  </div>`);
+
+  if (t === 'alteracao') {
+    const m = a.muda || {};
+    h += card('O que muda', `<div class="checks">
+      ${['socios:Sócios / quotas', 'nome:Nome empresarial', 'endereco:Endereço da sede', 'objeto:Objeto social', 'capital:Capital (aumento)', 'administracao:Administração']
+        .map(x => { const [k, n] = x.split(':'); return campo('alteracao.muda.' + k, n, '', { tipo: 'check', re: true }); }).join('')}
+      </div>
+      <div class="campos" style="margin-top:12px">
+      ${m.nome ? campo('alteracao.nome_novo', 'Novo nome empresarial', 'c6') : ''}
+      ${m.endereco ? enderecoCampos('alteracao.endereco_novo', 'Novo endereço da sede') : ''}
+      ${m.objeto ? atividades('alteracao.objeto_novo', 'Novo objeto completo') : ''}
+      ${m.capital ? campo('alteracao.capital_novo', 'Novo capital (R$)', 'c3', { numero: true, help: 'Integralizado no ato, em moeda. Ajuste as quotas dos sócios.' }) : ''}
+      ${campo('alteracao.consolidar', 'Consolidar o contrato social (recomendado)', 'c6', { tipo: 'check', re: true })}
+      </div>
+      ${m.socios ? `<div style="margin-top:12px"><div style="display:flex;align-items:center;margin-bottom:8px"><b style="font-size:13px">Cessões de quotas</b>
+        <button class="btn sec sm" style="margin-left:auto" onclick="addCessao()">+ Cessão</button></div>
+        ${(a.cessoes || []).map((x, i) => `<div class="socio"><div class="campos">
+          ${campo(`alteracao.cessoes.${i}.cedente`, 'Quem cede (nome igual ao do sócio)', 'c3')}${campo(`alteracao.cessoes.${i}.cessionario`, 'Quem recebe', 'c3')}
+          ${campo(`alteracao.cessoes.${i}.quotas`, 'Quotas', 'c2', { numero: true })}${campo(`alteracao.cessoes.${i}.valor`, 'Preço (R$)', 'c2', { numero: true })}
+          ${campo(`alteracao.cessoes.${i}.gratuita`, 'Gratuita', 'c1', { tipo: 'check', re: true })}
+          <div class="c1" style="display:flex;align-items:flex-end"><button class="btn sec sm" onclick="remCessao(${i})">✕</button></div>
+        </div></div>`).join('') || '<div class="help">Sem cessões. Se um sócio entra ou sai, inclua a cessão das quotas.</div>'}</div>` : ''}`);
+  }
+
+  if (t === 'extincao') h += card('Encerramento', `<div class="campos">
+    ${campo('distrato.data_encerramento', 'Data de encerramento das atividades', 'c3', { ph: 'dd/mm/aaaa' })}
+    ${campo('distrato.haveres', 'Bens e haveres', 'c3', { tipo: 'select', re: true, opcoes: [['nao_ha', 'não há bens a restituir'], ['partilha', 'houve partilha']] })}
+    ${d.distrato.haveres === 'partilha' ? campo('distrato.partilha_texto', 'Como foi a partilha (bens/valores e para quem)', 'c6', { tipo: 'textarea' }) : ''}
+    ${campo('distrato.ativo_passivo', 'Responsável pelo ativo e passivo remanescentes', 'c6')}
+    ${campo('distrato.livros_nome', 'Responsável pela guarda dos livros', 'c3')}${campo('distrato.livros_endereco', 'Endereço da guarda dos livros', 'c3')}
+    <div class="c6">${linksHtml(L.resolver(['redesim', 'facilita'], mun))}<div class="help">Antes do distrato: DBE de extinção (Protocolo REDESIM). Depois: baixa nos órgãos (processo "Baixa nos órgãos").</div></div>
+  </div>`);
+
+  h += card(t === 'transformacao' ? 'Titular' : 'Sócios', d.socios.map((s, i) => socioCard(s, i, t)).join(''),
+    t === 'transformacao' ? '' : '<button class="btn sec sm" onclick="addSocio()">+ Sócio</button>');
+
+  h += card('Cláusulas adicionais', (d.clausulas_adicionais || []).map((x, i) => `<div class="socio"><div class="campos">
+      ${campo(`clausulas_adicionais.${i}.titulo`, 'Título (opcional)', 'c4')}<div class="c2" style="display:flex;align-items:flex-end;justify-content:flex-end"><button class="btn sec sm" onclick="remClausula(${i})">Remover</button></div>
+      ${campo(`clausulas_adicionais.${i}.texto`, 'Texto da cláusula', 'c6', { tipo: 'textarea' })}
+    </div></div>`).join('') + '<div class="help">Entram numeradas antes do foro. Revise a ortografia: este é o único texto livre do documento.</div>',
+    '<button class="btn sec sm" onclick="addClausula()">+ Cláusula</button>');
+
+  h += card('Fecho', `<div class="campos">
+    ${t === 'alteracao' || t === 'transformacao' ? campo('numero_alteracao', 'Nº da alteração', 'c2', { help: 'Conforme a ficha da JUCESP.' }) : ''}
+    ${campo('local', 'Cidade/UF da assinatura', 'c2', { ph: 'Campinas/SP' })}${campo('data', 'Data por extenso', 'c2')}
+  </div>`);
+  $('form').innerHTML = h;
 }
 
-function dados() {
-  const d = {};
-  GRUPOS.forEach(([, campos]) => campos.forEach(([k]) => {
-    const [a, b] = k.split('.');
-    let val = $(k).value;
-    if (k === 'ltda.objeto') val = val.split('\n').map(s => s.trim()).filter(Boolean);
-    if (k === 'ltda.capital' || k === 'ltda.valor_quota') val = num(val) || null;
-    if (b) (d[a] = d[a] || {})[b] = val; else d[a] = val;
-  }));
-  return d;
+// ── eventos do formulário ──
+document.addEventListener('input', ev => {
+  const el = ev.target; if (!el.dataset || !el.dataset.k || el.tagName === 'SELECT' || el.dataset.check) return;
+  aplicar(el); atualizar(); marcarSujo();
+});
+document.addEventListener('change', ev => {
+  const el = ev.target; if (!el.dataset || !el.dataset.k) return;
+  aplicar(el);
+  if (el.dataset.k === 'tipo') trocarTipo(el.value);
+  if (el.dataset.re) { const foco = el.id; renderForm(); const f = document.getElementById(foco); if (f && f.tagName === 'INPUT' && !el.dataset.check) f.focus(); }
+  atualizar(); marcarSujo();
+});
+function aplicar(el) {
+  const k = el.dataset.k;
+  let val = el.dataset.check ? el.checked : el.value;
+  if (el.dataset.num) val = num(val);
+  if (el.dataset.linhas) val = el.value.split('\n').map(s => s.trim()).filter(Boolean);
+  por(S.d, k, val);
+  if (k === 'empresa.municipio' && S.d.empresa.municipio) {
+    const cid = `${S.d.empresa.municipio}/${S.d.empresa.uf || 'SP'}`;
+    if (!S.d.empresa.foro) S.d.empresa.foro = cid;
+    if (!S.d.local) S.d.local = cid;
+  }
 }
+function trocarTipo(t) { if (t === 'transformacao') S.d.socios = [{ ...(S.d.socios[0] || socioVazio()), administrador: true }]; }
+const mexeu = () => { renderForm(); atualizar(); marcarSujo(); };
+function addSocio() { S.d.socios.push({ ...socioVazio(), situacao: S.d.tipo === 'alteracao' ? 'entra' : 'permanece' }); mexeu(); }
+function removerSocio(i) { if (!confirm('Remover este sócio?')) return; S.d.socios.splice(i, 1); mexeu(); }
+function addCessao() { (S.d.alteracao.cessoes = S.d.alteracao.cessoes || []).push({ cedente: '', cessionario: '', quotas: null, valor: null, gratuita: false }); mexeu(); }
+function remCessao(i) { S.d.alteracao.cessoes.splice(i, 1); mexeu(); }
+function addClausula() { (S.d.clausulas_adicionais = S.d.clausulas_adicionais || []).push({ titulo: '', texto: '' }); mexeu(); }
+function remClausula(i) { S.d.clausulas_adicionais.splice(i, 1); mexeu(); }
 
-function blocos() { return M.MODELOS[$('modelo').value].gerar(dados()); }
-
+// ── prévia e pendências ──
 const partesHtml = partes => partes.map(p => (typeof p === 'string' ? esc(p) : `<span class="falta">[${esc(p.falta)}]</span>`)).join('');
-
 function atualizar() {
-  const b = blocos(), falta = M.faltando(b);
-  $('pend').innerHTML = falta.length
-    ? `<div class="pend"><b>Falta preencher (${falta.length}):</b> ${falta.map(esc).join(' · ')}. Esses campos saem em vermelho no Word.</div>`
-    : '<div class="pend ok"><b>Tudo preenchido.</b> Confira o texto antes de baixar.</div>';
+  const b = M.gerar(S.d), falta = M.faltando(b), val = M.validar(S.d);
+  const erros = val.filter(x => x.nivel === 'erro'), atencao = val.filter(x => x.nivel !== 'erro');
+  $('pend').innerHTML =
+    (erros.length ? `<div class="pend p-erro"><b>Corrigir (${erros.length})</b><ul>${erros.map(x => `<li>${esc(x.msg)}</li>`).join('')}</ul></div>` : '') +
+    (falta.length ? `<div class="pend p-falta"><b>Falta preencher (${falta.length})</b>${falta.map(esc).join(' · ')}. Sai em vermelho no Word.</div>` : '') +
+    (atencao.length ? `<div class="pend p-falta"><b>Atenção</b><ul>${atencao.map(x => `<li>${esc(x.msg)}</li>`).join('')}</ul></div>` : '') +
+    (!erros.length && !falta.length ? '<div class="pend p-ok"><b>Tudo preenchido e conferido.</b> Leia o texto antes de baixar; depois de gerar os PDFs na JUCESP, passe no conferidor.</div>' : '');
   $('folha').innerHTML = b.map(x => {
     if (x.tipo === 'tabela') return `<table>${x.linhas.map(l => `<tr>${l.map(c => `<td>${partesHtml([c])}</td>`).join('')}</tr>`).join('')}</table>`;
     if (x.tipo === 'assinatura') return `<div class="ass">_____________________________________<br><b>${partesHtml(x.partes)}</b><br>${esc(x.cargo)}</div>`;
@@ -188,10 +336,53 @@ function atualizar() {
   }).join('');
 }
 
+// ── salvar no processo ──
+function marcarSujo() {
+  if (!S.processo) return;
+  S.sujo = true; $('salvo').textContent = 'alterações não salvas';
+  clearTimeout(S.timer); S.timer = setTimeout(salvar, 2000);
+}
+async function salvar() {
+  if (!S.processo || !S.sb) return;
+  clearTimeout(S.timer);
+  const r = await S.sb.from('soc_processos').update({ dados: S.d, municipio: S.d.empresa.municipio || null, updated_at: new Date().toISOString() }).eq('id', S.processo.id);
+  if (r.error) { toast('Erro ao salvar: ' + r.error.message, true); return; }
+  S.sujo = false; $('salvo').textContent = 'salvo às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+window.addEventListener('beforeunload', ev => { if (S.sujo) { ev.preventDefault(); ev.returnValue = ''; } });
+
+async function carregarProcesso(id) {
+  if (!window.supabase) return;
+  S.sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const r = await S.sb.from('soc_processos').select('*').eq('id', id).single();
+  if (r.error || !r.data) { toast('Processo não encontrado.', true); return; }
+  const p = S.processo = r.data;
+  const tipo = TIPO_DO_PROCESSO[p.tipo] || 'constituicao';
+  const temDados = p.dados && Object.keys(p.dados).length;
+  if (temDados) { const base = vazio(p.dados.tipo || tipo); S.d = { ...base, ...p.dados, empresa: { ...base.empresa, ...p.dados.empresa }, alteracao: { ...base.alteracao, ...p.dados.alteracao }, distrato: { ...base.distrato, ...p.dados.distrato } }; }
+  else {
+    S.d = vazio(tipo);
+    if (tipo === 'transformacao') { if (/ltda/i.test(p.empresa || '')) S.d.empresa.nome = p.empresa; }
+    else S.d.empresa.nome = p.empresa || '';
+    if (p.cliente_id) {
+      const c = await S.sb.from('gclik_clientes').select('razao_social,cnpj,cidade,estado').eq('id', p.cliente_id).single();
+      if (!c.error && c.data) {
+        S.d.empresa.cnpj = c.data.cnpj || '';
+        if (tipo === 'transformacao' && !/ltda/i.test(c.data.razao_social || '')) S.d.empresa.nome_ei = c.data.razao_social || '';
+        if (c.data.cidade) { S.d.empresa.municipio = c.data.cidade; S.d.empresa.foro = `${c.data.cidade}/${c.data.estado || 'SP'}`; S.d.local = S.d.empresa.foro; }
+      }
+    }
+  }
+  $('b-salvar').hidden = false;
+  $('sub').textContent = `${M.MODELOS[S.d.tipo].nome} · ${p.empresa}`;
+  $('salvo').textContent = temDados ? 'dados carregados do processo' : 'novo preenchimento';
+  renderForm(); atualizar();
+}
+
 // ── Word ──
 async function baixar() {
   if (!window.docx) return toast('Não foi possível carregar o gerador de Word. Verifique a internet e recarregue a página.', true);
-  const D = window.docx, b = blocos();
+  const D = window.docx, b = M.gerar(S.d);
   const runs = (partes, extra = {}) => partes.map(p => (typeof p === 'string'
     ? new D.TextRun({ text: p, ...extra })
     : new D.TextRun({ text: `[${p.falta}]`, bold: true, color: 'C00000' })));
@@ -199,72 +390,42 @@ async function baixar() {
   const filhos = [];
   b.forEach(x => {
     if (x.tipo === 'tabela') {
-      filhos.push(new D.Table({
-        width: { size: 100, type: D.WidthType.PERCENTAGE },
+      filhos.push(new D.Table({ width: { size: 100, type: D.WidthType.PERCENTAGE },
         rows: x.linhas.map((l, i) => new D.TableRow({ children: l.map(c => new D.TableCell({
-          children: [new D.Paragraph({ children: runs([c], { bold: i !== 1 }) })],
-          margins: { top: 40, bottom: 40, left: 100, right: 100 },
-        })) })),
-      }));
+          children: [new D.Paragraph({ children: runs([c], { bold: i === 0 || i === x.linhas.length - 1 }) })],
+          margins: { top: 40, bottom: 40, left: 100, right: 100 } })) })) }));
       filhos.push(new D.Paragraph({ text: '' }));
     } else if (x.tipo === 'assinatura') {
-      filhos.push(new D.Paragraph({ alignment: centro, spacing: { before: 800 }, children: [new D.TextRun('_____________________________________________')] }));
+      filhos.push(new D.Paragraph({ alignment: centro, spacing: { before: 700 }, children: [new D.TextRun('_____________________________________________')] }));
       filhos.push(new D.Paragraph({ alignment: centro, children: runs(x.partes, { bold: true }) }));
       filhos.push(new D.Paragraph({ alignment: centro, children: [new D.TextRun(x.cargo)] }));
     } else {
       const titulo = x.tipo === 'titulo', centrado = titulo || x.tipo === 'centro';
       filhos.push(new D.Paragraph({
-        alignment: centrado ? centro : just,
-        pageBreakBefore: !!x.quebra,
+        alignment: centrado ? centro : just, pageBreakBefore: !!x.quebra,
         indent: x.tipo === 'item' ? { left: 360 } : undefined,
         spacing: { after: titulo ? 40 : x.tipo === 'item' ? 40 : x.tipo === 'centro' ? 280 : x.tipo === 'secao' ? 40 : 160, before: x.tipo === 'secao' ? 160 : 0 },
         children: runs((x.tipo === 'item' ? ['• '] : []).concat(x.partes), { bold: titulo || x.tipo === 'secao', size: titulo ? 24 : undefined }),
       }));
     }
   });
-  const doc = new D.Document({
-    styles: { default: { document: { run: { font: 'Arial', size: 22 } } } },
-    sections: [{ properties: { page: { margin: { top: 1134, bottom: 1134, left: 1418, right: 1418 } } }, children: filhos }],
-  });
+  const doc = new D.Document({ styles: { default: { document: { run: { font: 'Arial', size: 22 } } } },
+    sections: [{ properties: { page: { margin: { top: 1134, bottom: 1134, left: 1418, right: 1418 } } }, children: filhos }] });
   const blob = await D.Packer.toBlob(doc);
-  const d = dados(), nome = (d.ltda && d.ltda.nome) || (d.ei && d.ei.nome) || 'documento';
+  const nome = S.d.empresa.nome || S.d.empresa.nome_ei || 'documento';
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `Transformacao_EI_LTDA_${nome.normalize('NFD').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '')}.docx`;
+  a.download = `${M.MODELOS[S.d.tipo].arquivo}_${nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '')}.docx`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  const falta = M.faltando(b).length;
-  toast(falta ? `Word baixado com ${falta} campo(s) em vermelho para preencher.` : 'Word baixado.');
+  const pend = M.faltando(b).length + M.validar(S.d).filter(x => x.nivel === 'erro').length;
+  toast(pend ? `Word baixado com ${pend} pendência(s): corrija antes de assinar.` : 'Word baixado.');
+  if (S.processo && S.sujo) salvar();
 }
 
-function limpar() {
-  if (!confirm('Limpar todos os campos?')) return;
-  renderForm(); atualizar();
-}
-
-// Vindo de um processo do painel: preenche o que já se sabe (empresa e CNPJ do cliente)
-async function preencherDoProcesso(id) {
-  if (!window.supabase) return;
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const r = await sb.from('soc_processos').select('*').eq('id', id).single();
-  if (r.error || !r.data) return;
-  const p = r.data;
-  if (p.empresa && /ltda/i.test(p.empresa)) $('ltda.nome').value = p.empresa;
-  if (p.cliente_id) {
-    const c = await sb.from('gclik_clientes').select('razao_social,cnpj').eq('id', p.cliente_id).single();
-    if (!c.error && c.data) {
-      if (c.data.cnpj) $('ei.cnpj').value = c.data.cnpj;
-      if (c.data.razao_social && !/ltda/i.test(c.data.razao_social)) $('ei.nome').value = c.data.razao_social;
-    }
-  }
-  atualizar();
-}
-
-$('modelo').innerHTML = Object.entries(M.MODELOS).map(([k, m]) => `<option value="${k}">${esc(m.nome)}</option>`).join('');
-$('fonte').textContent = 'Base: ' + M.MODELOS[$('modelo').value].fonte + '. Os dados ficam só nesta tela; nada é salvo.';
+const params = new URLSearchParams(location.search);
 renderForm(); atualizar();
-const proc = new URLSearchParams(location.search).get('processo');
-if (proc) preencherDoProcesso(proc).catch(() => {});
+if (params.get('processo')) carregarProcesso(params.get('processo')).catch(e => toast('Erro ao carregar: ' + e.message, true));
 </script>
 </body>
 </html>

@@ -197,3 +197,30 @@ test('instrumento com caracteres trocados e enquadramento invertido', () => {
   assert.ok(t.includes('erro: Declaração de enquadramento invertida'));
   assert.ok(t.includes('erro: Contrato não qualifica a empresa individual no preâmbulo'));
 });
+
+// ── documentos gerados pelo portal passam no conferidor ──
+test('contrato, alteração e distrato gerados pelo portal não têm erro no conferidor', () => {
+  const M = require('../societario/modelos-core.js');
+  const socio = (nome, cpf, quotas, adm, extra = {}) => ({ nome, sexo: 'M', nacionalidade: 'brasileiro', estado_civil: 'solteiro', profissao: 'empresário',
+    nascimento: '01/01/1990', rg: '1.111.111 SSP/SP', cpf, endereco: 'Rua A, nº 1, Centro, Campinas/SP, CEP 13010-000', quotas, administrador: adm, situacao: 'permanece', ...extra });
+  const empresa = { nome: 'Exemplo Serviços Ltda', cnpj: '11.222.333/0001-81', nire: '35200000000', logradouro: 'Avenida Norte Sul', numero: '100', bairro: 'Cambuí',
+    municipio: 'Campinas', uf: 'SP', cep: '13025-000', objeto: ['Consultoria em gestão empresarial (CNAE 7020-4/00)'], forma_atuacao: 'em estabelecimento fixo, na sede',
+    capital: 1000, valor_quota: 1, integralizacao: 'imediata', enquadramento: 'ME', foro: 'Campinas/SP' };
+  const base = { local: 'Campinas/SP', data: '19 de novembro de 2026', numero_alteracao: '2', empresa,
+    socios: [socio('Fulano de Tal', '529.982.247-25', 600, true), socio('Ciclano Pereira', '111.444.777-35', 400, false)] };
+  const casos = [
+    { ...base, tipo: 'constituicao' },
+    { ...base, tipo: 'alteracao', alteracao: { muda: { endereco: true }, endereco_novo: { logradouro: 'Rua Nova', numero: '20', bairro: 'Centro', municipio: 'Campinas', uf: 'SP', cep: '13010-100' }, consolidar: true } },
+    { ...base, tipo: 'extincao', distrato: { data_encerramento: '30/11/2026', haveres: 'nao_ha', ativo_passivo: 'Fulano de Tal', livros_nome: 'Fulano de Tal', livros_endereco: 'Rua A, nº 1, Campinas/SP' } },
+  ];
+  casos.forEach(d => {
+    const linhas = M.gerar(d).map(b => b.tipo === 'tabela' ? b.linhas.map(l => l.join('   ')).join('\n') : (b.partes || []).join(''));
+    // quebra em 3 páginas, como num PDF
+    const n = Math.ceil(linhas.length / 3);
+    const paginas = [0, 1, 2].map(i => ({ arquivo: d.tipo + '.pdf', numero: i + 1, texto: linhas.slice(i * n, (i + 1) * n).join('\n') }));
+    const r = C.analisar(paginas);
+    const erros = r.achados.filter(a => a.nivel === 'erro').map(a => `${a.titulo}: ${a.detalhe}`);
+    assert.deepStrictEqual(erros, [], d.tipo);
+    assert.ok(r.processo.tipos.includes(d.tipo), `${d.tipo} identificado: ${r.processo.tipos}`);
+  });
+});

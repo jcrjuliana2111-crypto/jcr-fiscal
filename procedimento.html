@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <script>
   // Catálogo e procedimentos mudam com frequência: busca sempre a versão mais nova (sem cache).
-  ['assets/departamentos.js', 'assets/procedimentos.js'].forEach(function (f) {
+  ['assets/departamentos.js', 'assets/procedimentos.js', 'societario/links.js'].forEach(function (f) {
     document.write('<script src="' + f + '?v=' + Date.now() + '"><\/script>');
   });
 </script>
@@ -53,6 +53,10 @@ ol,ul{padding-left:20px;font-size:14px;line-height:1.7}
 .tools a{display:inline-flex;margin:0 8px 8px 0;padding:6px 12px;border-radius:999px;border:1px solid var(--border2);
   text-decoration:none;font-size:13px;background:var(--surface2)}
 .tools a:hover{border-color:var(--accent)}
+.tools a.pres{border-style:dashed}
+.grupo{font-size:11.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px}
+.grupo:first-of-type{margin-top:0}
+.btn{display:inline-flex;margin-top:10px;padding:8px 14px;border-radius:10px;background:var(--accent);color:#fff;text-decoration:none;font-weight:700;font-size:13px}
 .erro{padding:60px 0;text-align:center;color:var(--text2)}
 @media print{ body{background:#fff;color:#000} section,.kv{border-color:#ccc;background:#fff} .crumbs,.aviso{display:none} }
 </style>
@@ -75,6 +79,22 @@ const lista = (itens, tipo = 'ul', vazio) => itens && itens.length
 const link = f => !f.url ? `<a>${esc(f.nome)}</a>`
   : /^https?:/.test(f.url) ? `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.nome)} ↗</a>`
   : `<a href="${esc(f.url)}">${esc(f.nome)}</a>`;
+
+// Links oficiais (societario/links.js): online, presencial, informações e por prefeitura
+function linksSecao(chaves) {
+  const L = window.LinksSoc;
+  if (!chaves || !chaves.length || !L) return '';
+  const gerais = L.resolver(chaves, null);
+  const grupo = (titulo, itens) => itens.length ? `<div class="grupo">${titulo}</div><div class="tools">${itens.map(l =>
+    `<a href="${esc(l.interno ? l.url : l.url)}" ${l.interno ? '' : 'target="_blank" rel="noopener"'} class="${l.modo === 'presencial' ? 'pres' : ''}">${l.modo === 'presencial' ? '🏢 ' : '🌐 '}${esc(l.nome)}${l.conferir ? ' (confirmar)' : ''}${l.interno ? '' : ' ↗'}</a>`).join('')}</div>` : '';
+  let h = grupo('Online', gerais.filter(l => l.modo === 'online')) + grupo('Presencial', gerais.filter(l => l.modo === 'presencial')) +
+    grupo('Informações e taxas', gerais.filter(l => l.modo === 'info'));
+  Object.values(L.MUNICIPIOS).forEach(m => {
+    const ls = chaves.map(k => m.links[k]).filter(Boolean);
+    h += grupo('Prefeitura de ' + m.nome, ls);
+  });
+  return `<section><h2>Links</h2>${h}<p style="font-size:12px;color:var(--text3);margin-top:8px">🌐 online · 🏢 presencial. A DARE da JUCESP sai pronta no sistema do ato (Facilita SP ou VRE). Links marcados "(confirmar)" vêm de fonte antiga: confira no primeiro uso.</p></section>`;
+}
 
 if (!proc) {
   view.innerHTML = '<div class="erro">Processo não encontrado. <a href="index.html">Voltar ao portal</a></div>';
@@ -104,6 +124,10 @@ if (!proc) {
     <section><h2>Ferramentas usadas</h2>${p.ferramentas && p.ferramentas.length
       ? `<div class="tools">${p.ferramentas.map(link).join('')}</div>`
       : '<p class="vazio">Sistemas, sites e ferramentas do portal usados neste processo.</p>'}</section>
+    ${p.preencher ? `<section><h2>O que preencher no portal</h2>${lista(p.preencher.campos, 'ul', '')}
+      <p style="font-size:13px;color:var(--text2);margin-top:6px">Abra o processo no Painel Societário e clique em "Preencher dados e gerar documento": os dados ficam salvos no processo e o Word sai pronto, com o texto revisado.</p>
+      <a class="btn" href="${esc(p.preencher.url)}">Preencher dados e gerar documento</a></section>` : ''}
+    ${linksSecao(p.links)}
     ${p.manuais && p.manuais.length ? `<section><h2>Manuais e legislação</h2><div class="tools">${p.manuais.map(link).join('')}</div></section>` : ''}
     <section><h2>Pontos de atenção</h2>${lista(p.atencao, 'ul', 'Erros comuns, exceções e situações que exigem cuidado.')}</section>`;
 }

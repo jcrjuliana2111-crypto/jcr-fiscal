@@ -30,8 +30,7 @@ window.JCR_DEPARTAMENTOS = [
       { nome: 'Leitura dos e-mails da JUCESP e da REDESIM', desc: 'n8n lê deferimento, exigência e CNPJ emitido no Gmail e atualiza a etapa no painel.', status: 'ideia' },
       { nome: 'Alerta de processos parados e exigências', desc: 'Resumo diário por e-mail dos processos sem movimento e das exigências perto do prazo.', status: 'ideia' },
       { nome: 'Conferidor de documentos', url: 'societario/conferidor.html', desc: 'Abertura, alteração, transformação, encerramento e enquadramento: lê os PDFs gerados para a JUCESP e aponta divergências e elementos obrigatórios faltando antes de assinar.', status: 'ativa' },
-      { nome: 'Modelos de documentos', url: 'societario/modelos.html', desc: 'Transformação de empresário individual em LTDA (Modelo 2 do DREI): preenche os dados e baixa o Word.', status: 'ativa' },
-      { nome: 'Mais modelos (alteração contratual, distrato)', desc: 'Novos modelos no mesmo gerador de Word.', status: 'ideia' },
+      { nome: 'Dados e documentos', url: 'societario/modelos.html', desc: 'Preenche no portal sócios, capital, IPTU e cláusulas adicionais e gera o Word: contrato social, alteração contratual, transformação e distrato.', status: 'ativa' },
     ],
   },
   {

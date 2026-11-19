@@ -18,6 +18,7 @@ window.JCR_DEPARTAMENTOS = [
       { id: 'abertura', nome: 'Abertura de empresa', freq: 'Sob demanda' },
       { id: 'alteracao-contratual', nome: 'Alteração contratual', freq: 'Sob demanda' },
       { id: 'transformacao', nome: 'Transformação de tipo jurídico (MEI, EI, LTDA)', freq: 'Sob demanda' },
+      { id: 'holding', nome: 'Holding patrimonial e de participações', freq: 'Sob demanda' },
       { id: 'encerramento', nome: 'Encerramento / distrato na Junta', freq: 'Sob demanda' },
       { id: 'baixa', nome: 'Baixa nos órgãos (CNPJ, IE, CCM, licenças)', freq: 'Sob demanda' },
       { id: 'alvaras', nome: 'Alvarás, licenças e renovações', freq: 'Anual' },
@@ -60,6 +61,23 @@ window.JCR_DEPARTAMENTOS = [
       { nome: 'Analisador XML NF-e/NFC-e', url: 'hub/analisador_xml_nfe.html', desc: 'Leitura e diagnóstico de notas.', status: 'ativa' },
       { nome: 'Conferência automática de notas x SPED', desc: 'Cruza XMLs com a escrituração e aponta divergências.', status: 'ideia' },
       { nome: 'Gerador de guias e envio ao cliente', desc: 'Gera, organiza e envia guias por e-mail/WhatsApp.', status: 'ideia' },
+    ],
+  },
+  {
+    id: 'reforma', nome: 'Reforma Tributária', ic: '⚖️', cor: '#2dd4bf',
+    desc: 'IBS, CBS e Imposto Seletivo: tabelas oficiais da Receita, classificação dos itens e simulação por cliente de 2026 a 2033.',
+    processos: [
+      { id: 'diagnostico', nome: 'Diagnóstico e simulação de carga por cliente', freq: 'Projeto' },
+      { id: 'classificacao', nome: 'Classificação de produtos e serviços (CST, cClassTrib, NCM/NBS)', freq: 'Sob demanda' },
+      { id: 'documentos-fiscais', nome: 'Notas fiscais com IBS/CBS (ano de teste 2026)', freq: 'Mensal' },
+      { id: 'simples-opcao', nome: 'Simples Nacional: IBS/CBS no DAS ou por fora', freq: 'Prazo de opção' },
+      { id: 'atualizacao-tabelas', nome: 'Atualização das tabelas oficiais da Receita', freq: 'Mensal' },
+    ],
+    ferramentas: [
+      { nome: 'Simulador e tabelas da Reforma', url: 'reforma/', desc: 'Simulação ano a ano (2026–2033) por cliente, salva no portal; consulta de cClassTrib, CST, NCM, NBS e itens da LC 116 com redução e fundamento legal.', status: 'ativa' },
+      { nome: 'Calculadora oficial da Receita (API)', url: 'reforma/#api', desc: 'Como rodar a calculadora de código aberto da Receita e chamar pelo n8n para conferir notas item a item.', status: 'ativa' },
+      { nome: 'Atualização automática das tabelas', desc: 'Rotina mensal (GitHub Actions ou n8n) que baixa o repositório da Receita, roda o script e avisa quando houver versão nova.', status: 'ideia' },
+      { nome: 'Classificação em lote pelos XMLs', desc: 'n8n lê os XMLs de saída do cliente e sugere a cClassTrib de cada item pelo NCM/NBS.', status: 'ideia' },
     ],
   },
   {

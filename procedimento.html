@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <script>
   // Catálogo e procedimentos mudam com frequência: busca sempre a versão mais nova (sem cache).
-  ['assets/departamentos.js', 'assets/procedimentos.js', 'societario/links.js'].forEach(function (f) {
+  ['assets/departamentos.js', 'assets/procedimentos.js', 'societario/links.js', 'societario/licencas.js'].forEach(function (f) {
     document.write('<script src="' + f + '?v=' + Date.now() + '"><\/script>');
   });
 </script>
@@ -96,6 +96,26 @@ function linksSecao(chaves) {
   return `<section><h2>Links</h2>${h}<p style="font-size:12px;color:var(--text3);margin-top:8px">🌐 online · 🏢 presencial. A DARE da JUCESP sai pronta no sistema do ato (Facilita SP ou VRE). Links marcados "(confirmar)" vêm de fonte antiga: confira no primeiro uso.</p></section>`;
 }
 
+// Licenças e registros por atividade (societario/licencas.js): busca por CNAE ou palavra
+function licencasSecao() {
+  return `<section id="lic"><h2>Licenças e registros pela atividade</h2>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Além de Junta, CNPJ e inscrições, algumas atividades exigem conselho de classe, órgão regulador ou licença. Digite o CNAE ou a atividade. No "Dados e documentos" o alerta aparece sozinho, pelo objeto preenchido.</p>
+    <input id="lic-q" placeholder="Ex.: 6920-6/01, 8640-2/12, representação, imobiliária" oninput="licLista()" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:8px 11px;color:var(--text);font:inherit;margin-bottom:8px">
+    <div id="lic-l"></div></section>`;
+}
+function licLista() {
+  const LC = window.LicencasSoc, box = document.getElementById('lic-l'); if (!LC || !box) return;
+  const q = (document.getElementById('lic-q') || {}).value || '';
+  const cods = LC.cnaesDoTexto(q);
+  const lista = cods.length ? LC.alertas(q) : LC.buscar(q);
+  const nivel = { bloqueia: '⛔ muda onde registrar', obrigatorio: 'obrigatório', verificar: 'verificar' };
+  box.innerHTML = lista.length ? lista.map(r => `<div style="padding:8px 0;border-bottom:1px dashed var(--border);font-size:13.5px;line-height:1.55">
+      <b>${esc(r.titulo)}</b> → <b>${esc(r.orgao)}</b> <span style="font-size:11px;color:${r.nivel === 'verificar' ? 'var(--text3)' : 'var(--warn)'}">${nivel[r.nivel]}</span><br>
+      ${esc(r.exige)} <span style="color:var(--text3)">${esc(r.quando)} Base: ${esc(r.base)}.${r.cnae.length ? ' CNAE: ' + esc(r.cnae.join(', ')) + '…' : ''}</span>
+      ${r.link ? ` <a href="${esc(r.link)}" target="_blank" rel="noopener">site ↗</a>` : ''}</div>`).join('')
+    : '<p class="vazio">Nenhuma exigência específica cadastrada para esta atividade. Confira o grau de risco no Facilita SP e a viabilidade na prefeitura.</p>';
+}
+
 if (!proc) {
   view.innerHTML = '<div class="erro">Processo não encontrado. <a href="index.html">Voltar ao portal</a></div>';
 } else {
@@ -127,9 +147,11 @@ if (!proc) {
     ${p.preencher ? `<section><h2>O que preencher no portal</h2>${lista(p.preencher.campos, 'ul', '')}
       <p style="font-size:13px;color:var(--text2);margin-top:6px">Abra o processo no Painel Societário e clique em "Preencher dados e gerar documento": os dados ficam salvos no processo e o Word sai pronto, com o texto revisado.</p>
       <a class="btn" href="${esc(p.preencher.url)}">Preencher dados e gerar documento</a></section>` : ''}
+    ${p.licencas ? licencasSecao() : ''}
     ${linksSecao(p.links)}
     ${p.manuais && p.manuais.length ? `<section><h2>Manuais e legislação</h2><div class="tools">${p.manuais.map(link).join('')}</div></section>` : ''}
     <section><h2>Pontos de atenção</h2>${lista(p.atencao, 'ul', 'Erros comuns, exceções e situações que exigem cuidado.')}</section>`;
+  if (p.licencas) licLista();
 }
 </script>
 </body>

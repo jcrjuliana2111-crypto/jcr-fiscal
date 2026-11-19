@@ -28,3 +28,10 @@ test('etapas do painel com links úteis', () => {
     assert.ok(comLink.length >= 3, t);
   });
 });
+
+test('Sumaré tem viabilidade, inscrição e ISS', () => {
+  const L2 = require('../societario/links.js');
+  const v = L2.daEtapa('viabilidade', 'Sumaré').map(l => l.nome).join(' | ');
+  assert.ok(v.startsWith('Sumaré'));
+  assert.ok(L2.daEtapa('ccm', 'SUMARE').some(l => /SIGISS/.test(l.nome)));
+});

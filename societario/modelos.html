@@ -15,6 +15,7 @@
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="conferidor-core.js"></script>
 <script src="leitor-core.js"></script>
+<script src="licencas.js"></script>
 <style>
 :root{
   --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;
@@ -306,7 +307,7 @@ function renderForm() {
       ${campo(`clausulas_adicionais.${i}.titulo`, 'Título (opcional)', 'c4')}<div class="c2" style="display:flex;align-items:flex-end;justify-content:flex-end"><button class="btn sec sm" onclick="remClausula(${i})">Remover</button></div>
       ${campo(`clausulas_adicionais.${i}.texto`, 'Texto da cláusula', 'c6', { tipo: 'textarea' })}
     </div></div>`).join('') + '<div class="help">Entram numeradas antes do foro. Revise a ortografia: este é o único texto livre do documento.</div>',
-    '<button class="btn sec sm" onclick="addClausula()">+ Cláusula</button>');
+    `<select class="sm" style="width:auto;padding:5px 8px;font-size:12.5px" onchange="addModelo(this)"><option value="">Inserir modelo…</option>${CLAUSULAS_MODELO.map((c, i) => `<option value="${i}">${esc(c.grupo)}: ${esc(c.titulo)}</option>`).join('')}</select> <button class="btn sec sm" onclick="addClausula()">+ Cláusula</button>`);
 
   h += card('Fecho', `<div class="campos">
     ${t === 'alteracao' || t === 'transformacao' ? campo('numero_alteracao', 'Nº da alteração', 'c2', { help: 'Conforme a ficha da JUCESP.' }) : ''}
@@ -346,8 +347,37 @@ function addSocio() { S.d.socios.push({ ...socioVazio(), situacao: S.d.tipo === 
 function removerSocio(i) { if (!confirm('Remover este sócio?')) return; S.d.socios.splice(i, 1); mexeu(); }
 function addCessao() { (S.d.alteracao.cessoes = S.d.alteracao.cessoes || []).push({ cedente: '', cessionario: '', quotas: null, valor: null, gratuita: false }); mexeu(); }
 function remCessao(i) { S.d.alteracao.cessoes.splice(i, 1); mexeu(); }
+// Modelos de cláusula (holding e planejamento sucessório). O que está entre colchetes é para completar.
+const CLAUSULAS_MODELO = [
+  { grupo: 'Holding', titulo: 'Integralização com imóvel', texto: 'O sócio [NOME] integraliza [nº] quotas, no valor de R$ [valor] ([valor por extenso]), mediante a conferência do imóvel [tipo, endereço completo e área], objeto da matrícula nº [nº] do [nº] Oficial de Registro de Imóveis de [cidade/UF], cadastrado na prefeitura sob a inscrição imobiliária nº [nº], pelo valor constante da sua Declaração de Ajuste Anual do Imposto de Renda, nos termos do art. 23 da Lei nº 9.249/1995. [O(A) cônjuge NOME, CPF nº, casado(a) sob o regime de REGIME, assina este instrumento para dar a outorga conjugal.] A certidão deste ato expedida pela Junta Comercial servirá de título para a transcrição do imóvel em nome da sociedade, nos termos do art. 64 da Lei nº 8.934/1994.' },
+  { grupo: 'Holding', titulo: 'Cessão de quotas e direito de preferência', texto: 'As quotas não poderão ser cedidas ou transferidas a terceiros, a qualquer título, sem o consentimento expresso dos demais sócios, que terão direito de preferência na aquisição, na proporção de suas quotas, a ser exercido no prazo de 30 (trinta) dias contados da comunicação por escrito da intenção de ceder.' },
+  { grupo: 'Holding', titulo: 'Falecimento ou interdição de sócio', texto: 'O falecimento ou a interdição de qualquer sócio não dissolverá a sociedade. Os herdeiros, sucessores ou o representante legal do sócio ingressarão na sociedade mediante alteração contratual. [Não havendo o ingresso, os haveres serão apurados com base em balanço especial levantado na data do evento e pagos em [nº] parcelas mensais.]' },
+  { grupo: 'Holding', titulo: 'Doação de quotas com reserva de usufruto', texto: 'Na doação de quotas, o doador poderá reservar para si o usufruto vitalício das quotas doadas, conservando, enquanto viver, o direito de voto e o direito aos lucros a elas correspondentes, nos termos dos arts. 1.390 e seguintes do Código Civil.' },
+  { grupo: 'Holding', titulo: 'Incomunicabilidade, impenhorabilidade e inalienabilidade', texto: 'As quotas recebidas por doação ou sucessão serão gravadas com as cláusulas de incomunicabilidade, impenhorabilidade e inalienabilidade, não se comunicando ao cônjuge ou companheiro do sócio, qualquer que seja o regime de bens, e não respondendo por suas dívidas particulares.' },
+  { grupo: 'Holding', titulo: 'Reversão da doação', texto: 'Falecendo o donatário antes do doador, as quotas doadas retornarão ao patrimônio do doador, nos termos do art. 547 do Código Civil.' },
+  { grupo: 'Holding', titulo: 'Distribuição desproporcional de lucros', texto: 'Os lucros apurados poderão ser distribuídos de forma desproporcional à participação de cada sócio no capital social, mediante deliberação de sócios que representem [a totalidade] do capital social.' },
+  { grupo: 'Geral', titulo: 'Reunião de sócios por meio digital', texto: 'As deliberações dos sócios poderão ser tomadas em reunião presencial ou digital, ou por escrito com a assinatura de todos, dispensadas as formalidades de convocação quando todos comparecerem ou se declararem cientes do local, data, hora e ordem do dia.' },
+];
+function addModelo(sel) {
+  const c = CLAUSULAS_MODELO[+sel.value]; sel.value = '';
+  if (!c) return;
+  (S.d.clausulas_adicionais = S.d.clausulas_adicionais || []).push({ titulo: c.titulo === 'Integralização com imóvel' ? 'Da integralização com imóvel' : c.titulo, texto: c.texto });
+  mexeu();
+  toast('Cláusula inserida: complete o que está entre colchetes.');
+}
 function addClausula() { (S.d.clausulas_adicionais = S.d.clausulas_adicionais || []).push({ titulo: '', texto: '' }); mexeu(); }
 function remClausula(i) { S.d.clausulas_adicionais.splice(i, 1); mexeu(); }
+
+// ── licenças e registros exigidos pelas atividades (societario/licencas.js) ──
+function licencasHtml() {
+  const d = S.d, LC = window.LicencasSoc;
+  if (!LC || d.tipo === 'extincao') return '';
+  const objeto = (d.tipo === 'alteracao' && d.alteracao && d.alteracao.muda && d.alteracao.muda.objeto ? d.alteracao.objeto_novo : d.empresa.objeto) || [];
+  const al = LC.alertas(objeto);
+  if (!al.length) return '';
+  const nivel = { bloqueia: '⛔ Muda onde registrar', obrigatorio: 'Obrigatório', verificar: 'Verificar' };
+  return `<div class="pend p-falta"><b>Licenças e registros pela atividade (${al.length})</b><ul>${al.map(a => `<li><b>${esc(a.orgao)}</b> — ${esc(nivel[a.nivel])}${a.cnaes.length ? ' · CNAE ' + a.cnaes.map(LC.formatarCnae).join(', ') : ''}: ${esc(a.exige)} <i>${esc(a.quando)}</i> (${esc(a.base)})${a.link ? ` <a href="${esc(a.link)}" target="_blank" rel="noopener">site ↗</a>` : ''}</li>`).join('')}</ul></div>`;
+}
 
 // ── prévia e pendências ──
 const partesHtml = partes => partes.map(p => (typeof p === 'string' ? esc(p) : `<span class="falta">[${esc(p.falta)}]</span>`)).join('');
@@ -358,6 +388,7 @@ function atualizar() {
     (erros.length ? `<div class="pend p-erro"><b>Corrigir (${erros.length})</b><ul>${erros.map(x => `<li>${esc(x.msg)}</li>`).join('')}</ul></div>` : '') +
     (falta.length ? `<div class="pend p-falta"><b>Falta preencher (${falta.length})</b>${falta.map(esc).join(' · ')}. Sai em vermelho no Word.</div>` : '') +
     (atencao.length ? `<div class="pend p-falta"><b>Atenção</b><ul>${atencao.map(x => `<li>${esc(x.msg)}</li>`).join('')}</ul></div>` : '') +
+    licencasHtml() +
     (!erros.length && !falta.length ? '<div class="pend p-ok"><b>Tudo preenchido e conferido.</b> Leia o texto antes de baixar; depois de gerar os PDFs na JUCESP, passe no conferidor.</div>' : '');
   $('folha').innerHTML = b.map(x => {
     if (x.tipo === 'tabela') return `<table>${x.linhas.map(l => `<tr>${l.map(c => `<td>${partesHtml([c])}</td>`).join('')}</tr>`).join('')}</table>`;

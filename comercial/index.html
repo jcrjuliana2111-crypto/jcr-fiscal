@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>Onboarding de clientes · Portal JCR</title>
+<title>Entrada de clientes · Portal JCR</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
@@ -160,9 +160,9 @@ function telaFunil() {
   const semPreco = !Object.values(S.cfg.precos.base || {}).some(v => +v);
   const dias = o => Math.floor((Date.now() - new Date(o.updated_at || o.created_at).getTime()) / 864e5);
   $('view').innerHTML = `
-    <div class="crumbs"><a href="../index.html">Portal</a> › <a href="../index.html#/comercial">Comercial e Atendimento</a> › Onboarding</div>
-    <div class="head"><div><h1>🎯 Onboarding de clientes</h1><p>Do orçamento ao cliente implantado: proposta, contrato, cadastro no portal, boas-vindas e checklist.</p></div>
-      <div class="acts"><button class="btn sec" onclick="telaConfig()">⚙️ Tabela de preços e escritório</button><button class="btn" onclick="novaOp()">+ Nova oportunidade</button></div></div>
+    <div class="crumbs"><a href="../index.html">Portal</a> › <a href="../index.html#/comercial">Comercial e Atendimento</a> › Entrada de clientes</div>
+    <div class="head"><div><h1>🎯 Entrada de clientes</h1><p>Do orçamento ao cliente implantado: proposta, contrato, cadastro no portal, boas-vindas e lista de implantação.</p></div>
+      <div class="acts"><button class="btn sec" onclick="telaPesquisa()">⭐ Pesquisa de satisfação</button><button class="btn sec" onclick="telaConfig()">⚙️ Tabela de preços e escritório</button><button class="btn" onclick="novaOp()">+ Nova oportunidade</button></div></div>
     ${semPreco ? '<div class="aviso"><b>Configure a tabela de preços</b> antes do primeiro orçamento (botão "Tabela de preços e escritório"). Ela também guarda os dados do escritório que vão na proposta e no contrato.</div>' : ''}
     <div class="kpis">
       <div class="kpi"><div class="v">${abertas.length}</div><div class="l">Oportunidades abertas</div></div>
@@ -170,6 +170,7 @@ function telaFunil() {
       <div class="kpi"><div class="v">${ganhos.length}</div><div class="l">Fechados neste mês</div></div>
       <div class="kpi"><div class="v">${S.ops.filter(o => o.etapa === 'implantacao').length}</div><div class="l">Em implantação</div></div>
     </div>
+    ${retornosHtml()}
     <div class="funil">${O.ETAPAS.map(e => {
       const lista = S.ops.filter(o => o.etapa === e.id);
       return `<div class="col"><h4><i style="background:${e.cor}"></i>${esc(e.nome)} <span class="muted">${lista.length}</span></h4>
@@ -178,6 +179,82 @@ function telaFunil() {
           <div class="m">${dias(o) ? `parada há ${dias(o)} dia(s)` : 'hoje'}${o.etapa === 'perdido' && o.perdido_motivo ? ' · ' + esc(o.perdido_motivo) : ''}</div>
           ${o.etapa === 'implantacao' ? `<div class="bar"><i style="width:${pr.pct}%"></i></div><div class="m">${pr.feitos}/${pr.total} itens</div>` : ''}</div>`; }).join('') || '<div class="muted">—</div>'}</div>`;
     }).join('')}</div>`;
+}
+
+// Retornos do dia (mesma regra do e-mail diário do n8n): lead/orçamento 2 dias, proposta/contrato 3, implantação 7
+const MSG_RETORNO = { lead: 'Olá, {n}! Podemos conversar rapidinho para eu montar a sua proposta?', orcamento: 'Olá, {n}! Estou finalizando a sua proposta e envio em seguida.',
+  proposta: 'Olá, {n}! Tudo bem? Conseguiu ver a nossa proposta? Posso esclarecer alguma dúvida?', contrato: 'Olá, {n}! Passando para lembrar da assinatura do contrato, assim já começamos a implantação.',
+  implantacao: 'Olá, {n}! Para concluirmos a implantação, ainda faltam alguns documentos. Posso te mandar a lista?' };
+const LIMITE_RETORNO = { lead: 2, orcamento: 2, proposta: 3, contrato: 3, implantacao: 7 };
+function retornos() {
+  const hoje = new Date(hojeISO() + 'T12:00:00');
+  return S.ops.filter(o => LIMITE_RETORNO[o.etapa] != null).map(o => ({ o, dias: Math.floor((hoje - new Date(String(o.updated_at || o.created_at).slice(0, 10) + 'T12:00:00')) / 864e5) }))
+    .filter(x => x.dias >= LIMITE_RETORNO[x.o.etapa]).sort((a, b) => b.dias - a.dias);
+}
+function retornosHtml() {
+  const l = retornos(); if (!l.length) return '';
+  return `<div class="card"><h3>📞 Retornos de hoje (${l.length})</h3>${l.slice(0, 10).map(({ o, dias }) => {
+    const d = o.dados || {}, txt = MSG_RETORNO[o.etapa].replace('{n}', (d.contato || '').split(' ')[0] || '');
+    return `<div class="chk"><span class="t"><a href="#" onclick="abrirOp('${o.id}');return false"><b>${esc(o.nome)}</b></a> <span class="muted">${esc(ETAPA[o.etapa].nome)} · ${dias} dia(s) sem movimento</span></span>
+      ${d.whatsapp ? `<a target="_blank" rel="noopener" href="https://wa.me/${zap(d.whatsapp)}?text=${encodeURIComponent(txt)}">WhatsApp</a>` : ''}
+      ${d.email ? `<a target="_blank" rel="noopener" href="${gmail(d.email, 'Retorno — ' + (S.cfg.escritorio.nome || ''), txt)}">Gmail</a>` : ''}
+      <a href="#" onclick="tocar('${o.id}');return false">feito hoje</a></div>`; }).join('')}
+    <p class="help">"Feito hoje" registra o contato e tira da lista até o próximo prazo. O mesmo resumo chega por e-mail todo dia útil pelo n8n (automacoes/n8n/alerta-comercial.json).</p></div>`;
+}
+async function tocar(id) {
+  S.op = S.ops.find(x => x.id === id); if (!S.op) return;
+  S.op.historico = (S.op.historico || []).concat({ de: S.op.etapa, para: S.op.etapa, em: new Date().toISOString(), nota: 'retorno feito' });
+  await salvarOp(); S.op.updated_at = new Date().toISOString(); telaFunil(); toast('Retorno registrado.');
+}
+
+// ═════════════ pesquisa de satisfação (nota 0 a 10) ═════════════
+async function telaPesquisa() {
+  S.view = 'pesquisa';
+  const [p, c] = await Promise.all([sb.from('com_pesquisas').select('*').order('created_at', { ascending: false }).limit(2000), sb.from('gclik_clientes').select('id,razao_social,email,telefone,status').order('razao_social').limit(5000)]);
+  if (p.error) return toast(p.error.message, true);
+  const lista = p.data || [], clientes = (c.data || []).filter(x => x.status !== 'Inativo');
+  const resp = lista.filter(x => x.nota != null), prom = resp.filter(x => x.nota >= 9).length, det = resp.filter(x => x.nota <= 6).length;
+  const nps = resp.length ? Math.round((prom - det) / resp.length * 100) : null;
+  const ult = {}; lista.forEach(x => { if (x.cliente_id && !ult[x.cliente_id]) ult[x.cliente_id] = x; });
+  const link = t => new URL('pesquisa.html?t=' + t, location.href).href;
+  S.pesquisas = lista; S.clientesPesq = clientes;
+  $('view').innerHTML = `
+    <div class="crumbs"><a href="../index.html">Portal</a> › <a href="#" onclick="telaFunil();return false">Entrada de clientes</a> › Pesquisa de satisfação</div>
+    <div class="head"><div><h1>⭐ Pesquisa de satisfação</h1><p>"De 0 a 10, quanto você recomendaria o escritório?" O cliente responde por um link, sem login.</p></div>
+      <div class="acts"><button class="btn sec" onclick="telaFunil()">← Funil</button></div></div>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${nps == null ? '—' : nps}</div><div class="l">NPS (promotores − detratores)</div></div>
+      <div class="kpi"><div class="v">${resp.length}/${lista.length}</div><div class="l">Respondidas / enviadas</div></div>
+      <div class="kpi"><div class="v">${prom}</div><div class="l">Promotores (9–10)</div></div>
+      <div class="kpi"><div class="v" style="color:var(--danger)">${det}</div><div class="l">Detratores (0–6): ligar</div></div>
+    </div>
+    <div class="card"><h3>Enviar para os clientes</h3>
+      <p class="help" style="margin-bottom:8px">Recomendado a cada 6 meses. "Gerar link" cria um link único por cliente para mandar por WhatsApp ou e-mail.</p>
+      <table><thead><tr><th>Cliente</th><th>Última pesquisa</th><th></th></tr></thead><tbody>
+      ${clientes.map(cl => { const u = ult[cl.id]; return `<tr><td>${esc(cl.razao_social)}</td><td>${u ? (u.nota != null ? `nota <b>${u.nota}</b> em ${dataBR(String(u.respondida_em).slice(0, 10))}` : `enviada em ${dataBR(u.enviada_em)}, sem resposta`) : '<span class="muted">nunca</span>'}</td>
+        <td class="n">${u && u.nota == null ? `<button class="btn sec sm" onclick="compartilhar('${u.id}')">Reenviar</button>` : `<button class="btn sec sm" onclick="gerarPesquisa('${cl.id}')">Gerar link</button>`}</td></tr>`; }).join('')}
+      </tbody></table></div>
+    <div class="card"><h3>Respostas</h3>${resp.length ? resp.map(x => `<div class="chk"><span class="badge" style="--c:${x.nota >= 9 ? 'var(--ok)' : x.nota >= 7 ? 'var(--warn)' : 'var(--danger)'}">${x.nota}</span>
+      <span class="t"><b>${esc(x.cliente_nome)}</b> <span class="muted">${dataBR(String(x.respondida_em).slice(0, 10))}</span>${x.comentario ? `<br>“${esc(x.comentario)}”` : ''}</span></div>`).join('') : '<p class="muted">Nenhuma resposta ainda.</p>'}</div>
+    <div id="compart"></div>`;
+  S.linkPesquisa = link;
+}
+async function gerarPesquisa(clienteId) {
+  const cl = S.clientesPesq.find(x => x.id === clienteId);
+  const r = await sb.from('com_pesquisas').insert({ cliente_id: clienteId, cliente_nome: cl.razao_social }).select().single();
+  if (r.error) return toast(r.error.message, true);
+  await telaPesquisa(); compartilhar(r.data.id);
+}
+function compartilhar(id) {
+  const p = S.pesquisas.find(x => x.id === id); const cl = S.clientesPesq.find(x => x.id === p.cliente_id) || {};
+  const url = S.linkPesquisa(p.token);
+  const txt = `Olá! Aqui é da ${S.cfg.escritorio.nome || 'nossa equipe'}. Leva 1 minuto: de 0 a 10, quanto você recomendaria nosso trabalho? ${url}`;
+  $('compart').innerHTML = `<div class="card"><h3>Link de ${esc(p.cliente_nome)}</h3><input readonly value="${esc(url)}">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button class="btn sec sm" onclick="navigator.clipboard.writeText('${esc(url)}').then(()=>toast('Link copiado.'))">📋 Copiar link</button>
+      ${cl.telefone ? `<a class="btn sec sm" target="_blank" rel="noopener" href="https://wa.me/${zap(cl.telefone)}?text=${encodeURIComponent(txt)}">💬 WhatsApp</a>` : ''}
+      ${cl.email ? `<a class="btn sec sm" target="_blank" rel="noopener" href="${gmail(cl.email, 'Sua opinião sobre o nosso trabalho', txt)}">✉️ Gmail</a>` : ''}</div></div>`;
+  $('compart').scrollIntoView({ behavior: 'smooth' });
 }
 
 function novaOp() {
@@ -193,7 +270,7 @@ function abrirOp(id) {
 }
 
 // ═════════════ oportunidade ═════════════
-const PASSOS = [['qualificacao', '1 Qualificação'], ['orcamento', '2 Orçamento'], ['proposta', '3 Proposta'], ['contrato', '4 Contrato'], ['cadastro', '5 Cadastro no portal'], ['boasvindas', '6 Boas-vindas'], ['checklist', '7 Checklist']];
+const PASSOS = [['qualificacao', '1 Qualificação'], ['orcamento', '2 Orçamento'], ['proposta', '3 Proposta'], ['contrato', '4 Contrato'], ['cadastro', '5 Cadastro no portal'], ['boasvindas', '6 Boas-vindas'], ['checklist', '7 Lista de implantação']];
 function passoFeito(p) {
   const o = S.op, c = o.checklist || {};
   return { qualificacao: !O.faltando(o, 'orcamento').length, orcamento: !!(o.orcamento && o.orcamento.mensal), proposta: !!c.proposta_aceita, contrato: !!c.contrato_assinado,
@@ -204,7 +281,7 @@ function telaOp() {
   S.view = 'op';
   const o = S.op, e = ETAPA[o.etapa];
   $('view').innerHTML = `
-    <div class="crumbs"><a href="../index.html">Portal</a> › <a href="#" onclick="telaFunil();return false">Onboarding</a> › ${esc(o.dados.nome || 'Nova oportunidade')}</div>
+    <div class="crumbs"><a href="../index.html">Portal</a> › <a href="#" onclick="telaFunil();return false">Entrada de clientes</a> › ${esc(o.dados.nome || 'Nova oportunidade')}</div>
     <div class="head"><div><h1>${esc(o.dados.nome || 'Nova oportunidade')} <span class="badge" style="--c:${e.cor}">${esc(e.nome)}</span></h1>
       <p><span id="salvo" class="salvo">${o.id ? 'salvo' : 'ainda não salvo'}</span>${o.cliente_id ? ' · <a href="../gclik.html">cliente no Gestão Fiscal</a>' : ''}</p></div>
       <div class="acts">
@@ -457,7 +534,7 @@ async function abrirSocietario() {
   const natureza = tipo === 'transformacao' ? 'EI' : (d.regime === 'MEI' ? 'MEI' : 'LTDA');
   try {
     const r = await sb.from('soc_processos').insert({ cliente_id: o.cliente_id || null, empresa: d.nome, natureza, tipo, fluxo: null, responsavel: d.responsavel || null,
-      descricao: 'Aberto pelo onboarding de clientes', municipio: d.cidade || null, iniciado_em: hojeISO(), honorario: ((o.orcamento || {}).avulsos || []).filter(a => /Abertura|Transforma|Altera/.test(a.nome)).reduce((s, a) => s + a.valor, 0) || null,
+      descricao: 'Aberto pela entrada de clientes', municipio: d.cidade || null, iniciado_em: hojeISO(), honorario: ((o.orcamento || {}).avulsos || []).filter(a => /Abertura|Transforma|Altera/.test(a.nome)).reduce((s, a) => s + a.valor, 0) || null,
       etapas: SO.etapasPadrao(tipo, null, natureza) }).select('id').single(); chk(r.error);
     o.soc_processo_id = r.data.id; marcar('cad_societario'); await salvarOp(); pCadastro(); toast('Processo aberto no Painel Societário.');
   } catch (e) { toast('Erro: ' + e.message, true); }
@@ -470,7 +547,7 @@ function pBoasVindas() {
     <div class="card"><h3>E-mail de boas-vindas</h3>
       <div class="g g2"><div><label>Para</label><input id="bv-para" value="${esc(bv.para)}"></div><div><label>Assunto</label><input id="bv-assunto" value="${esc(bv.assunto)}"></div></div>
       <label style="margin-top:10px">Mensagem</label><textarea id="bv-corpo" style="min-height:360px">${esc(bv.corpo)}</textarea>
-      <p class="help">A lista de pendências sai do checklist (documentos e acessos ainda não recebidos). O modelo do texto fica em "Tabela de preços e escritório → Textos".${S.portal ? '' : ' Para incluir o link do portal do cliente, faça antes o passo 5 (Cadastro).'}</p>
+      <p class="help">A lista de pendências sai da lista de implantação (documentos e acessos ainda não recebidos). O modelo do texto fica em "Tabela de preços e escritório → Textos".${S.portal ? '' : ' Para incluir o link do portal do cliente, faça antes o passo 5 (Cadastro).'}</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
         <button class="btn sec" onclick="window.open(gmail($('bv-para').value,$('bv-assunto').value,$('bv-corpo').value),'_blank')">✉️ Abrir no Gmail</button>
         <button class="btn sec" onclick="location.href='mailto:'+encodeURIComponent($('bv-para').value)+'?subject='+encodeURIComponent($('bv-assunto').value)+'&body='+encodeURIComponent($('bv-corpo').value)">📧 Outro e-mail</button>
@@ -488,7 +565,7 @@ function pChecklist() {
   const acao = { proposta: "irPasso('proposta')", contrato: "irPasso('contrato')", cliente: "irPasso('cadastro')", entregas: "irPasso('cadastro')", portal: "irPasso('cadastro')", societario: "irPasso('cadastro')", email: "irPasso('boasvindas')" };
   $('passo').innerHTML = `
     <div class="card"><h3>Implantação — ${pr.feitos} de ${pr.total} (${pr.pct}%)</h3><div class="bar" style="height:8px"><i style="width:${pr.pct}%"></i></div>
-      ${pr.pct === 100 && o.etapa !== 'ativo' ? '<div class="okbox" style="margin-top:10px">Tudo feito! <button class="btn ok sm" onclick="concluir()">Concluir onboarding</button></div>' : ''}</div>
+      ${pr.pct === 100 && o.etapa !== 'ativo' ? '<div class="okbox" style="margin-top:10px">Tudo feito! <button class="btn ok sm" onclick="concluir()">Concluir a entrada do cliente</button></div>' : ''}</div>
     ${grupos.map(g => `<div class="card"><h3>${esc(g.grupo)}</h3>${g.itens.map(i => {
       const feito = (o.checklist || {})[i.id];
       return `<div class="chk ${feito ? 'feito' : ''}"><input type="checkbox" ${feito ? 'checked' : ''} onchange="alternar('${i.id}',this.checked)">
@@ -501,7 +578,7 @@ async function alternar(id, on) {
   S.op.checklist = c; await salvarOp(); pChecklist(); telaOpCabecalho();
 }
 function telaOpCabecalho() { document.querySelectorAll('.passo').forEach((b, i) => b.classList.toggle('ok', !!passoFeito(PASSOS[i][0]))); }
-async function concluir() { mudarEtapa('ativo'); await salvarOp(); telaOp(); toast('Onboarding concluído. Cliente ativo!'); }
+async function concluir() { mudarEtapa('ativo'); await salvarOp(); telaOp(); toast('Entrada concluída. Cliente ativo!'); }
 async function perder() {
   const m = prompt('Motivo da perda (preço, foi para outro escritório, desistiu…):'); if (m === null) return;
   S.op.perdido_motivo = m; mudarEtapa('perdido', m); await salvarOp(); telaFunil();
@@ -521,7 +598,7 @@ function telaConfig() {
   const rot = { 'MEI': 'MEI', 'Simples Nacional|servicos': 'Simples — serviços', 'Simples Nacional|comercio': 'Simples — comércio/indústria', 'Lucro Presumido|servicos': 'Presumido — serviços', 'Lucro Presumido|comercio': 'Presumido — comércio/indústria', 'Lucro Real': 'Lucro Real', 'Imune/Isento': 'Imune/Isento' };
   const inp = (id, v, o = {}) => `<div><label>${esc(o.rot)}</label><input id="${id}" value="${esc(v ?? '')}" ${o.n ? 'inputmode="decimal"' : ''}></div>`;
   $('view').innerHTML = `
-    <div class="crumbs"><a href="../index.html">Portal</a> › <a href="#" onclick="telaFunil();return false">Onboarding</a> › Configuração</div>
+    <div class="crumbs"><a href="../index.html">Portal</a> › <a href="#" onclick="telaFunil();return false">Entrada de clientes</a> › Configuração</div>
     <div class="head"><div><h1>⚙️ Tabela de preços e escritório</h1><p>Vale para todos os orçamentos, propostas e contratos.</p></div>
       <div class="acts"><button class="btn sec" onclick="telaFunil()">Cancelar</button><button class="btn" onclick="salvarConfig()">💾 Salvar</button></div></div>
     <div class="card"><h3>Escritório (sai na proposta e no contrato)</h3><div class="g g4">

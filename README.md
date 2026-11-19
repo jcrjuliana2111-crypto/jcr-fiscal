@@ -76,13 +76,26 @@ salva a classificação em `rt_classificacoes`. A rotina `.github/workflows/refo
 confere todo mês a versão da Receita e abre um pull request com tabelas e servidor atualizados.
 Como ligar o servidor: `reforma/servidor/LEIA-ME.md`.
 
-## Onboarding de clientes
+## Entrada de clientes (comercial)
 
 `comercial/` leva o cliente do orçamento à implantação: tabela de preços do escritório,
 orçamento, proposta e contrato de prestação de serviços contábeis em Word, cadastro automático
 no Gestão Fiscal (honorário e vencimento, que o Financeiro JCR lê), no JCR Entregas (obrigações
 do regime e portal do cliente) e no Painel Societário, e-mail de boas-vindas e checklist de
 implantação. Tabelas `com_config` e `com_oportunidades`. Regras em `comercial/onboarding-core.js`.
+
+Também no comercial: quadro "Retornos de hoje" no funil e pesquisa de satisfação (`com_pesquisas`), que o
+cliente responde sem login em `comercial/pesquisa.html?t=<código>` (funções `pesquisa_ver` e `pesquisa_responder`).
+
+## Preenchedor automático (extensão do Chrome)
+
+`extensao/` é a extensão "JCR Preenchedor": lê o processo do Painel Societário (o "Dados e documentos") com o
+login do portal e preenche os formulários do Facilita SP, VRE, REDESIM e prefeituras, reconhecendo os campos
+pelo texto da tela (`extensao/mapa.js`, testado em `tests/extensao.test.js`). Campos não reconhecidos são
+ensinados com o botão direito e ficam guardados. Instalação: `societario/extensao.html`. Depois de mudar a
+extensão, rode `python3 extensao/empacotar.py` para atualizar o pacote para download.
+
+Vencimentos de certificados, alvarás e licenças: `societario/vencimentos.html` (tabela `soc_vencimentos`).
 
 ## Licenças por atividade
 

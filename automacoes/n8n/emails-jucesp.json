@@ -1,0 +1,93 @@
+{
+  "name": "JCR — Societário: ler e-mails da JUCESP e da REDESIM",
+  "nodes": [
+    {
+      "id": "95d48044-8253-5aeb-865a-9041c7f4d73b",
+      "name": "Novos e-mails da Junta/REDESIM (Gmail)",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 15,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "from:(jucesp.sp.gov.br OR facilitasp OR vreredesim OR redesim OR receita.fazenda.gov.br) newer_than:2d"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ba305845-9be8-5d3f-905d-ee58cbc03afb",
+      "name": "Entender o e-mail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Nó \"Entender o e-mail\" do fluxo emails-jucesp (n8n, nó Code em modo \"Run Once for All Items\").\n// Lê um e-mail da JUCESP, do Facilita SP/VRE ou da REDESIM e descobre: número do protocolo e o que aconteceu\n// (exigência, indeferimento, deferimento, CNPJ emitido, análise de vício sem pendência).\n// Devolve um item { protocolo, evento, texto, data } por e-mail reconhecido; os outros e-mails são descartados.\n// Este arquivo é a fonte do código colado no nó (gerar-fluxos.py); mantenha os dois iguais.\n\nfunction entender(m) {\n  const assunto = String(m.subject || m.Subject || '');\n  const corpo = String(m.text || m.textPlain || m.snippet || (m.html ? String(m.html).replace(/<[^>]+>/g, ' ') : '') || '').replace(/\\s+/g, ' ');\n  const tudo = (assunto + ' ' + corpo);\n  const sem = s => s.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();\n  const t = sem(tudo);\n\n  const prot = /protocolo\\s*(?:n[º°o.]*|n[uú]mero)?[^0-9a-z]{0,25}((?:[a-z]{2,4})?\\s?\\d[\\d.\\-\\/ ]{5,24}\\d)/i.exec(tudo) || /\\b(SP[A-Z]?\\d{8,14})\\b/.exec(tudo);\n  let evento = null;\n  if (/indeferid/.test(t)) evento = 'indeferido';\n  else if (/exigencia|pendencia|cumprir exig|em exig/.test(t)) evento = 'exigencia';\n  else if (/vicio/.test(t) && /(sem|nao ha|nenhum) (vicio|pendencia)|concluid/.test(t)) evento = 'vicio_ok';\n  else if (/cnpj (foi )?(gerado|emitido|deferido|inscrito)|inscricao no cnpj/.test(t)) evento = 'cnpj';\n  else if (/deferid|registrad[oa] com sucesso|arquivamento|registro (efetuado|concluido)/.test(t)) evento = 'deferido';\n\n  if (!prot || !evento) return null;\n  // Trecho da exigência: o que vem depois da palavra \"exigência\" (até ~400 letras)\n  const i = sem(corpo).search(/exigencia|pendencia|motivo/);\n  const texto = evento === 'exigencia' || evento === 'indeferido' ? corpo.slice(Math.max(0, i), Math.max(0, i) + 400).trim() : assunto.slice(0, 200);\n  const data = m.date ? new Date(m.date).toISOString().slice(0, 10) : null;\n  return { protocolo: prot[1].replace(/\\s/g, ''), evento, texto, data, assunto };\n}\n\nreturn $input.all().map(i => entender(i.json)).filter(Boolean).map(json => ({ json }));\n"
+      }
+    },
+    {
+      "id": "d2e16ce3-3ef8-5fcd-b281-c5ca6d051a8a",
+      "name": "Atualizar o processo (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://onecnoicxqjhgolqncjj.supabase.co/rest/v1/rpc/registrar_evento_societario",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_protocolo: $json.protocolo, p_evento: $json.evento, p_texto: $json.texto, p_data: $json.data }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Novos e-mails da Junta/REDESIM (Gmail)": {
+      "main": [
+        [
+          {
+            "node": "Entender o e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entender o e-mail": {
+      "main": [
+        [
+          {
+            "node": "Atualizar o processo (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {}
+}

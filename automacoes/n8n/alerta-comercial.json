@@ -1,0 +1,163 @@
+{
+  "name": "JCR — Comercial: retornos de propostas e pesquisa de satisfação",
+  "nodes": [
+    {
+      "id": "76e1534c-9b0e-53ae-8fcc-6a6790b196d3",
+      "name": "Todo dia útil às 8h20",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "20 8 * * 1-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "af6093ee-199b-5af2-b42c-61a14d9b29e2",
+      "name": "Configuração",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "01e899dd-75a6-595f-bac2-f7de96c35768",
+              "name": "destinatario",
+              "value": "coloque-aqui-o-seu-email@exemplo.com",
+              "type": "string"
+            },
+            {
+              "id": "b5c7adcd-4fad-54bd-8462-31947b027a1c",
+              "name": "portal",
+              "value": "https://jcrjuliana2111-crypto.github.io/jcr-fiscal/",
+              "type": "string"
+            },
+            {
+              "id": "24be833b-b81b-558e-8492-3db25f2d7bb8",
+              "name": "enviar_vazio",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "492e9942-3284-5c6a-bec6-75108830a9fd",
+      "name": "Buscar retornos (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://onecnoicxqjhgolqncjj.supabase.co/rest/v1/rpc/alerta_comercial",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "2718fa2f-f5f7-5863-8bb3-c6e237778961",
+      "name": "Montar e-mail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Nó \"Montar e-mail\" do fluxo alerta-comercial (n8n, nó Code em modo \"Run Once for All Items\").\n// Recebe o JSON da função alerta_comercial do Supabase e devolve { assunto, html } (ou nada, quando não há o que avisar):\n// retornos a fazer no funil (com links prontos de WhatsApp e e-mail), pesquisas sem resposta e notas baixas.\n// Este arquivo é a fonte do código colado no nó (gerar-fluxos.py); mantenha os dois iguais.\n\nconst r = $input.first().json;\nconst cfg = $('Configuração').first().json;\nconst PORTAL = (cfg.portal || 'https://jcrjuliana2111-crypto.github.io/jcr-fiscal/') + 'comercial/';\nconst esc = s => String(s ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[c]));\nconst data = iso => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');\nconst reais = v => (v ? Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + '/mês' : '');\nconst zap = w => { const d = String(w || '').replace(/\\D/g, ''); return d ? (d.length <= 11 ? '55' + d : d) : ''; };\nconst MSG = { 'retorno da proposta': 'Olá, {n}! Tudo bem? Conseguiu ver a nossa proposta? Posso esclarecer alguma dúvida?',\n  'colher a assinatura do contrato': 'Olá, {n}! Passando para lembrar da assinatura do contrato, assim já começamos a implantação.',\n  'enviar a proposta': 'Olá, {n}! Estou finalizando a sua proposta e envio em seguida.', 'qualificar e orçar': 'Olá, {n}! Podemos conversar rapidinho para eu montar a sua proposta?',\n  'implantação parada': 'Olá, {n}! Para concluirmos a implantação, ainda faltam alguns documentos. Posso te mandar a lista?' };\nconst retornos = (r.retornos || []).map(x => {\n  const nome = String(x.contato || '').split(' ')[0] || '';\n  const texto = (MSG[x.motivo] || 'Olá, {n}!').replace('{n}', nome);\n  const w = zap(x.whatsapp);\n  const links = [w && `<a href=\"https://wa.me/${w}?text=${encodeURIComponent(texto)}\">WhatsApp</a>`, x.email && `<a href=\"mailto:${esc(x.email)}?subject=${encodeURIComponent('Proposta')}&body=${encodeURIComponent(texto)}\">e-mail</a>`].filter(Boolean).join(' · ');\n  return `<tr><td style=\"padding:7px 10px;border-bottom:1px solid #eee\"><b>${esc(x.nome)}</b><br><span style=\"color:#666;font-size:12px\">${esc(x.motivo)} · ${x.dias_parado} dia(s) sem movimento ${reais(x.mensal) ? '· ' + reais(x.mensal) : ''}</span></td><td style=\"padding:7px 10px;border-bottom:1px solid #eee;white-space:nowrap\">${links || '—'}</td></tr>`;\n});\nconst baixas = (r.notas_baixas || []).map(x => `<li><b>${esc(x.cliente)}</b>: nota ${x.nota}${x.comentario ? ' — “' + esc(x.comentario) + '”' : ''}</li>`);\nconst total = retornos.length + baixas.length + (r.pesquisas_sem_resposta ? 1 : 0);\nconst assunto = retornos.length ? `Comercial: ${retornos.length} retorno(s) para hoje — ${data(r.data)}` : baixas.length ? `Comercial: ${baixas.length} nota(s) baixa(s) na pesquisa — ${data(r.data)}` : `Comercial em dia — ${data(r.data)}`;\nconst html = `<div style=\"font-family:Arial,sans-serif;max-width:720px;color:#111\">\n  <h2 style=\"margin:0 0 4px\">🎯 Comercial — retornos do dia ${data(r.data)}</h2>\n  <p style=\"color:#666;margin:0 0 10px;font-size:14px\">Oportunidades paradas no funil de entrada de clientes, com a mensagem pronta para mandar.</p>\n  ${retornos.length ? `<table style=\"width:100%;border-collapse:collapse;font-size:14px\">${retornos.join('')}</table>` : '<p>Nenhum retorno pendente. 🎉</p>'}\n  ${baixas.length ? `<h3 style=\"color:#dc2626;margin:22px 0 6px\">Notas baixas na pesquisa de satisfação</h3><ul>${baixas.join('')}</ul><p style=\"font-size:13px;color:#666\">Ligue para o cliente ainda hoje.</p>` : ''}\n  ${r.pesquisas_sem_resposta ? `<p style=\"font-size:13px;color:#666\">${r.pesquisas_sem_resposta} pesquisa(s) de satisfação sem resposta há mais de 7 dias.</p>` : ''}\n  <p style=\"margin:26px 0 0\"><a href=\"${PORTAL}\" style=\"background:#f87171;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600\">Abrir a entrada de clientes</a></p>\n  <p style=\"color:#999;font-size:12px;margin-top:20px\">Enviado automaticamente pelo n8n.</p></div>`;\n// Sem nada pendente, só manda e-mail se a Configuração pedir (enviar_vazio = true)\nreturn !total && !cfg.enviar_vazio ? [] : [{ json: { assunto, html } }];\n"
+      }
+    },
+    {
+      "id": "be343909-1908-526b-8c87-793f72fad913",
+      "name": "Enviar e-mail (Gmail)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Configuração').first().json.destinatario }}",
+        "subject": "={{ $json.assunto }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Todo dia útil às 8h20": {
+      "main": [
+        [
+          {
+            "node": "Configuração",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuração": {
+      "main": [
+        [
+          {
+            "node": "Buscar retornos (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar retornos (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Montar e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar e-mail": {
+      "main": [
+        [
+          {
+            "node": "Enviar e-mail (Gmail)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {}
+}

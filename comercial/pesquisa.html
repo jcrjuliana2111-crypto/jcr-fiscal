@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<!-- Página pública (o cliente responde sem login). Só funciona com o código do link e só grava a resposta daquele link. -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Pesquisa de satisfação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--text:#111827;--text2:#6b7280;--accent:#10b981;--border:#e5e7eb}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:16px/1.5 'DM Sans',system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 24px;max-width:560px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.06)}
+h1{font-size:21px;margin-bottom:6px}p{color:var(--text2)}
+.notas{display:grid;grid-template-columns:repeat(11,1fr);gap:6px;margin:20px 0 6px}
+.notas button{border:1px solid var(--border);background:#fff;border-radius:10px;padding:12px 0;font:700 16px inherit;cursor:pointer;color:var(--text)}
+.notas button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.leg{display:flex;justify-content:space-between;font-size:12px;color:var(--text2)}
+textarea{width:100%;min-height:90px;margin-top:16px;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font:inherit;resize:vertical}
+.btn{width:100%;margin-top:14px;border:0;border-radius:12px;padding:13px;font:700 16px inherit;background:var(--accent);color:#fff;cursor:pointer}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+@media (max-width:480px){.notas{grid-template-columns:repeat(6,1fr)}}
+</style>
+</head>
+<body>
+<div class="card" id="c"><p>Carregando…</p></div>
+<script>
+const sb = supabase.createClient('https://onecnoicxqjhgolqncjj.supabase.co', 'sb_publishable_paOFHdYEcMr7MZdOFx16Lw_sXt0n0-9', { auth: { persistSession: false } });
+const token = new URLSearchParams(location.search).get('t') || '';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let nota = null;
+function obrigado(escritorio) { $('c').innerHTML = `<h1>Obrigado! 💚</h1><p>Sua resposta foi registrada. A ${esc(escritorio || 'equipe')} agradece a confiança.</p>`; }
+(async () => {
+  if (!/^[0-9a-f-]{36}$/i.test(token)) { $('c').innerHTML = '<h1>Link inválido</h1><p>Confira o link que você recebeu.</p>'; return; }
+  const { data, error } = await sb.rpc('pesquisa_ver', { p_token: token });
+  if (error || !data) { $('c').innerHTML = '<h1>Link inválido</h1><p>Este link de pesquisa não existe mais.</p>'; return; }
+  if (data.respondida) return obrigado(data.escritorio);
+  $('c').innerHTML = `<h1>Como está o nosso trabalho?</h1>
+    <p>${esc(data.cliente)}, de 0 a 10, quanto você recomendaria a ${esc(data.escritorio)} para um amigo ou outra empresa?</p>
+    <div class="notas">${Array.from({ length: 11 }, (_, i) => `<button data-n="${i}">${i}</button>`).join('')}</div>
+    <div class="leg"><span>0 = não recomendaria</span><span>10 = com certeza</span></div>
+    <textarea id="com" maxlength="2000" placeholder="Quer contar o motivo da nota ou sugerir alguma melhoria? (opcional)"></textarea>
+    <button class="btn" id="enviar" disabled>Enviar resposta</button>`;
+  document.querySelectorAll('.notas button').forEach(b => b.onclick = () => {
+    nota = +b.dataset.n; document.querySelectorAll('.notas button').forEach(x => x.classList.toggle('on', x === b)); $('enviar').disabled = false;
+  });
+  $('enviar').onclick = async () => {
+    $('enviar').disabled = true;
+    const r = await sb.rpc('pesquisa_responder', { p_token: token, p_nota: nota, p_comentario: $('com').value });
+    if (r.error) { $('enviar').disabled = false; alert('Não foi possível enviar agora. Tente de novo em instantes.'); return; }
+    obrigado(data.escritorio);
+  };
+})();
+</script>
+</body>
+</html>

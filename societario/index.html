@@ -159,6 +159,9 @@ async function carregar() {
   ]);
   chk(p.error); chk(c.error);
   S.processos = p.data; S.clientes = c.data;
+  // vencimentos de certificados e alvarás nos próximos 30 dias (tabela pode não existir em bancos antigos)
+  const v = await sb.from('soc_vencimentos').select('id,empresa,tipo,descricao,vencimento').lte('vencimento', SO.addDias(hojeISO(), 30)).order('vencimento').limit(200);
+  S.vencimentos = v.error ? [] : v.data;
 }
 
 function visiveis() {
@@ -190,6 +193,8 @@ function render() {
       <div class="acts">
         <a class="btn sec" href="conferidor.html">🔎 Conferir documentos</a>
         <a class="btn sec" href="modelos.html">📄 Dados e documentos</a>
+        <a class="btn sec" href="vencimentos.html">📅 Certificados e alvarás</a>
+        <a class="btn sec" href="extensao.html">🧾 Preenchedor automático</a>
         <a class="btn sec" href="${FACILITA}" target="_blank" rel="noopener">Facilita SP ↗</a>
         <button class="btn" onclick="editar()">+ Novo processo</button>
       </div>
@@ -200,6 +205,7 @@ function render() {
       ${kpi('exigencia', cont.exigencia + cont.exigencia_vencida, 'Em exigência' + (cont.exigencia_vencida ? ` (${cont.exigencia_vencida} vencida${cont.exigencia_vencida > 1 ? 's' : ''})` : ''), cont.exigencia_vencida ? 'var(--danger)' : 'var(--warn)')}
       ${kpi('concluido', concluidosMes, 'Concluídos no mês', 'var(--ok)')}
     </div>
+    ${alertasHtml(hoje)}
     <div class="tabs">
       <button class="tab ${!S.tipo ? 'on' : ''}" onclick="S.tipo='';render()">Todos</button>
       ${Object.entries(SO.TIPOS).map(([id, t]) => `<button class="tab ${S.tipo === id ? 'on' : ''}" onclick="S.tipo='${id}';render()">${t.ic} ${esc(t.nome)}</button>`).join('')}
@@ -211,6 +217,22 @@ function render() {
     </div>
     <div class="tbl" id="tabela"></div>`;
   renderTabela(lista);
+}
+
+// Alertas do dia: exigências perto do prazo, processos parados e vencimentos (o mesmo resumo que o n8n manda por e-mail)
+function alertasHtml(hoje) {
+  const exig = S.processos.filter(p => p.status === 'exigencia').map(p => ({ p, prazo: SO.prazoExigencia(p) })).filter(x => x.prazo && SO.diasEntre(hoje, x.prazo) <= 10)
+    .sort((a, b) => (a.prazo < b.prazo ? -1 : 1));
+  const parados = S.processos.filter(p => SO.situacao(p, hoje) === 'parado').sort((a, b) => (SO.ultimoMovimento(a) < SO.ultimoMovimento(b) ? -1 : 1));
+  const venc = S.vencimentos || [];
+  if (!exig.length && !parados.length && !venc.length) return '';
+  const item = (txt, onclick) => `<div style="padding:4px 0;border-bottom:1px dashed var(--border);${onclick ? 'cursor:pointer' : ''}" ${onclick ? `onclick="${onclick}"` : ''}>${txt}</div>`;
+  const dias = d => d < 0 ? `<b style="color:var(--danger)">vencido há ${-d} dia(s)</b>` : d === 0 ? '<b style="color:var(--danger)">hoje</b>' : `em ${d} dia(s)`;
+  return `<div class="box" style="margin-bottom:14px"><h4>⚠️ Atenção hoje</h4><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
+    ${exig.length ? `<div><b>Exigências (prazo de 30 dias)</b>${exig.slice(0, 6).map(x => item(`${esc(x.p.empresa)} — ${dias(SO.diasEntre(hoje, x.prazo))}`, `abrir('${x.p.id}')`)).join('')}</div>` : ''}
+    ${parados.length ? `<div><b>Parados há mais de ${SO.DIAS_PARADO} dias</b>${parados.slice(0, 6).map(p => item(`${esc(p.empresa)} — ${SO.diasEntre(SO.ultimoMovimento(p), hoje)} dias${SO.progresso(p).proxima ? ' · próxima: ' + esc(SO.progresso(p).proxima) : ''}`, `abrir('${p.id}')`)).join('')}${parados.length > 6 ? `<div class="muted">… e mais ${parados.length - 6}</div>` : ''}</div>` : ''}
+    ${venc.length ? `<div><b>Certificados e alvarás</b>${venc.slice(0, 6).map(v => item(`${esc(v.empresa)} — ${esc(v.descricao || v.tipo)} ${dias(SO.diasEntre(hoje, v.vencimento))}`, `location.href='vencimentos.html'`)).join('')}</div>` : ''}
+  </div></div>`;
 }
 
 function renderTabela(lista) {

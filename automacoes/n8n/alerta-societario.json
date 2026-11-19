@@ -1,0 +1,169 @@
+{
+  "name": "JCR — Societário: exigências, processos parados e vencimentos",
+  "nodes": [
+    {
+      "id": "9c1584dd-d278-57ea-af6a-0f12e711d6d4",
+      "name": "Todo dia útil às 7h10",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "10 7 * * 1-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ef8a7d96-f3f1-51cc-9afb-15856d0c68bf",
+      "name": "Configuração",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b8b4fa0f-7001-50eb-882a-73a17a264d24",
+              "name": "destinatario",
+              "value": "coloque-aqui-o-seu-email@exemplo.com",
+              "type": "string"
+            },
+            {
+              "id": "146f606d-2fdd-5316-98e8-3e30affc3e97",
+              "name": "dias",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "a3db8e5f-70bb-5437-9cdd-a6e099b54aa0",
+              "name": "portal",
+              "value": "https://jcrjuliana2111-crypto.github.io/jcr-fiscal/",
+              "type": "string"
+            },
+            {
+              "id": "34648f4c-a078-5953-a21a-ffb797571b9d",
+              "name": "enviar_vazio",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "66f58717-5a17-5287-bc10-90800f10b6f4",
+      "name": "Buscar alertas (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://onecnoicxqjhgolqncjj.supabase.co/rest/v1/rpc/alerta_societario",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ dias: $json.dias }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "e1091dc5-061e-5e66-b57d-4766e703b073",
+      "name": "Montar e-mail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Nó \"Montar e-mail\" do fluxo alerta-societario (n8n, nó Code em modo \"Run Once for All Items\").\n// Recebe o JSON da função alerta_societario do Supabase e devolve { assunto, html } (ou nada, quando não há o que avisar).\n// Este arquivo é a fonte do código colado no nó (gerar-fluxos.py); mantenha os dois iguais.\n\nconst r = $input.first().json;\nconst cfg = $('Configuração').first().json;\nconst PORTAL = (cfg.portal || 'https://jcrjuliana2111-crypto.github.io/jcr-fiscal/') + 'societario/';\nconst esc = s => String(s ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[c]));\nconst data = iso => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');\nconst TIPO = { abertura: 'Abertura', alteracao: 'Alteração', transformacao: 'Transformação', encerramento: 'Encerramento', baixa: 'Baixa' };\nconst VENC = { certificado_a1: 'Certificado A1', certificado_a3: 'Certificado A3', alvara: 'Alvará', licenca_sanitaria: 'Licença sanitária', avcb: 'AVCB/CLCB', conselho: 'Conselho de classe', cetesb: 'CETESB', procuracao: 'Procuração eletrônica', outro: 'Outro' };\nconst prazo = d => d < 0 ? `<b style=\"color:#dc2626\">vencido há ${-d} dia(s)</b>` : d === 0 ? '<b style=\"color:#d97706\">vence hoje</b>' : d <= 10 ? `<b style=\"color:#d97706\">em ${d} dia(s)</b>` : `em ${d} dias`;\nconst linha = (a, b, c) => `<tr><td style=\"padding:7px 10px;border-bottom:1px solid #eee\"><b>${a}</b></td><td style=\"padding:7px 10px;border-bottom:1px solid #eee;color:#555\">${b}</td><td style=\"padding:7px 10px;border-bottom:1px solid #eee;white-space:nowrap\">${c}</td></tr>`;\nconst secao = (titulo, cor, linhas) => linhas.length ? `<h3 style=\"color:${cor};margin:22px 0 6px;font-size:16px\">${titulo} (${linhas.length})</h3><table style=\"width:100%;border-collapse:collapse;font-size:14px\">${linhas.join('')}</table>` : '';\n\nconst exig = (r.exigencias || []).map(x => linha(esc(x.empresa), `${esc(TIPO[x.tipo] || x.tipo)} · ${esc(x.motivo || '')}${x.responsavel ? ' · ' + esc(x.responsavel) : ''}`, `prazo ${data(x.prazo)} — ${prazo(x.dias_restantes)}`));\nconst parados = (r.parados || []).map(x => linha(esc(x.empresa), `${esc(TIPO[x.tipo] || x.tipo)}${x.proxima ? ' · próxima: ' + esc(x.proxima) : ''}${x.responsavel ? ' · ' + esc(x.responsavel) : ''}`, `${x.dias_parado} dias parado`));\nconst venc = (r.vencimentos || []).map(x => linha(esc(x.empresa), `${esc(VENC[x.tipo] || x.tipo)}${x.descricao ? ' · ' + esc(x.descricao) : ''}`, `${data(x.vencimento)} — ${prazo(x.dias_restantes)}`));\nconst total = exig.length + parados.length + venc.length;\nconst assunto = total ? `Societário: ${[exig.length && `${exig.length} exigência(s)`, parados.length && `${parados.length} parado(s)`, venc.length && `${venc.length} vencimento(s)`].filter(Boolean).join(', ')} — ${data(r.data)}` : `Societário em dia — ${data(r.data)}`;\nconst html = `<div style=\"font-family:Arial,sans-serif;max-width:720px;color:#111\">\n  <h2 style=\"margin:0 0 4px\">🏛️ Societário — resumo do dia ${data(r.data)}</h2>\n  <p style=\"color:#666;margin:0 0 10px;font-size:14px\">Exigências da Junta (prazo de 30 dias para corrigir sem nova taxa), processos sem movimento há mais de 7 dias e certificados/alvarás que vencem nos próximos ${cfg.dias || 30} dias.</p>\n  ${secao('Exigências', '#dc2626', exig)}${secao('Processos parados', '#d97706', parados)}${secao('Certificados, alvarás e licenças', '#2563eb', venc)}\n  ${!total ? '<p style=\"font-size:15px\">Nada pendente hoje. 🎉</p>' : ''}\n  <p style=\"margin:26px 0 0\"><a href=\"${PORTAL}\" style=\"background:#4f8ef7;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600\">Abrir o Painel Societário</a></p>\n  <p style=\"color:#999;font-size:12px;margin-top:20px\">Enviado automaticamente pelo n8n.</p></div>`;\n// Sem nada pendente, só manda e-mail se a Configuração pedir (enviar_vazio = true)\nreturn !total && !cfg.enviar_vazio ? [] : [{ json: { assunto, html } }];\n"
+      }
+    },
+    {
+      "id": "d06bc530-5d18-5550-9619-3be2844c3cff",
+      "name": "Enviar e-mail (Gmail)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Configuração').first().json.destinatario }}",
+        "subject": "={{ $json.assunto }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Todo dia útil às 7h10": {
+      "main": [
+        [
+          {
+            "node": "Configuração",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuração": {
+      "main": [
+        [
+          {
+            "node": "Buscar alertas (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar alertas (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Montar e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar e-mail": {
+      "main": [
+        [
+          {
+            "node": "Enviar e-mail (Gmail)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {}
+}

@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "JCR Preenchedor",
+  "version": "1.0.0",
+  "description": "Preenche os formulários da Junta Comercial, REDESIM, VRE e prefeituras com os dados salvos no Portal JCR.",
+  "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
+  "host_permissions": [
+    "https://onecnoicxqjhgolqncjj.supabase.co/*",
+    "https://*.sp.gov.br/*",
+    "https://*.gov.br/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "JCR Preenchedor", "default_icon": { "16": "icone16.png", "48": "icone48.png", "128": "icone128.png" } },
+  "icons": { "16": "icone16.png", "48": "icone48.png", "128": "icone128.png" },
+  "content_scripts": [
+    { "matches": ["https://jcrjuliana2111-crypto.github.io/jcr-fiscal/*"], "js": ["portal.js"], "run_at": "document_idle" }
+  ]
+}

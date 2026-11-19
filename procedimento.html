@@ -138,7 +138,7 @@ if (!proc) {
     <section><h2>Objetivo</h2>${p.objetivo ? `<p>${esc(p.objetivo)}</p>` : '<p class="vazio">Para que serve este processo e qual o resultado esperado.</p>'}</section>
     <section><h2>Documentos e informações de entrada</h2>${lista(p.entradas, 'ul', 'O que é preciso receber do cliente ou de outro departamento antes de começar.')}</section>
     <section><h2>Passo a passo</h2>${lista(p.passos, 'ol', 'Cada etapa, na ordem, com sistema usado e quem faz.')}</section>
-    <section><h2>Checklist de conferência</h2>${p.checklist && p.checklist.length
+    <section><h2>Lista de conferência</h2>${p.checklist && p.checklist.length
       ? `<ul class="check">${p.checklist.map(i => `<li><input type="checkbox"><span>${esc(i)}</span></li>`).join('')}</ul>`
       : '<p class="vazio">Itens a conferir antes de dar o processo como concluído.</p>'}</section>
     <section><h2>Ferramentas usadas</h2>${p.ferramentas && p.ferramentas.length

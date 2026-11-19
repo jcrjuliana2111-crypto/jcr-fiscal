@@ -27,9 +27,10 @@ window.JCR_DEPARTAMENTOS = [
     ],
     ferramentas: [
       { nome: 'Painel Societário', url: 'societario/', desc: 'Processos por cliente com as etapas dos manuais do Facilita SP, exigências com prazo de 30 dias e lista de documentos para o cliente.', status: 'ativa' },
-      { nome: 'Alerta de vencimento de certificados e alvarás', desc: 'Aviso automático (n8n) antes de vencer.', status: 'ideia' },
-      { nome: 'Leitura dos e-mails da JUCESP e da REDESIM', desc: 'n8n lê deferimento, exigência e CNPJ emitido no Gmail e atualiza a etapa no painel.', status: 'ideia' },
-      { nome: 'Alerta de processos parados e exigências', desc: 'Resumo diário por e-mail dos processos sem movimento e das exigências perto do prazo.', status: 'ideia' },
+      { nome: 'Preenchedor automático (extensão do Chrome)', url: 'societario/extensao.html', desc: 'Preenche sozinho os formulários do Facilita SP, VRE, REDESIM e prefeituras com os dados do "Dados e documentos": sede, sócios, capital, CNAEs, encerramento.', status: 'ativa' },
+      { nome: 'Certificados, alvarás e licenças', url: 'societario/vencimentos.html', desc: 'Vencimentos de todos os clientes; lê a validade do certificado A1 no próprio computador. Os próximos 30 dias aparecem no Painel e no e-mail diário.', status: 'ativa' },
+      { nome: 'Alerta diário: exigências, parados e vencimentos', url: 'societario/', desc: 'Quadro "Atenção hoje" no Painel e e-mail diário pelo n8n (automacoes/n8n/alerta-societario.json).', status: 'ativa' },
+      { nome: 'Leitura dos e-mails da JUCESP e da REDESIM', desc: 'n8n lê exigência, deferimento, CNPJ emitido e análise de vício no Gmail e atualiza o processo pelo protocolo (automacoes/n8n/emails-jucesp.json).', status: 'ativa' },
       { nome: 'Conferidor de documentos', url: 'societario/conferidor.html', desc: 'Abertura, alteração, transformação, encerramento e enquadramento: lê os PDFs gerados para a JUCESP e aponta divergências e elementos obrigatórios faltando antes de assinar.', status: 'ativa' },
       { nome: 'Dados e documentos', url: 'societario/modelos.html', desc: 'Envie RG/CNH, comprovante, IPTU, contrato anterior ou ficha da JUCESP: o portal lê e preenche (você confere). Gera o Word do contrato social, alteração, transformação e distrato.', status: 'ativa' },
     ],
@@ -95,7 +96,7 @@ window.JCR_DEPARTAMENTOS = [
     ],
     ferramentas: [
       { nome: 'Conciliação bancária automática (OFX)', desc: 'Importa extrato e sugere lançamentos.', status: 'ideia' },
-      { nome: 'Checklist de fechamento contábil', desc: 'Etapas do fechamento por cliente com status.', status: 'ideia' },
+      { nome: 'Lista de fechamento contábil', desc: 'Etapas do fechamento por cliente com a situação de cada uma.', status: 'ideia' },
     ],
   },
   {
@@ -153,7 +154,7 @@ window.JCR_DEPARTAMENTOS = [
     ],
     ferramentas: [
       { nome: 'Recuperação Tributária', url: 'hub/recuperacao_tributaria.html', desc: '12 teses ADM e JUD com manual de procedimentos.', status: 'ativa' },
-      { nome: 'Analisador Multi-Teses', url: 'hub/jcr_analisador_multiteses.html', desc: 'Upload de SPED e análise de todas as teses.', status: 'ativa' },
+      { nome: 'Analisador Multi-Teses', url: 'hub/jcr_analisador_multiteses.html', desc: 'Envio do SPED e análise de todas as teses.', status: 'ativa' },
       { nome: 'Exclusão PIS/COFINS da própria base', url: 'hub/analisador_pis_cofins_base.html', desc: 'Gross up reverso — RE 574.706/PR.', status: 'ativa' },
       { nome: 'Simulador de regime tributário', desc: 'Compara Simples, Presumido e Real.', status: 'ideia' },
     ],
@@ -196,16 +197,17 @@ window.JCR_DEPARTAMENTOS = [
       { id: 'prospeccao', nome: 'Prospecção e funil de vendas', freq: 'Contínuo' },
       { id: 'proposta', nome: 'Proposta comercial e precificação', freq: 'Sob demanda' },
       { id: 'contrato', nome: 'Contrato de prestação de serviços', freq: 'Sob demanda' },
-      { id: 'onboarding', nome: 'Entrada de novo cliente (onboarding)', freq: 'Sob demanda' },
+      { id: 'onboarding', nome: 'Entrada de novo cliente', freq: 'Sob demanda' },
       { id: 'atendimento', nome: 'Atendimento e suporte ao cliente', freq: 'Diário' },
       { id: 'pesquisa-satisfacao', nome: 'Pesquisa de satisfação', freq: 'Semestral' },
     ],
     ferramentas: [
       { nome: 'Comercial', url: 'hub/comercial.html', desc: 'Funil, scripts de WhatsApp e precificação.', status: 'ativa' },
       { nome: 'Clientes', url: 'hub/clientes.html', desc: 'Ficha por cliente com oportunidades e passivo fiscal.', status: 'ativa' },
-      { nome: 'Onboarding de clientes', url: 'comercial/', desc: 'Funil do orçamento ao cliente ativo: orçamento pela tabela de preços, proposta e contrato em Word, cadastro automático no Gestão Fiscal, JCR Entregas e Painel Societário, e-mail de boas-vindas e checklist de implantação.', status: 'ativa' },
-      { nome: 'Gerador de proposta comercial', url: 'comercial/', desc: 'Proposta em Word a partir do perfil do cliente e da tabela de preços (dentro do Onboarding).', status: 'ativa' },
-      { nome: 'Follow-up automático de propostas', desc: 'n8n avisa no WhatsApp/e-mail as propostas paradas há mais de 3 dias e as que vencem a validade.', status: 'ideia' },
+      { nome: 'Entrada de clientes', url: 'comercial/', desc: 'Funil do orçamento ao cliente ativo: orçamento pela tabela de preços, proposta e contrato em Word, cadastro automático no Gestão Fiscal, JCR Entregas e Painel Societário, e-mail de boas-vindas e lista de implantação.', status: 'ativa' },
+      { nome: 'Gerador de proposta comercial', url: 'comercial/', desc: 'Proposta em Word a partir do perfil do cliente e da tabela de preços (dentro da Entrada de clientes).', status: 'ativa' },
+      { nome: 'Retorno automático de propostas', url: 'comercial/', desc: 'Quadro "Retornos de hoje" no funil com a mensagem pronta para WhatsApp/Gmail e e-mail diário pelo n8n (automacoes/n8n/alerta-comercial.json).', status: 'ativa' },
+      { nome: 'Pesquisa de satisfação (NPS)', url: 'comercial/', desc: 'Link para o cliente dar nota de 0 a 10 sem login; NPS, respostas e alerta de nota baixa.', status: 'ativa' },
     ],
   },
   {

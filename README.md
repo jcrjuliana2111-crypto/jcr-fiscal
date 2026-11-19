@@ -96,6 +96,9 @@ ensinados com o botão direito e ficam guardados. Instalação: `societario/exte
 extensão, rode `python3 extensao/empacotar.py` para atualizar o pacote para download.
 
 Vencimentos de certificados, alvarás e licenças: `societario/vencimentos.html` (tabela `soc_vencimentos`).
+O cofre de certificados (`societario/cofre-core.js`) criptografa o .pfx no navegador (AES-256-GCM, chave
+PBKDF2-SHA256 com 600 mil iterações a partir da senha do cofre) antes de subir para o bucket privado
+`cofre-certificados`; a senha do cofre não é guardada em lugar nenhum. Downloads ficam em `soc_cofre_log`.
 
 ## Licenças por atividade
 

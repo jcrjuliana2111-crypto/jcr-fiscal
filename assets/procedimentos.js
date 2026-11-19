@@ -512,6 +512,7 @@ window.JCR_PROCEDIMENTOS = (function () {
       passos: [
         'Ao receber certificados A1: Painel Societário → "📅 Certificados e alvarás" → "📦 Importar certificados em lote". O portal acha a senha no nome do arquivo (ou você digita), lê titular, CNPJ e validade, liga ao cliente pelo CNPJ e grava <CNPJ>.pem na pasta do robô de notas da VPS (coluna "Na VPS"). A senha não sai do computador.',
         'Certificado enviado pelo robô do Telegram aparece sozinho no portal no dia seguinte (sincronização diária da pasta certs-nfse).',
+        'Cofre: na importação em lote, deixe marcado "Cofre" para guardar o .pfx original (com o nome e a senha) criptografado no seu computador com a senha do cofre. Para baixar depois: "⬇️ Baixar" na lista e a senha do cofre. Cada download fica registrado.',
         'A3 (token/cartão): cadastrar o vencimento à mão.',
         'Avisos automáticos (n8n): Telegram para o escritório e e-mail para o cliente aos 60, 45, 30, 15, 7, 1 e 0 dias; vencidos, lembrete semanal. No portal, o quadro "Atenção hoje" mostra os próximos 30 dias.',
         'Avisar o cliente e agendar a renovação; depois, "Renovado" com a nova data.',
@@ -519,7 +520,9 @@ window.JCR_PROCEDIMENTOS = (function () {
       ],
       checklist: ['Certificado cadastrado com vencimento', 'Cliente avisado com 30 dias', 'Renovação registrada'],
       ferramentas: [{ nome: 'Certificados e alvarás', url: 'societario/vencimentos.html' }, PAINEL_SOC],
-      atencao: ['Sem certificado válido não há assinatura no Facilita SP (quando exigido), nem acesso ao e-CAC por procuração do cliente.'],
+      atencao: ['Sem certificado válido não há assinatura no Facilita SP (quando exigido), nem acesso ao e-CAC por procuração do cliente.',
+        'A senha do cofre não fica guardada em lugar nenhum (nem no portal, nem no Supabase): se ela for esquecida, os arquivos do cofre não podem ser recuperados. Guarde-a no gerenciador de senhas do escritório.',
+        'O cofre se tranca sozinho após 10 minutos sem uso. Não use a mesma senha do e-mail ou do portal.'],
       atualizado: '2026-11-19',
     },
   };

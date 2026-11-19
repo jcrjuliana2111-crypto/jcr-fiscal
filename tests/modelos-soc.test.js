@@ -128,3 +128,9 @@ test('campos vazios aparecem como pendências', () => {
   const f = M.faltando(M.gerar({ tipo: 'constituicao', socios: [{}], empresa: {} }));
   ['nome do sócio', 'profissão', 'CPF', 'nome empresarial', 'capital social', 'comarca do foro'].forEach(r => assert.ok(f.includes(r), r));
 });
+
+test('cláusula adicional com colchetes pendentes é erro', () => {
+  const M2 = require('../societario/modelos-core.js');
+  const v = M2.validar({ tipo: 'constituicao', empresa: {}, socios: [], clausulas_adicionais: [{ titulo: 'Da integralização', texto: 'O sócio [NOME] integraliza' }] });
+  assert.ok(v.some(x => x.nivel === 'erro' && x.msg.includes('colchetes')));
+});

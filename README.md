@@ -30,9 +30,9 @@ elas continuam funcionando exatamente como antes.
 
 ## Departamentos, processos e procedimentos
 
-A página inicial mostra os 12 departamentos: Societário, Fiscal, Contábil, Pessoal,
-BPO Financeiro, Recuperação Tributária, Fiscalização, IRPF, Comercial, Financeiro do
-escritório, Administrativo e Conhecimento. Cada um lista seus processos, as ferramentas
+A página inicial mostra os 13 departamentos: Societário, Fiscal, Reforma Tributária,
+Contábil, Pessoal, BPO Financeiro, Recuperação Tributária, Fiscalização, IRPF, Comercial,
+Financeiro do escritório, Administrativo e Conhecimento. Cada um lista seus processos, as ferramentas
 que já existem e as automações a criar.
 
 - **Novo processo ou ferramenta:** editar `assets/departamentos.js`.
@@ -58,6 +58,22 @@ Os dados guardados no navegador ficam ligados ao endereço `jcrjuliana2111-crypt
 que é o mesmo para todos os repositórios do GitHub Pages desta conta. Por isso eles
 continuam aparecendo no novo site. **Se um dia o site for para outro domínio
 (Vercel, Netlify, domínio próprio), exporte esses dados antes.**
+
+## Reforma Tributária
+
+`reforma/` tem o simulador de IBS/CBS por cliente (2026–2033, salvo na tabela `rt_simulacoes`)
+e a consulta das tabelas oficiais da Receita (cClassTrib, CST, NCM, NBS, anexos, LC 116).
+As tabelas ficam em `reforma/dados/` e saem do repositório aberto da Receita
+(github.com/ReceitaFederal/calculadora-rtc-regime-regular, licença MIT):
+
+    git clone --depth 1 https://github.com/ReceitaFederal/calculadora-rtc-regime-regular /tmp/rtc
+    python3 reforma/scripts/gerar_dados.py /tmp/rtc
+
+## Licenças por atividade
+
+`societario/licencas.js` lista os registros exigidos pela atividade (CRC, CORE, OAB, CREA,
+CRM, Vigilância Sanitária, CRECI, ANTT, CETESB…). Aparece no procedimento e como alerta no
+"Dados e documentos" pelo objeto preenchido. Para incluir uma atividade, acrescente uma regra.
 
 ## Login
 

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/jcr-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Reforma Tributária · Portal JCR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="reforma-core.js"></script>
+<style>
+:root{
+  --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;
+  --border:#2a2f42; --border2:#363d55;
+  --text:#e8eaf2; --text2:#9aa1b8; --text3:#626a85;
+  --accent:#2dd4bf; --accent2:#a78bfa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh;font-size:14px}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+main{max-width:1240px;margin:0 auto;padding:24px 24px 90px}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px}
+.head h1{font:800 22px Syne,sans-serif}
+.head p{color:var(--text2);font-size:13px;margin-top:2px}
+.btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#14b8a6,#4f8ef7);color:#fff;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn.sec{background:var(--surface2);border:1px solid var(--border2);color:var(--text)}
+.btn.sm{padding:5px 10px;font-size:12.5px;border-radius:8px}
+.btn[disabled]{opacity:.55;cursor:wait}
+.icon-btn{background:none;border:1px solid transparent;border-radius:8px;padding:4px 7px;cursor:pointer;color:var(--text2)}
+.icon-btn:hover{border-color:var(--border2);color:var(--text)}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tab{border:1px solid var(--border2);background:var(--surface);border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:600;color:var(--text2);font-size:13px}
+.tab.on{border-color:var(--accent);color:var(--text);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px}
+input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:8px 11px;outline:none}
+input:focus,select:focus{border-color:var(--accent)}
+input[type=checkbox]{width:auto;accent-color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.card h3{font:700 12px Syne,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin-bottom:10px}
+.g{display:grid;gap:10px}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.lin{display:grid;grid-template-columns:minmax(0,1.2fr) 130px minmax(0,1.6fr) auto auto;gap:8px;align-items:center;margin-bottom:6px}
+.lin.rec{grid-template-columns:minmax(0,1.2fr) 130px minmax(0,1.6fr) auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+tr.sel td{background:color-mix(in srgb,var(--accent) 9%,transparent)}
+tbody tr.click{cursor:pointer}
+.tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.muted{color:var(--text3);font-size:12px}
+.help{font-size:11.5px;color:var(--text3);margin-top:4px;line-height:1.45}
+.badge{display:inline-flex;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:color-mix(in srgb,var(--c,var(--accent)) 16%,transparent);color:var(--c,var(--accent));white-space:nowrap}
+.aviso{padding:10px 12px;border-radius:10px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:12px}
+.aviso b{color:var(--warn)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px}
+.kpi .v{font:800 20px Syne,sans-serif}
+.kpi .l{font-size:12px;color:var(--text2)}
+.up{color:var(--danger)}.down{color:var(--ok)}
+details{margin-top:6px}
+summary{cursor:pointer;color:var(--text2);font-size:12.5px}
+pre{white-space:pre-wrap;font:12px/1.5 ui-monospace,monospace;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-top:6px;color:var(--text2)}
+.toast{position:fixed;right:18px;bottom:18px;z-index:99;background:var(--surface3);border:1px solid var(--border2);border-left:4px solid var(--ok);padding:11px 16px;border-radius:10px;max-width:380px}
+.toast.err{border-left-color:var(--danger)}
+@media (max-width:860px){ main{padding:16px 16px 90px} .g2,.g3,.g4,.lin,.lin.rec{grid-template-columns:1fr} }
+@media print{ body{background:#fff;color:#000} .tabs,.no-print,#jcr-portal-pill{display:none!important} .card,.tbl{border-color:#ccc;background:#fff} }
+</style>
+</head>
+<body>
+<main>
+  <div class="head">
+    <div><h1>⚖️ Reforma Tributária — IBS e CBS</h1>
+    <p>Tabelas oficiais da Receita Federal (cClassTrib, CST, NCM, NBS, LC 116) e simulador de carga por cliente, de 2026 a 2033.</p></div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div id="view"><div class="card">Carregando tabelas oficiais…</div></div>
+  <p class="muted" id="fonte" style="margin-top:14px"></p>
+</main>
+<datalist id="dl-cclass"></datalist>
+
+<script>
+const SUPABASE_URL = 'https://onecnoicxqjhgolqncjj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_paOFHdYEcMr7MZdOFx16Lw_sXt0n0-9';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const R = window.Reforma;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const brl = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const pct = v => Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 4 }) + '%';
+const num = v => { const s = String(v ?? '').trim().replace(/\s|R\$/g, ''); if (!s) return 0; return +(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s) || 0; };
+function toast(msg, erro) { const t = document.createElement('div'); t.className = 'toast' + (erro ? ' err' : ''); t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), erro ? 6000 : 3000); }
+
+// ── tabelas oficiais (reforma/dados, geradas do repositório da Receita) ──
+const T = {};
+const carregar = f => fetch('dados/' + f).then(r => { if (!r.ok) throw new Error(f + ': ' + r.status); return r.json(); });
+async function tabela(nome) { if (!T[nome]) T[nome] = await carregar(nome + '.json'); return T[nome]; }
+let CC = [], CC_ID = {};
+const rotuloCC = c => `${c.cd} · ${c.desc}`;
+const acharCC = txt => { const t = String(txt || '').trim(); return CC.find(c => rotuloCC(c) === t) || CC.find(c => c.cd === t.slice(0, 6)) || null; };
+const redTxt = c => { const r = R.reducoes(c); return r.cbs === r.ibs_uf && r.ibs_uf === r.ibs_mun ? (r.cbs ? `−${r.cbs}%` : '—') : `CBS −${r.cbs}% · IBS −${r.ibs_uf}%`; };
+
+// ── abas ──
+const ABAS = [
+  ['sim', '🧮 Simulador'], ['tab', '🔎 Consultar tabelas'], ['crono', '🗓️ Cronograma'], ['api', '🔌 Calculadora oficial'],
+];
+let aba = (location.hash || '#sim').slice(1);
+function tabs() { $('tabs').innerHTML = ABAS.map(([k, n]) => `<button class="tab ${aba === k ? 'on' : ''}" onclick="ir('${k}')">${n}</button>`).join(''); }
+function ir(k) { aba = k; history.replaceState(null, '', '#' + k); tabs(); render(); }
+function render() { ({ sim: telaSimulador, tab: telaTabelas, crono: telaCronograma, api: telaApi })[aba](); }
+
+// ═════════════════════════ SIMULADOR ═════════════════════════
+let CLIENTES = [], SIMS = [];
+const novoCenario = () => ({
+  id: null, nome: 'Simulação', cliente_id: '', cliente_nome: '', regime: 'regular', periodo: 'Mês médio', ano: 2027,
+  ref: { ...R.REFERENCIA_PADRAO },
+  atual: { icms: 0, iss: 0, pis_cofins: 0, ipi: 0 },
+  receitas: [{ descricao: 'Vendas / serviços', valor: 0, cc: '000001' }],
+  compras: [{ descricao: 'Compras e despesas com crédito', valor: 0, cc: '000001', credito: true }],
+});
+let S = novoCenario();
+
+const ccDe = r => CC_ID[r.ccid] || CC.find(c => c.cd === r.cc);
+const cenarioCalc = () => ({
+  ...S,
+  receitas: S.receitas.map(r => ({ ...r, cclass: ccDe(r) })),
+  compras: S.compras.map(r => ({ ...r, cclass: ccDe(r) })),
+});
+
+function telaSimulador() {
+  const opCli = ['<option value="">— sem cliente —</option>'].concat(CLIENTES.map(c => `<option value="${c.id}" ${c.id === S.cliente_id ? 'selected' : ''}>${esc(c.razao_social)}${c.cnpj ? ' · ' + esc(c.cnpj) : ''}</option>`)).join('');
+  const linha = (tipo, r, i) => `<div class="lin ${tipo === 'receitas' ? 'rec' : ''}">
+      <input value="${esc(r.descricao)}" placeholder="Descrição" oninput="S.${tipo}[${i}].descricao=this.value">
+      <input value="${r.valor || ''}" placeholder="R$" inputmode="decimal" oninput="S.${tipo}[${i}].valor=num(this.value);calc()">
+      <input list="dl-cclass" value="${esc(ccDe(r) ? rotuloCC(ccDe(r)) : r.cc)}" placeholder="cClassTrib (digite código ou atividade)" onchange="mudaCC('${tipo}',${i},this)">
+      ${tipo === 'compras' ? `<label style="margin:0;display:flex;gap:5px;align-items:center;white-space:nowrap"><input type="checkbox" ${r.credito !== false ? 'checked' : ''} onchange="S.compras[${i}].credito=this.checked;calc()">crédito</label>` : ''}
+      <button class="icon-btn" title="Remover" onclick="S.${tipo}.splice(${i},1);telaSimulador()">✕</button></div>`;
+  $('view').innerHTML = `
+    <div class="aviso"><b>Simulação.</b> As alíquotas de referência de 2027 em diante ainda não foram fixadas: o simulador usa uma estimativa (CBS ${pct(R.REFERENCIA_PADRAO.cbs)} + IBS ${pct(R.REFERENCIA_PADRAO.ibs_uf)}), que você pode trocar abaixo. Reduções por cClassTrib conforme a tabela oficial. Monofásicos, alíquotas por unidade e Imposto Seletivo: use a calculadora oficial.</div>
+    <div class="card no-print"><h3>Simulações salvas</h3>
+      <div class="g g3">
+        <div><label>Abrir</label><select id="s-abrir" onchange="abrir(this.value)"><option value="">— nova —</option>${SIMS.map(s => `<option value="${s.id}" ${s.id === S.id ? 'selected' : ''}>${esc(s.cliente_nome ? s.cliente_nome + ' — ' : '')}${esc(s.nome)}</option>`).join('')}</select></div>
+        <div style="display:flex;gap:8px;align-items:flex-end"><button class="btn" onclick="salvar()">💾 Salvar</button><button class="btn sec" onclick="S=novoCenario();telaSimulador()">Nova</button>
+        ${S.id ? '<button class="btn sec" onclick="excluir()">Excluir</button>' : ''}<button class="btn sec" onclick="print()">🖨️ Imprimir</button></div>
+      </div></div>
+    <div class="card"><h3>Cliente e cenário</h3>
+      <div class="g g4">
+        <div><label>Cliente</label><select onchange="S.cliente_id=this.value;S.cliente_nome=this.selectedOptions[0].value?this.selectedOptions[0].text.split(' · ')[0]:''">${opCli}</select></div>
+        <div><label>Nome da simulação</label><input value="${esc(S.nome)}" oninput="S.nome=this.value"></div>
+        <div><label>Regime</label><select onchange="S.regime=this.value;calc()">
+          <option value="regular" ${S.regime === 'regular' ? 'selected' : ''}>Regime regular (Presumido / Real)</option>
+          <option value="simples_por_fora" ${S.regime === 'simples_por_fora' ? 'selected' : ''}>Simples com IBS/CBS por fora</option>
+          <option value="simples" ${S.regime === 'simples' ? 'selected' : ''}>Simples (IBS/CBS dentro do DAS)</option></select></div>
+        <div><label>Período dos valores</label><input value="${esc(S.periodo)}" oninput="S.periodo=this.value" placeholder="Ex.: mês médio, 2025 inteiro"></div>
+      </div>
+      <div class="g g3" style="margin-top:10px">
+        <div><label>CBS de referência (%)</label><input value="${S.ref.cbs}" inputmode="decimal" oninput="S.ref.cbs=num(this.value);calc()"></div>
+        <div><label>IBS estadual de referência (%)</label><input value="${S.ref.ibs_uf}" inputmode="decimal" oninput="S.ref.ibs_uf=num(this.value);calc()"></div>
+        <div><label>IBS municipal de referência (%)</label><input value="${S.ref.ibs_mun}" inputmode="decimal" oninput="S.ref.ibs_mun=num(this.value);calc()"></div>
+      </div>
+      <p class="help">O IBS total (estadual + municipal) é o que importa no cálculo; a divisão entre estado e município só muda o destino.</p>
+    </div>
+    <div class="card"><h3>Tributos sobre consumo hoje (mesmo período)</h3>
+      <div class="g g4">
+        ${[['icms', 'ICMS'], ['iss', 'ISS'], ['pis_cofins', 'PIS + COFINS'], ['ipi', 'IPI']].map(([k, n]) => `<div><label>${n} (R$)</label><input value="${S.atual[k] || ''}" inputmode="decimal" oninput="S.atual.${k}=num(this.value);calc()"></div>`).join('')}
+      </div>
+      <p class="help">Valores pagos (líquidos de crédito) no período. Do Simples, informe a parte do DAS que corresponde a esses tributos.</p>
+    </div>
+    <div class="card"><h3>Receitas por classificação (débito)</h3>
+      ${S.receitas.map((r, i) => linha('receitas', r, i)).join('')}
+      <button class="btn sec sm" onclick="S.receitas.push({descricao:'',valor:0,cc:'000001'});telaSimulador()">+ receita</button>
+      <span class="help">Não sabe a cClassTrib? Procure pelo NCM, NBS ou item da LC 116 em "Consultar tabelas".</span></div>
+    <div class="card"><h3>Compras e despesas (crédito)</h3>
+      ${S.compras.map((r, i) => linha('compras', r, i)).join('')}
+      <button class="btn sec sm" onclick="S.compras.push({descricao:'',valor:0,cc:'000001',credito:true});telaSimulador()">+ compra</button>
+      <p class="help">Na não cumulatividade ampla quase toda aquisição dá crédito (insumos, serviços, energia, aluguel, ativo). Desmarque o que for uso e consumo pessoal ou de fornecedor que não destaca IBS/CBS.</p></div>
+    <div id="res"></div>`;
+  calc();
+}
+
+function mudaCC(tipo, i, el) {
+  const c = acharCC(el.value);
+  if (!c) { el.style.borderColor = 'var(--danger)'; return; }
+  el.style.borderColor = ''; el.value = rotuloCC(c); S[tipo][i].cc = c.cd; S[tipo][i].ccid = c.id; calc();
+}
+
+let anoSel = null;
+function calc() {
+  const box = $('res'); if (!box) return;
+  const proj = R.projecao(cenarioCalc());
+  if (!anoSel) anoSel = 2027;
+  const s = proj.find(p => p.ano === anoSel) || proj[1];
+  const seta = d => d > 0 ? `<span class="up">▲ ${brl(d)}</span>` : d < 0 ? `<span class="down">▼ ${brl(-d)}</span>` : '—';
+  const avisos = [...s.receitas, ...s.compras].filter(l => l.aviso).map(l => `${esc(l.descricao || l.cc)}: ${esc(l.aviso)}`);
+  box.innerHTML = `
+    <div class="card"><h3>Resultado ano a ano</h3>
+      <div class="tbl"><table><thead><tr><th>Ano</th><th>Fase</th><th class="n">CBS</th><th class="n">IBS</th><th class="n">ICMS+ISS</th><th class="n">PIS/COFINS+IPI</th><th class="n">Carga nova</th><th class="n">Carga hoje</th><th class="n">Diferença</th><th class="n">% do faturamento</th></tr></thead><tbody>
+      ${proj.map(p => `<tr class="click ${p.ano === s.ano ? 'sel' : ''}" onclick="anoSel=${p.ano};calc()">
+        <td><b>${p.ano}</b></td><td><span class="badge">${esc(p.regras.fase)}</span></td>
+        <td class="n">${p.ano <= 2026 ? `<span class="muted">${brl(p.debito.cbs)} teste</span>` : brl(p.apagar.cbs)}</td>
+        <td class="n">${p.ano <= 2026 ? `<span class="muted">${brl(p.debito.ibs)} teste</span>` : brl(p.apagar.ibs)}</td>
+        <td class="n">${brl(p.legado.icms + p.legado.iss)}</td><td class="n">${brl(p.legado.pis_cofins + p.legado.ipi)}</td>
+        <td class="n"><b>${brl(p.carga_nova)}</b></td><td class="n">${brl(p.carga_atual)}</td><td class="n">${seta(p.diferenca)}</td>
+        <td class="n">${pct(p.perc_nova)} <span class="muted">(hoje ${pct(p.perc_atual)})</span></td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="help">Clique num ano para ver o detalhe. ${S.regime === 'simples' ? 'Simples por dentro: o IBS/CBS continua no DAS (não muda a carga aqui); o cliente PJ do regime regular só credita o valor destacado pelo Simples, o que pode tirar competitividade. Compare com a opção "por fora".' : ''}${S.regime === 'simples_por_fora' ? 'Simples por fora: IBS/CBS apurados como no regime regular (com crédito) e os demais tributos seguem no DAS. Os tributos do DAS não entram nesta conta.' : ''}</p>
+    </div>
+    <div class="card"><h3>Detalhe de ${s.ano} — ${esc(s.regras.fase)}</h3>
+      <p class="help" style="margin-bottom:10px">${esc(s.regras.nota)} Alíquotas nominais: CBS ${pct(s.aliquotas.cbs)} · IBS estadual ${pct(s.aliquotas.ibs_uf)} · IBS municipal ${pct(s.aliquotas.ibs_mun)}${s.estimativa ? ' (estimativa)' : ''}.</p>
+      <div class="kpis">
+        <div class="kpi"><div class="v">${brl(s.faturamento)}</div><div class="l">Faturamento (base)</div></div>
+        <div class="kpi"><div class="v">${brl(s.debito.cbs + s.debito.ibs)}</div><div class="l">Débito IBS+CBS</div></div>
+        <div class="kpi"><div class="v">${brl(s.credito.cbs + s.credito.ibs)}</div><div class="l">Crédito IBS+CBS</div></div>
+        <div class="kpi"><div class="v">${brl(s.apagar.cbs + s.apagar.ibs)}</div><div class="l">A recolher IBS+CBS</div></div>
+        ${s.saldo_credor.cbs + s.saldo_credor.ibs > 0 ? `<div class="kpi"><div class="v">${brl(s.saldo_credor.cbs + s.saldo_credor.ibs)}</div><div class="l">Saldo credor (ressarcimento)</div></div>` : ''}
+      </div>
+      <div class="tbl"><table><thead><tr><th>Linha</th><th>cClassTrib</th><th class="n">Base</th><th class="n">CBS efetiva</th><th class="n">IBS efetiva</th><th class="n">CBS</th><th class="n">IBS</th></tr></thead><tbody>
+        ${s.receitas.map(l => `<tr><td>↑ ${esc(l.descricao)}</td><td>${esc(l.cc)} <span class="muted">${l.cclass ? redTxt(l.cclass) : ''}</span></td><td class="n">${brl(l.base)}</td><td class="n">${pct(l.efetivas.cbs)}</td><td class="n">${pct(l.efetivas.ibs_uf + l.efetivas.ibs_mun)}</td><td class="n">${brl(l.cbs)}</td><td class="n">${brl(l.ibs)}</td></tr>`).join('')}
+        ${s.compras.map(l => `<tr><td>↓ ${esc(l.descricao)}${l.credito === false ? ' <span class="muted">(sem crédito)</span>' : ''}</td><td>${esc(l.cc)}</td><td class="n">${brl(l.base)}</td><td class="n">${pct(l.efetivas.cbs)}</td><td class="n">${pct(l.efetivas.ibs_uf + l.efetivas.ibs_mun)}</td><td class="n">−${brl(l.credito_cbs)}</td><td class="n">−${brl(l.credito_ibs)}</td></tr>`).join('')}
+      </tbody></table></div>
+      ${avisos.length ? `<div class="aviso" style="margin-top:10px"><b>Atenção:</b><br>${avisos.join('<br>')}</div>` : ''}
+    </div>`;
+}
+
+async function carregarSims() {
+  const [c, s] = await Promise.all([
+    sb.from('gclik_clientes').select('id,razao_social,cnpj').order('razao_social').limit(5000),
+    sb.from('rt_simulacoes').select('id,nome,cliente_id,cliente_nome,dados,updated_at').order('updated_at', { ascending: false }).limit(1000),
+  ]);
+  if (c.error) toast('Clientes: ' + c.error.message, true); else CLIENTES = c.data || [];
+  if (s.error) toast('Simulações: ' + s.error.message, true); else SIMS = s.data || [];
+}
+function abrir(id) {
+  const s = SIMS.find(x => x.id === id);
+  S = s ? { ...novoCenario(), ...s.dados, id: s.id, nome: s.nome, cliente_id: s.cliente_id || '', cliente_nome: s.cliente_nome || '' } : novoCenario();
+  anoSel = null; telaSimulador();
+}
+async function salvar() {
+  const { id, nome, cliente_id, cliente_nome, ...dados } = S;
+  const linha = { nome: nome || 'Simulação', cliente_id: cliente_id || null, cliente_nome: cliente_nome || null, dados, updated_at: new Date().toISOString() };
+  const r = id ? await sb.from('rt_simulacoes').update(linha).eq('id', id).select().single() : await sb.from('rt_simulacoes').insert(linha).select().single();
+  if (r.error) return toast('Não salvou: ' + r.error.message, true);
+  S.id = r.data.id; await carregarSims(); telaSimulador(); toast('Simulação salva.');
+}
+async function excluir() {
+  if (!S.id || !confirm('Excluir esta simulação?')) return;
+  const r = await sb.from('rt_simulacoes').delete().eq('id', S.id);
+  if (r.error) return toast(r.error.message, true);
+  await carregarSims(); S = novoCenario(); telaSimulador(); toast('Excluída.');
+}
+
+// ═════════════════════════ CONSULTAR TABELAS ═════════════════════════
+let busca = { tipo: 'cclass', termo: '' };
+function telaTabelas() {
+  $('view').innerHTML = `
+    <div class="card"><div class="g" style="grid-template-columns:220px 1fr">
+      <div><label>Tabela</label><select id="b-tipo" onchange="busca.tipo=this.value;buscarTabela()">
+        ${[['cclass', 'cClassTrib (classificação)'], ['ncm', 'NCM (mercadorias)'], ['nbs', 'NBS (serviços)'], ['lc116', 'Serviço do ISS (LC 116)'], ['cst', 'CST do IBS/CBS']].map(([k, n]) => `<option value="${k}" ${busca.tipo === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+      <div><label>Código ou palavras</label><input id="b-termo" value="${esc(busca.termo)}" placeholder="Ex.: 200052, educação, 1006.30.21, 17.19 contabilidade" oninput="busca.termo=this.value;clearTimeout(window._bt);window._bt=setTimeout(buscarTabela,250)"></div>
+    </div><p class="help">Mercadoria: procure o NCM e veja quais cClassTrib (redução, cesta básica, anexos) se aplicam. Serviço: procure o item da LC 116 (o mesmo da nota de serviço) ou o NBS.</p></div>
+    <div id="b-res"><div class="card">Carregando…</div></div>`;
+  buscarTabela();
+}
+const ccLinha = c => `<tr><td><b>${esc(c.cd)}</b>${c.fim ? ` <span class="badge" style="--c:var(--danger)">até ${esc(c.fim)}</span>` : ''}</td><td>${esc(c.desc)}
+    ${c.fundamento.length ? `<details><summary>${esc(c.fundamento.map(f => f.curto).join(' · '))}</summary><pre>${esc(c.fundamento.map(f => f.texto).join('\n\n'))}</pre></details>` : ''}</td>
+  <td>${esc(c.cst)} <span class="muted">${esc(c.cst_desc)}</span></td><td>${esc(redTxt(c))}</td><td>${esc(c.tipo_aliquota)}</td>
+  <td>${c.credito_adq.CBS || c.credito_adq.IBS ? 'sim' : 'não'}</td><td>${esc(c.nomenclatura || '')}</td></tr>`;
+const ccTabela = lista => lista.length ? `<div class="tbl"><table><thead><tr><th>cClassTrib</th><th>Descrição e fundamento</th><th>CST</th><th>Redução</th><th>Alíquota</th><th>Crédito ao adquirente</th><th>Vale para</th></tr></thead><tbody>${lista.map(ccLinha).join('')}</tbody></table></div>` : '<div class="card muted">Nada encontrado.</div>';
+
+async function buscarTabela() {
+  const box = $('b-res'); if (!box) return;
+  const t = busca.termo;
+  try {
+    if (busca.tipo === 'cclass') { box.innerHTML = ccTabela(R.buscar(CC, t, ['cd', 'desc', 'cst_desc', 'tratamento'], 200)); return; }
+    if (busca.tipo === 'cst') {
+      const l = R.buscar(await tabela('cst'), t, ['cd', 'desc'], 100);
+      box.innerHTML = `<div class="tbl"><table><thead><tr><th>CST</th><th>Descrição</th><th>cClassTrib</th></tr></thead><tbody>${l.map(s => `<tr class="click" onclick="busca.tipo='cclass';busca.termo='${s.cd}';telaTabelas()"><td><b>${esc(s.cd)}</b></td><td>${esc(s.desc)}</td><td>${CC.filter(c => c.cst === s.cd).length} →</td></tr>`).join('')}</tbody></table></div>`;
+      return;
+    }
+    if (busca.tipo === 'ncm') {
+      box.innerHTML = '<div class="card">Carregando NCM…</div>';
+      const [ncm, apl, anexos] = await Promise.all([tabela('ncm'), tabela('ncm_aplicavel'), tabela('anexos')]);
+      const l = R.buscar(ncm.map(([cd, desc]) => ({ cd, desc })), t, ['cd', 'desc'], 60);
+      const txtAnexo = (a, i) => (anexos.find(x => x.anexo === a && x.item === i) || {}).texto || '';
+      box.innerHTML = l.length ? `<div class="tbl"><table><thead><tr><th>NCM</th><th>Descrição</th><th>cClassTrib específicas</th></tr></thead><tbody>${l.map(n => {
+        const cs = n.cd.length >= 4 ? R.classificacoesNcm(n.cd, apl) : [];
+        return `<tr><td><b>${esc(n.cd)}</b></td><td>${esc(n.desc)}</td><td>${cs.length ? cs.map(a => { const c = CC_ID[a.cclass]; return c ? `<div><b>${esc(c.cd)}</b> ${esc(c.desc)} <span class="badge">${esc(redTxt(c))}</span>${a.anexo ? ` <span class="muted" title="${esc(txtAnexo(a.anexo, a.item))}">Anexo ${esc(a.anexo)}, item ${esc(a.item)}</span>` : ''}</div>` : ''; }).join('') : '<span class="muted">Regra geral (000001 — tributação integral), salvo outra hipótese da operação</span>'}</td></tr>`;
+      }).join('')}</tbody></table></div><p class="help">O vínculo vale para o código e os subitens dele. Confira a descrição do anexo (passe o mouse) antes de aplicar a redução.</p>` : '<div class="card muted">Nada encontrado.</div>';
+      return;
+    }
+    if (busca.tipo === 'nbs') {
+      const [nbs, apl] = await Promise.all([tabela('nbs'), tabela('nbs_aplicavel')]);
+      const l = R.buscar(nbs.map(([cd, desc, lc]) => ({ cd, desc, lc })), t, ['cd', 'desc'], 80);
+      box.innerHTML = l.length ? `<div class="tbl"><table><thead><tr><th>NBS</th><th>Descrição</th><th>Item LC 116</th><th>cClassTrib específicas</th></tr></thead><tbody>${l.map(n => {
+        const cs = apl.filter(a => n.cd.startsWith(a.nbs));
+        return `<tr><td><b>${esc(n.cd)}</b></td><td>${esc(n.desc)}</td><td>${esc(n.lc || '')}</td><td>${cs.map(a => { const c = CC_ID[a.cclass]; return c ? `<div><b>${esc(c.cd)}</b> ${esc(c.desc)} <span class="badge">${esc(redTxt(c))}</span></div>` : ''; }).join('') || '<span class="muted">—</span>'}</td></tr>`;
+      }).join('')}</tbody></table></div>` : '<div class="card muted">Nada encontrado.</div>';
+      return;
+    }
+    if (busca.tipo === 'lc116') {
+      const l = R.buscar(await tabela('lc116'), t, ['cd', 'desc'], 60);
+      box.innerHTML = l.length ? `<div class="tbl"><table><thead><tr><th>Item</th><th>Serviço</th><th>cClassTrib possíveis</th></tr></thead><tbody>${l.map(s => {
+        const cs = R.classificacoesServico(s, CC_ID);
+        return `<tr><td><b>${esc(s.cd)}</b></td><td>${esc(s.desc)}</td><td>${cs.map(c => `<div><b>${esc(c.cd)}</b> ${esc(c.desc)} <span class="badge">${esc(redTxt(c))}</span></div>`).join('') || '<span class="muted">—</span>'}</td></tr>`;
+      }).join('')}</tbody></table></div><p class="help">Quando há mais de uma cClassTrib, a escolha depende de quem presta (ex.: profissão regulamentada −30%) ou de quem toma o serviço.</p>` : '<div class="card muted">Nada encontrado.</div>';
+    }
+  } catch (e) { box.innerHTML = `<div class="card">Erro ao carregar: ${esc(e.message)}</div>`; }
+}
+
+// ═════════════════════════ CRONOGRAMA ═════════════════════════
+function telaCronograma() {
+  $('view').innerHTML = `<div class="tbl"><table><thead><tr><th>Ano</th><th>Fase</th><th>O que vale</th><th class="n">ICMS/ISS</th></tr></thead><tbody>
+    ${R.ANOS.map(a => { const g = R.regrasAno(a); return `<tr><td><b>${a}</b></td><td><span class="badge">${esc(g.fase)}</span></td><td>${esc(g.nota)}</td><td class="n">${Math.round(g.legado * 100)}%</td></tr>`; }).join('')}
+  </tbody></table></div>
+  <div class="card" style="margin-top:12px"><h3>O que fazer em cada cliente</h3><ul style="padding-left:18px;line-height:1.7">
+    <li>2026: emitir NF-e, NFC-e, CT-e e NFS-e com os grupos de IBS/CBS (CST e cClassTrib) e cumprir as obrigações acessórias, para ficar dispensado do recolhimento de teste.</li>
+    <li>Cadastro de produtos e serviços: conferir NCM/NBS e definir a cClassTrib de cada item (aba "Consultar tabelas").</li>
+    <li>Simples Nacional: simular "por dentro" x "por fora" para clientes que vendem para empresas do regime regular (crédito do comprador).</li>
+    <li>Contratos longos e preços: revisar com a CBS cheia em 2027 e o IBS crescendo de 2029 a 2033.</li>
+    <li>Créditos: mapear compras que darão crédito (não cumulatividade ampla) e o fluxo de split payment.</li></ul>
+    <p class="help">Base: EC 132/2023 e LC 214/2025 (arts. 342 a 347 e 293 §4º para as alíquotas da transição). Confira mudanças da LC 227/2026.</p></div>`;
+}
+
+// ═════════════════════════ CALCULADORA OFICIAL ═════════════════════════
+function telaApi() {
+  const ex = { id: 'teste-1', versao: '1.0.0', dhFatoGerador: '2027-03-10T10:00:00-03:00', municipio: 3552403, uf: 'SP',
+    itens: [{ numero: 1, nbs: '122011200', cst: '200', cClassTrib: '200028', baseCalculo: 1200.0, aliquotasNominais: { cbs: 8.8, ibsEstadual: 0.05, ibsMunicipal: 0.05 } }] };
+  $('view').innerHTML = `
+    <div class="card"><h3>O que a Receita publicou</h3><ul style="padding-left:18px;line-height:1.7">
+      <li><a href="https://github.com/ReceitaFederal/calculadora-rtc-regime-regular" target="_blank" rel="noopener">calculadora-rtc-regime-regular ↗</a> — API (Java 21) que calcula CBS, IBS e Imposto Seletivo do regime regular, gera e valida os grupos do XML (NF-e, NFC-e, NFS-e, CT-e) e serve as tabelas.</li>
+      <li><a href="https://github.com/ReceitaFederal/calculadora-rtc-simples-nacional" target="_blank" rel="noopener">calculadora-rtc-simples-nacional ↗</a> — API de CBS e IBS para optantes do Simples.</li>
+      <li>Licença MIT. As tabelas oficiais desta página saem do mesmo repositório (script <code>reforma/scripts/gerar_dados.py</code>).</li></ul></div>
+    <div class="card"><h3>Como rodar no computador do escritório</h3>
+      <pre>git clone https://github.com/ReceitaFederal/calculadora-rtc-regime-regular
+cd calculadora-rtc-regime-regular
+./mvnw flyway:migrate -Dflyway.configFiles=./flyway/flyway-pro.conf --batch-mode --errors
+./mvnw spring-boot:run -Dspring-boot.run.profiles=offline
+# documentação: http://localhost:8080/api/swagger-ui.html</pre>
+      <p class="help">Precisa do Java 21. No Windows, troque <code>./mvnw</code> por <code>mvnw.cmd</code>. A API não libera chamadas do navegador (CORS); use pelo n8n (nó HTTP Request), pelo Swagger ou por curl.</p></div>
+    <div class="card"><h3>Exemplo de chamada (n8n ou curl)</h3>
+      <p class="help">POST <code>http://localhost:8080/api/calculadora/observabilidade/regime-geral</code> — devolve, por item, os valores e a memória de cálculo, e aponta erros como NCM não vinculado à cClassTrib.</p>
+      <pre>${esc(JSON.stringify(ex, null, 2))}</pre></div>`;
+}
+
+// ═════════════════════════ início ═════════════════════════
+(async function () {
+  tabs();
+  try {
+    CC = await tabela('cclasstrib');
+    CC_ID = Object.fromEntries(CC.map(c => [c.id, c]));
+    const vistos = new Set();
+    $('dl-cclass').innerHTML = CC.filter(c => !vistos.has(rotuloCC(c)) && vistos.add(rotuloCC(c))).map(c => `<option value="${esc(rotuloCC(c))}"></option>`).join('');
+    const v = await tabela('versao');
+    $('fonte').innerHTML = `Tabelas oficiais da Receita Federal — base ${esc(v.versao)} (${esc(String(v.data).slice(0, 10).split('-').reverse().join('/'))}: ${esc(v.descricao)}). Fonte: <a href="${esc(v.fonte)}" target="_blank" rel="noopener">GitHub da Receita ↗</a>.`;
+  } catch (e) { $('view').innerHTML = `<div class="card">Erro ao carregar as tabelas: ${esc(e.message)}</div>`; return; }
+  await carregarSims();
+  render();
+})();
+</script>
+</body>
+</html>

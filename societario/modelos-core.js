@@ -401,6 +401,9 @@
     const add = (nivel, msg) => out.push({ nivel, msg });
     const socios = d.socios || [];
     if (!socios.length) add('erro', 'Inclua pelo menos um sócio.');
+    (d.clausulas_adicionais || []).forEach((c, i) => {
+      if (/\[[^\]]*\]/.test(c.texto || '')) add('erro', `Cláusula adicional ${i + 1}${c.titulo ? ' (' + c.titulo + ')' : ''}: complete ou apague o que está entre colchetes.`);
+    });
     socios.forEach((s, i) => {
       const quem = limpa(s.nome) || `sócio ${i + 1}`;
       if (limpa(s.cpf) && !cpfValido(s.cpf)) add('erro', `CPF inválido: ${quem} (${s.cpf}).`);

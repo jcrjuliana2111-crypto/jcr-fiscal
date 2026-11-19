@@ -35,6 +35,17 @@
         iss: { nome: 'Campinas — ISS Digital (nota fiscal e ISS)', url: 'https://issdigital.campinas.sp.gov.br/issdigital/login.jsp?codcid=6291', modo: 'online' },
       },
     },
+    sumare: {
+      nome: 'Sumaré',
+      links: {
+        viabilidade_municipal: { nome: 'Sumaré — viabilidade pelo Via Rápida Empresa / Facilita SP (confirmar se o município responde pelo sistema; senão, pedir na prefeitura)', url: 'https://www.vreredesim.sp.gov.br/', modo: 'online', conferir: true },
+        viabilidade_servico: { nome: 'Sumaré — Plano Diretor e mapas de zoneamento (uso do solo)', url: 'https://www.sumare.sp.gov.br/plano_diretor/', modo: 'info', conferir: true },
+        inscricao_municipal: { nome: 'Sumaré — Portal do Cidadão: ISS / NF Eletrônica (cadastro mobiliário, certidões)', url: 'https://www.sumare.sp.gov.br/cidadao/pagina/iss-nf-eletronica', modo: 'online' },
+        alvara: { nome: 'Sumaré — Portal do Cidadão (alvará e serviços para empresas)', url: 'https://www.sumare.sp.gov.br/cidadao/', modo: 'online', conferir: true },
+        iss: { nome: 'Sumaré — SIGISS (nota fiscal de serviço e ISS)', url: 'https://sumare.sigissweb.com/', modo: 'online', conferir: true },
+        situacao_mobiliaria: { nome: 'Sumaré — validar NFS-e emitida', url: 'https://sumare.sigissweb.com/validarnfe', modo: 'online', conferir: true },
+      },
+    },
   };
 
   // Links de cada etapa do Painel Societário (por id da etapa)
@@ -50,7 +61,7 @@
     deferimento: ['jucesponline', 'jucesp_agendamento_online'],
     vicio: ['jucesponline', 'jucesp_agendamento_online', 'jucesp_agendamento'],
     tributacao: ['simples', 'cartao_cnpj'], simei: ['simples'], cnpj: ['cartao_cnpj'],
-    ie: ['cadesp'], ccm: ['inscricao_municipal', 'situacao_mobiliaria', 'vre'], orgaos: ['cadesp', 'inscricao_municipal'],
+    ie: ['cadesp'], ccm: ['inscricao_municipal', 'iss', 'situacao_mobiliaria', 'vre'], orgaos: ['cadesp', 'inscricao_municipal'],
     licencas: ['alvara', 'vre'],
     obrigacoes: ['simples'],
   };

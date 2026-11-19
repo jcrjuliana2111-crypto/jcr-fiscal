@@ -76,7 +76,7 @@ ficam liberadas. Para dar acesso a alguém, crie o usuário no Supabase
         `supabase/functions/smart-handler/`. Tabelas `notificacoes_fiscais` e `obr_*`
         fechadas para acesso direto.
   - [x] `extrair-cnpj` e `ler-documento-societario` exigem login.
-  - [ ] Bucket `notificacoes-pdf` é público: quem tiver o link do PDF abre.
+  - [x] Bucket `notificacoes-pdf` privado: o PDF abre por link temporário (1 hora) pedido pela página.
   - [ ] Tabelas `rafael_*` (app separado, fora do portal) continuam abertas.
   - [ ] Tabela `clientes` tem coluna `senha` em texto puro: apagar se não for usada.
 - [ ] Recursos de IA (Analisador XML, Conhecimento, Radar e IA do Gestão Fiscal) chamam

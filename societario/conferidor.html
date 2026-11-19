@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/jcr-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Conferidor de documentos · Painel Societário</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="conferidor-core.js"></script>
+<style>
+:root{
+  --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;
+  --border:#2a2f42; --border2:#363d55;
+  --text:#e8eaf2; --text2:#9aa1b8; --text3:#626a85;
+  --accent:#60a5fa; --ok:#34d399; --warn:#fbbf24; --danger:#f87171; --info:#a78bfa;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh;font-size:14px}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+main{max-width:1100px;margin:0 auto;padding:24px 24px 90px}
+.crumbs{font-size:12.5px;color:var(--text3);margin-bottom:12px}
+.crumbs a{color:var(--text2);text-decoration:none}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px}
+.head h1{font:800 22px Syne,sans-serif}
+.head p{color:var(--text2);font-size:13px;margin-top:2px;max-width:720px}
+.head .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--accent),#6b7ff7);color:#fff;white-space:nowrap}
+.btn:hover{filter:brightness(1.08)}
+.btn.sec{background:var(--surface2);border:1px solid var(--border2);color:var(--text)}
+.btn[disabled]{opacity:.5;cursor:wait}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+.card h2{font:700 11.5px Syne,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin-bottom:12px}
+.drop{border:2px dashed var(--border2);border-radius:14px;padding:28px;text-align:center;cursor:pointer;background:var(--surface);transition:.15s}
+.drop:hover,.drop.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
+.drop b{font-size:15px}
+.drop p{color:var(--text2);font-size:12.5px;margin-top:6px}
+.arquivos{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;justify-content:center}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--surface3);font-size:12px;color:var(--text2)}
+.chip button{background:none;border:0;color:var(--text3);cursor:pointer}
+details summary{cursor:pointer;color:var(--text2);font-size:13px;font-weight:600}
+.f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px}
+label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px}
+input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:8px 11px;outline:none}
+input:focus{border-color:var(--accent)}
+.help{font-size:11.5px;color:var(--text3);margin-top:6px;line-height:1.45}
+.veredito{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:14px;margin-bottom:12px;border:1px solid}
+.veredito .ic{font-size:26px}
+.veredito b{font:800 17px Syne,sans-serif;display:block}
+.veredito span{color:var(--text2);font-size:13px}
+.v-erro{background:color-mix(in srgb,var(--danger) 10%,var(--surface));border-color:color-mix(in srgb,var(--danger) 45%,transparent)}
+.v-ok{background:color-mix(in srgb,var(--ok) 10%,var(--surface));border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.v-atencao{background:color-mix(in srgb,var(--warn) 10%,var(--surface));border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+.achado{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.achado:last-child{border-bottom:0}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:76px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c);height:fit-content}
+.achado .t{font-weight:700}
+.achado .d{grid-column:2;color:var(--text2);font-size:13px;line-height:1.5}
+.achado .p{grid-column:2;font-size:11.5px;color:var(--text3)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);text-align:left;padding:7px 9px;border-bottom:1px solid var(--border)}
+td{padding:7px 9px;border-bottom:1px solid var(--border);vertical-align:top}
+.tbl{overflow-x:auto}
+.regras{padding-left:18px;color:var(--text2);font-size:13px;line-height:1.7}
+.empty{padding:20px;text-align:center;color:var(--text3)}
+.toast{position:fixed;right:18px;bottom:18px;z-index:99;background:var(--surface3);border:1px solid var(--border2);border-left:4px solid var(--ok);padding:11px 16px;border-radius:10px;max-width:380px}
+.toast.err{border-left-color:var(--danger)}
+@media (max-width:800px){ main{padding:16px 16px 90px} .f3{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumbs"><a href="../index.html">Portal</a> › <a href="./">Painel Societário</a> › Conferidor de documentos</div>
+  <div class="head">
+    <div><h1>🔎 Conferidor de documentos</h1>
+      <p>Arraste os PDFs gerados para a JUCESP (capas, fichas, requerimento, declarações e contrato) <b>antes de assinar</b>. O conferidor compara tudo entre si e aponta o que pode virar exigência.</p></div>
+    <div class="acts"><a class="btn sec" href="modelos.html" style="text-decoration:none">📄 Modelos</a></div>
+  </div>
+
+  <div class="card">
+    <div class="drop" id="drop" onclick="$('arq').click()">
+      <b>Arraste os PDFs aqui ou clique para escolher</b>
+      <p>Pode mandar o pacote inteiro num PDF ou cada documento separado. Os arquivos são lidos só no seu navegador; nada é enviado nem salvo.</p>
+      <div class="arquivos" id="lista"></div>
+    </div>
+    <input type="file" id="arq" accept="application/pdf,.pdf" multiple hidden onchange="adicionar(this.files);this.value=''">
+    <details style="margin-top:12px">
+      <summary>Dados de referência (opcional)</summary>
+      <div class="f3">
+        <div><label for="r-socio">Nome do sócio/titular</label><input id="r-socio" placeholder="Como no documento de identidade"></div>
+        <div><label for="r-logr">Logradouro (como no IPTU)</label><input id="r-logr" placeholder="Rua …"></div>
+        <div><label for="r-bairro">Bairro (como no IPTU)</label><input id="r-bairro"></div>
+      </div>
+      <p class="help">Sem estes dados, o conferidor usa como referência o que está na ficha cadastral e nos formulários. Preencha quando quiser conferir contra o IPTU ou o documento do sócio.</p>
+    </details>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btn sec" onclick="limpar()">Limpar</button>
+      <button class="btn" id="b-conferir" onclick="conferir()" disabled>Conferir</button>
+    </div>
+  </div>
+
+  <div id="resultado"></div>
+
+  <div class="card">
+    <h2>O que é conferido</h2>
+    <ul class="regras" id="regras"></ul>
+    <p class="help">Cada exigência nova da JUCESP vira uma regra aqui. O conferidor pega divergências e erros de preenchimento; interpretações do assessor continuam no checklist do procedimento.</p>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const C = window.Conferidor;
+const NIVEL = { erro: ['Erro', 'var(--danger)'], atencao: ['Atenção', 'var(--warn)'], info: ['Info', 'var(--info)'], ok: ['OK', 'var(--ok)'] };
+const S = { arquivos: [], ultimo: null };
+function toast(msg, erro) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (erro ? ' err' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), erro ? 6000 : 3000);
+}
+
+if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+$('regras').innerHTML = C.REGRAS.map(r => `<li>${esc(r)}</li>`).join('');
+
+function adicionar(files) {
+  [...files].filter(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf').forEach(f => {
+    if (!S.arquivos.some(a => a.name === f.name && a.size === f.size)) S.arquivos.push(f);
+  });
+  renderLista();
+}
+function remover(i, ev) { ev.stopPropagation(); S.arquivos.splice(i, 1); renderLista(); }
+function renderLista() {
+  $('lista').innerHTML = S.arquivos.map((f, i) => `<span class="chip">📄 ${esc(f.name)}<button title="Remover" onclick="remover(${i},event)">✕</button></span>`).join('');
+  $('b-conferir').disabled = !S.arquivos.length;
+}
+function limpar() { S.arquivos = []; S.ultimo = null; renderLista(); $('resultado').innerHTML = ''; }
+
+const drop = $('drop');
+['dragenter', 'dragover'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('on'); }));
+['dragleave', 'drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('on'); }));
+drop.addEventListener('drop', ev => { adicionar(ev.dataTransfer.files); if (S.arquivos.length) conferir(); });
+
+async function lerPaginas(arquivo) {
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await arquivo.arrayBuffer()) }).promise;
+  const paginas = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const tc = await (await doc.getPage(i)).getTextContent();
+    paginas.push({ arquivo: arquivo.name, numero: i, texto: C.linhasDePagina(tc.items) });
+  }
+  return paginas;
+}
+
+async function conferir() {
+  if (!window.pdfjsLib) return toast('Não foi possível carregar o leitor de PDF. Verifique a internet e recarregue a página.', true);
+  const b = $('b-conferir');
+  b.disabled = true; b.textContent = 'Lendo PDFs…';
+  try {
+    const paginas = [];
+    for (const f of S.arquivos) {
+      try { paginas.push(...await lerPaginas(f)); }
+      catch (e) { toast(`Não consegui ler ${f.name}: ${e.message}`, true); }
+    }
+    const semTexto = paginas.filter(p => p.texto.replace(/\s/g, '').length < 20).length;
+    const ref = { socio: $('r-socio').value.trim(), logradouro: $('r-logr').value.trim(), bairro: $('r-bairro').value.trim() };
+    const r = C.analisar(paginas, ref);
+    S.ultimo = { r, paginas: paginas.length, semTexto };
+    render();
+  } finally { b.disabled = !S.arquivos.length; b.textContent = 'Conferir'; }
+}
+
+function render() {
+  const { r, paginas, semTexto } = S.ultimo;
+  const n = k => r.achados.filter(a => a.nivel === k).length;
+  const [ne, na] = [n('erro'), n('atencao')];
+  const veredito = ne
+    ? ['v-erro', '⛔', `${ne} erro${ne > 1 ? 's' : ''} para corrigir antes de assinar`, 'Corrija, gere os PDFs de novo e confira outra vez.']
+    : na ? ['v-atencao', '⚠️', 'Sem erros, com pontos de atenção', 'Leia cada ponto e decida antes de assinar.']
+      : ['v-ok', '✅', 'Pronto para assinar', 'Nenhuma divergência encontrada nas regras conferidas.'];
+  $('resultado').innerHTML = `
+    <div class="veredito ${veredito[0]}"><div class="ic">${veredito[1]}</div><div><b>${veredito[2]}</b><span>${veredito[3]} ${paginas} página(s) lida(s).</span></div>
+      <button class="btn sec" style="margin-left:auto" onclick="copiar()">Copiar relatório</button></div>
+    ${semTexto ? `<div class="card" style="border-color:var(--warn)">⚠️ ${semTexto} página(s) sem texto (provavelmente digitalizada como imagem). Essas páginas não foram conferidas.</div>` : ''}
+    <div class="card"><h2>Resultado</h2>
+      ${r.achados.map(a => `<div class="achado"><span class="badge" style="--c:${NIVEL[a.nivel][1]}">${NIVEL[a.nivel][0]}</span>
+        <div class="t">${esc(a.titulo)}</div>${a.detalhe ? `<div class="d">${esc(a.detalhe)}</div>` : ''}
+        ${a.paginas.length ? `<div class="p">📍 ${esc(a.paginas.join(' · '))}</div>` : ''}</div>`).join('') || '<div class="empty">Nada para mostrar.</div>'}
+    </div>
+    ${r.capas.length ? `<div class="card"><h2>Atos do pacote</h2><div class="tbl"><table>
+      <tr><th>Seq.</th><th>Ato</th><th>Nome empresarial</th><th>Porte</th><th>Data</th></tr>
+      ${r.capas.map(c => `<tr><td>${esc(c.seq)}</td><td>${esc(c.ato)}</td><td>${esc(c.nome)}</td><td>${esc(c.porte)}</td><td>${c.data ? c.data.split('-').reverse().join('/') : '—'}</td></tr>`).join('')}
+    </table></div></div>` : ''}
+    <div class="card"><h2>Documentos encontrados</h2><div class="tbl"><table>
+      <tr><th>Documento</th><th>Arquivo</th><th>Páginas</th></tr>
+      ${r.documentos.map(d => `<tr><td>${esc(d.nome)}</td><td>${esc(d.arquivo)}</td><td>${d.paginas.length > 2 ? d.paginas[0] + '–' + d.paginas[d.paginas.length - 1] : d.paginas.join(', ')}</td></tr>`).join('')}
+    </table></div></div>`;
+  $('resultado').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function copiar() {
+  const { r } = S.ultimo;
+  const txt = 'Conferência de documentos — ' + new Date().toLocaleDateString('pt-BR') + '\n\n' +
+    r.achados.filter(a => a.nivel !== 'ok').map(a => `[${NIVEL[a.nivel][0].toUpperCase()}] ${a.titulo}\n${a.detalhe}${a.paginas.length ? '\nOnde: ' + a.paginas.join(', ') : ''}`).join('\n\n') +
+    '\n\nConferido OK: ' + r.achados.filter(a => a.nivel === 'ok').map(a => a.titulo).join('; ');
+  try { await navigator.clipboard.writeText(txt); toast('Relatório copiado.'); } catch { toast('Não foi possível copiar.', true); }
+}
+</script>
+</body>
+</html>

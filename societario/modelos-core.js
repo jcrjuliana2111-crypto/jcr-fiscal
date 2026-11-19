@@ -81,6 +81,7 @@
     return [
       v(t.nome && t.nome.toUpperCase(), 'nome do titular'), ', ', v(t.nacionalidade, 'nacionalidade'), ', ',
       v(t.estado_civil, 'estado civil'), ...(casado ? [', sob o regime de ', v(t.regime_bens, 'regime de bens')] : []),
+      ', ', v(t.profissao, 'profissão'), // exigida pelo Manual de LTDA, item 3 (o Modelo 2 do DREI não traz)
       ', nascido em ', v(t.nascimento, 'data de nascimento'),
       ...(t.naturalidade ? [', natural de ', t.naturalidade] : []),
       ', portador da cédula de identidade RG nº ', v(t.rg, 'RG e órgão emissor'),

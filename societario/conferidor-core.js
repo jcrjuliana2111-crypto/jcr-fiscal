@@ -59,11 +59,18 @@
   }
 
   // Valor do campo: linha seguinte ao rótulo, na mesma coluna (por posição do rótulo)
+  // Rótulos são buscados em maiúsculas e como palavra inteira, de preferência nas linhas marcadas
+  // como rótulo (para "PORTE" não casar com "Empresa de Pequeno Porte" no texto de um ato).
   function campo(texto, rotulo) {
     const linhas = texto.split('\n');
-    for (let i = 0; i < linhas.length - 1; i++) {
-      const pos = semAcento(linhas[i]).toUpperCase().indexOf(semAcento(rotulo).toUpperCase());
-      if (pos < 0) continue;
+    const alvo = semAcento(rotulo).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const reRotulo = new RegExp('(^|[^A-Z])' + alvo + '(?![A-Z])');
+    const ordem = linhas.map((l, i) => i).filter(i => i < linhas.length - 1)
+      .sort((a, b) => (linhas[b].startsWith(ROTULO) ? 1 : 0) - (linhas[a].startsWith(ROTULO) ? 1 : 0) || a - b);
+    for (const i of ordem) {
+      const achou = reRotulo.exec(semAcento(linhas[i]));
+      if (!achou) continue;
+      const pos = achou.index + achou[1].length;
       const prox = linhas[i + 1];
       if (!prox || prox.startsWith(ROTULO)) return '';
       // segmentos da linha de valores com a posição de início
@@ -91,8 +98,9 @@
     ['desimpedimento', /DECLARA[CÇ][AÃ]O DE DESIMPEDIMENTO/i],
     ['enquadramento', /DECLARA[CÇ][AÃ]O DE ENQUADRAMENTO/i],
     ['licenciamento', /CERTIFICADO DE LICENCIAMENTO INTEGRADO/i],
-    ['assinaturas', /Relat[oó]rio de (auditoria|Assinaturas)|validar\.iti\.gov\.br|ZapSign/i],
-    ['contrato', /Cl[aá]usula\s+(Primeira|Segunda|Terceira|\d)/i],
+    // relatório do assinador (Autentique, ZapSign…): só a página do relatório, não o rodapé das demais
+    ['assinaturas', /Relat[oó]rio de (auditoria|Assinaturas)/i],
+    ['contrato', /Cl[aá]usula\s+(Primeira|Segunda|Terceira|\d)|^\s*(\S+\s+)?(DISTRATO|INSTRUMENTO PARTICULAR|EXTIN[CÇ][AÃ]O|ALTERA[CÇ][AÃ]O|CONTRATO SOCIAL)\b/im],
   ];
   const NOMES_DOC = {
     capa: 'Capa do requerimento', exigencias: 'Formulário de exigências', ficha: 'Ficha cadastral',
@@ -180,6 +188,187 @@
     return m && MESES[m[2]] ? `${m[3]}-${String(MESES[m[2]]).padStart(2, '0')}-${m[1].padStart(2, '0')}` : null;
   }
 
+  // ── tipo de processo ──
+  // Identificado pelos atos das capas, do requerimento de empresário, da ficha cadastral e pelo título do instrumento
+  // (nunca pela lista de exigências, que cita todos os atos).
+  const ATOS = [
+    ['transformacao', /utiliza[cç][aã]o de acervo|transfer[eê]ncia de seu acervo|transforma/i],
+    ['extincao', /extin[cç][aã]o|distrato|dissolu[cç][aã]o|liquida[cç][aã]o|encerramento/i],
+    ['constituicao', /constitui[cç][aã]o|constitu[ií]da|inscri[cç][aã]o de empres[aá]rio|abertura de matriz/i],
+    ['alteracao', /altera[cç][aã]o|entrada de s[oó]cio|sa[ií]da de s[oó]cio|admiss[aã]o|retirada|cess[aã]o|consolida[cç][aã]o|transfer[eê]ncia de sede/i],
+    ['enquadramento', /(re|des)?enquadramento/i],
+  ];
+  const NOMES_PROC = { constituicao: 'Abertura (constituição/inscrição)', alteracao: 'Alteração', transformacao: 'Transformação',
+    extincao: 'Encerramento (distrato/extinção)', enquadramento: 'Enquadramento ME/EPP' };
+
+  function detectarProcesso(paginas, capas) {
+    const atos = [];
+    capas.forEach(c => atos.push(c.ato));
+    paginas.filter(p => p.tipo === 'requerimento_empresario').forEach(p => atos.push(campo(p.texto, 'ATO(S)') || ''));
+    paginas.filter(p => p.tipo === 'ficha').forEach(p => atos.push(campo(p.texto, 'ATOS') || ''));
+    const contrato = paginas.filter(p => p.tipo === 'contrato');
+    const titulo = contrato.length ? contrato[0].texto.split('\n').slice(0, 6).join(' ') : '';
+    const tipos = new Set();
+    atos.filter(Boolean).forEach(a => {
+      if (ATOS[0][1].test(a)) { tipos.add('transformacao'); return; }
+      ATOS.slice(1).forEach(([t, re]) => { if (re.test(a)) tipos.add(t); });
+    });
+    if (/TRANSFORMA[CÇ][AÃ]O/i.test(titulo)) tipos.add('transformacao');
+    else if (/DISTRATO|EXTIN[CÇ][AÃ]O/i.test(titulo)) tipos.add('extincao');
+    else if (/ALTERA[CÇ][AÃ]O/i.test(titulo)) tipos.add('alteracao');
+    else if (/CONTRATO SOCIAL|INSTRUMENTO DE INSCRI/i.test(titulo)) tipos.add('constituicao');
+    if (tipos.has('transformacao')) { tipos.delete('alteracao'); tipos.delete('extincao'); tipos.delete('constituicao'); }
+    const texto = paginas.filter(p => p.tipo !== 'exigencias').map(p => p.texto).join('\n');
+    const ltda = /\bLTDA\b|LIMITADA|Sociedade Limitada|\bs[oó]cio/i.test(texto);
+    const ei = paginas.some(p => p.tipo === 'requerimento_empresario') || /empres[aá]rio individual/i.test(texto);
+    return { tipos, natureza: tipos.has('transformacao') ? 'ei-ltda' : ltda ? 'ltda' : ei ? 'ei' : '?', atos: atos.filter(Boolean) };
+  }
+
+  // Documentos que cada tipo de processo costuma levar na JUCESP
+  function esperados(processo) {
+    const e = [];
+    const t = processo.tipos, n = processo.natureza;
+    if (t.has('transformacao')) e.push(['capa', 'Capas dos atos'], ['requerimento_empresario', 'Requerimento de empresário (cancelamento)'], ['ficha', 'Ficha cadastral da LTDA'], ['contrato', 'Instrumento de transformação']);
+    if (t.has('constituicao') && n !== 'ei') e.push(['capa', 'Capa do requerimento'], ['ficha', 'Ficha cadastral'], ['quadro', 'Quadro societário'], ['contrato', 'Contrato social']);
+    if (t.has('constituicao') && n === 'ei') e.push(['capa', 'Capa do requerimento'], ['requerimento_empresario', 'Requerimento de empresário']);
+    if (t.has('alteracao') && n !== 'ei') e.push(['capa', 'Capa do requerimento'], ['contrato', 'Alteração contratual']);
+    if (t.has('alteracao') && n === 'ei') e.push(['capa', 'Capa do requerimento'], ['requerimento_empresario', 'Requerimento de empresário']);
+    if (t.has('extincao') && n !== 'ei') e.push(['capa', 'Capa do requerimento'], ['contrato', 'Distrato social']);
+    if (t.has('extincao') && n === 'ei') e.push(['capa', 'Capa do requerimento'], ['contrato', 'Instrumento de extinção ou requerimento']);
+    if (t.has('enquadramento')) e.push(['enquadramento', 'Declaração de enquadramento']);
+    const vistos = new Set();
+    return e.filter(([k]) => !vistos.has(k) && vistos.add(k));
+  }
+
+  // Palavras que o instrumento precisa conter para cada ato declarado na capa
+  const ATO_NO_INSTRUMENTO = [
+    [/nome empresarial|denomina[cç][aã]o/i, /nome empresarial|denomina[cç][aã]o/i, 'nome empresarial'],
+    [/endere[cç]o|\bsede\b/i, /\bsede\b|endere[cç]o/i, 'endereço da sede'],
+    [/objeto|atividade/i, /objeto/i, 'objeto social'],
+    [/capital/i, /capital social/i, 'capital social'],
+    [/entrada|admiss|sa[ií]da|retirada|cess[aã]o|transfer[eê]ncia de quotas/i, /quotas/i, 'quadro de sócios/quotas'],
+    [/administra/i, /administra/i, 'administração'],
+    [/consolida/i, /consolida/i, 'consolidação'],
+  ];
+
+  function regrasPorTipo({ processo, paginas, capas, contrato, corrido, ficha, doTipo, add }) {
+    const t = processo.tipos, ltda = processo.natureza !== 'ei';
+    const refs = contrato.map(p => p.ref);
+    const tem = re => re.test(corrido);
+    const nomes = [...t].map(k => NOMES_PROC[k]).join(' + ');
+    if (!t.size) { add('atencao', 'Tipo de processo não identificado', 'Não encontrei o ato nas capas, no requerimento nem no título do instrumento. As regras gerais foram aplicadas; inclua a capa do requerimento para a conferência completa.', []); return; }
+    add('info', `Processo identificado: ${nomes}`, processo.atos.length ? 'Atos: ' + [...new Set(processo.atos)].join(' · ') : '', []);
+
+    // documentos esperados
+    const faltam = esperados(processo).filter(([k]) => !doTipo(k).length && !(k === 'desimpedimento' && tem(/n[aã]o est[aá] impedido/i)));
+    if (faltam.length) add('atencao', 'Documentos esperados que não vieram', faltam.map(([, n]) => n).join(', ') + '. Se já foram entregues em outro arquivo, inclua aqui para a conferência completa.', []);
+
+    // ── constituição (LTDA) ──
+    if (t.has('constituicao') && ltda && contrato.length) {
+      const clausulas = [
+        [/nome empresarial|denomina[cç][aã]o/i, 'nome empresarial'], [/\bsede\b/i, 'sede'], [/objeto/i, 'objeto social'],
+        [/capital social/i, 'capital social'], [/quotas/i, 'quotas de cada sócio'], [/integraliza/i, 'forma e prazo de integralização'],
+        [/administra/i, 'administração'], [/lucros (e|ou) (as |os )?(perdas|preju[ií]zos)|\bperdas\b|preju[ií]zos|resultados?\b(?! econ)/i, 'participação nos lucros e perdas'], [/\bforo\b|arbitra/i, 'foro ou cláusula arbitral'],
+      ].filter(([re]) => !tem(re)).map(([, n]) => n);
+      if (clausulas.length) add('erro', 'Contrato social sem cláusula obrigatória', `Não encontrei: ${clausulas.join(', ')}. (Manual de LTDA, item 4; exigência 8.2.)`, refs);
+      else add('ok', 'Cláusulas obrigatórias do contrato social presentes', '', []);
+      if (tem(/lucros futuros/i)) add('erro', 'Integralização com lucros futuros', 'É vedado integralizar o capital com lucros futuros (Manual de LTDA, item 4.3.3; exigência 15.11).', refs);
+    }
+    // nome empresarial de LTDA
+    if ((t.has('constituicao') || t.has('transformacao')) && ltda) {
+      capas.filter(c => !/cancelamento/i.test(c.ato) && c.nome && !/\b(LTDA|LIMITADA)\.?$/i.test(c.nome.trim()))
+        .forEach(c => add('erro', `Capa ${c.seq}: nome empresarial sem "LTDA"`, `"${c.nome}". O nome da sociedade limitada termina com LTDA ou Limitada (exigência 13.1).`, [c.ref]));
+    }
+    // desimpedimento do administrador (constituição, transformação e alteração com administrador)
+    const precisaDesimp = t.has('constituicao') || t.has('transformacao') || (t.has('alteracao') && processo.atos.some(a => /administra/i.test(a)));
+    if (precisaDesimp && ltda && contrato.length) {
+      if (!tem(/n[aã]o est[aá] impedid/i) && !doTipo('desimpedimento').length)
+        add('erro', 'Falta a declaração de desimpedimento do administrador', 'Inclua a cláusula no instrumento ou a declaração em separado (Código Civil, art. 1.011, § 1º; exigência 11.3).', refs);
+    }
+    // visto de advogado: dispensado para ME/EPP
+    if ((t.has('constituicao') || t.has('transformacao')) && ltda && contrato.length) {
+      const portes = capas.map(c => c.porte).filter(Boolean).filter(p => !/cancelamento/i.test(p));
+      const naoMe = portes.length && portes.every(p => !/^(ME|EPP)$/i.test(p.trim())) && !tem(/microempresa|pequeno porte/i);
+      if (naoMe && !tem(/\bOAB\b/i)) add('atencao', 'Sem visto de advogado', 'Empresa que não é ME/EPP precisa do visto de advogado com nome e número da OAB no contrato social (exigência 8.1).', refs);
+    }
+    // enquadramento ME/EPP declarado
+    const porteMe = capas.some(c => /^(ME|EPP)$/i.test((c.porte || '').trim()) && !/cancelamento/i.test(c.ato));
+    if ((t.has('constituicao') || t.has('transformacao') || t.has('enquadramento')) && porteMe && !doTipo('enquadramento').length && !tem(/enquadra/i))
+      add('erro', 'Porte ME/EPP sem declaração de enquadramento', 'Junte a declaração ou inclua a cláusula de enquadramento (LC 123/2006, art. 3º; exigência 17.1).', capas.map(c => c.ref));
+    doTipo('enquadramento').forEach(p => {
+      const decl = /PEQUENO PORTE/i.test(p.texto) ? 'EPP' : /MICROEMPRESA/i.test(p.texto) ? 'ME' : null;
+      const diverg = capas.filter(c => decl && /^(ME|EPP)$/i.test((c.porte || '').trim()) && c.porte.trim().toUpperCase() !== decl && !/cancelamento/i.test(c.ato));
+      if (diverg.length) add('erro', 'Porte da capa diferente da declaração de enquadramento', `Declaração: ${decl}; capa ${diverg.map(c => `${c.seq}: ${c.porte}`).join(', ')} (exigência 17.2).`, [p.ref, ...diverg.map(c => c.ref)]);
+    });
+    // sócios do quadro societário qualificados no instrumento
+    if (contrato.length && ltda) {
+      doTipo('quadro').forEach(p => {
+        const nome = campo(p.texto, 'NOME DO INTEGRANTE');
+        if (nome && !norm(corrido).includes(norm(nome))) add('erro', `Sócio do quadro societário não aparece no instrumento: ${nome}`,
+          'Todo sócio do quadro deve estar qualificado no preâmbulo e assinar (Manual de LTDA, item 3; exigência 9.1.1).', [p.ref, ...refs]);
+      });
+    }
+
+    // ── alteração ──
+    if (t.has('alteracao') && contrato.length) {
+      if (ltda) {
+        if (!tem(/altera[cç][aã]o contratual|altera[cç][aã]o do contrato|altera[cç][aã]o do instrumento/i))
+          add('atencao', 'Título da alteração não encontrado', 'O instrumento deve ter título "Alteração Contratual" (ou equivalente), de preferência com o número da alteração (Manual de LTDA, Seção IV, item 3).', refs);
+        if (!tem(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/)) add('erro', 'Alteração sem o CNPJ da sociedade no preâmbulo',
+          'O preâmbulo deve qualificar a sociedade com nome empresarial, CNPJ e endereço (Manual de LTDA, Seção IV, item 3, II, "b"; exigência 23.6).', refs);
+        if (!tem(/resolve/i)) add('atencao', 'Não encontrei a resolução de alterar', 'O preâmbulo deve conter a resolução dos sócios de promover a alteração ("resolvem alterar…").', refs);
+      }
+      // cada ato declarado na capa precisa aparecer no instrumento
+      const atosAlt = processo.atos.filter(a => ATOS[3][1].test(a));
+      ATO_NO_INSTRUMENTO.forEach(([reAto, reInstr, nome]) => {
+        if (atosAlt.some(a => reAto.test(a)) && !tem(reInstr))
+          add('erro', `Ato de ${nome} declarado sem cláusula correspondente`, `A capa/ficha declara alteração de ${nome}, mas o instrumento não trata disso (exigências 8.3 e 23.6).`, [...capas.map(c => c.ref), ...refs]);
+      });
+      if (processo.atos.some(a => /outra (UF|unidade)|reativa/i.test(a)) && !tem(/consolida/i))
+        add('erro', 'Falta a consolidação do contrato', 'Transferência de sede para outra UF e reativação exigem o contrato consolidado (Manual de LTDA, Seção IV, item 3, III, "d"; exigência 8.7).', refs);
+      else if (ltda && !tem(/consolida/i)) add('info', 'Alteração sem consolidação', 'A consolidação é opcional, mas obrigatória na primeira alteração depois de cessão de quotas por instrumento separado.', refs);
+    }
+
+    // ── encerramento ──
+    if (t.has('extincao') && contrato.length) {
+      if (ltda) {
+        const falta = [
+          [/distrato|dissolu[cç][aã]o|extin/i, 'título e resolução do distrato'],
+          [/repartid|restitu|n[aã]o h[aá] bens|haveres/i, 'importância repartida entre os sócios ou declaração de que não há bens a restituir'],
+          [/ativo e (o )?passivo/i, 'quem assume o ativo e o passivo remanescentes'],
+          [/guarda dos livros|livros/i, 'responsável pela guarda dos livros'],
+        ].filter(([re]) => !tem(re)).map(([, n]) => n);
+        if (falta.length) add('erro', 'Distrato sem elemento obrigatório', `Não encontrei: ${falta.join('; ')}. (Exigência 26.1; Manual de LTDA, Seção V.)`, refs);
+        else add('ok', 'Elementos obrigatórios do distrato presentes', 'Confira se todos os sócios assinam (exigência 26.2).', []);
+      } else {
+        const falta = [
+          [/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/, 'CNPJ da empresa'],
+          [/extin|encerra/i, 'resolução de extinguir/encerrar a empresa'],
+        ].filter(([re]) => !tem(re)).map(([, n]) => n);
+        if (falta.length) add('erro', 'Instrumento de extinção incompleto', `Não encontrei: ${falta.join('; ')}. O preâmbulo deve qualificar o empresário e a empresa (nome empresarial, endereço e CNPJ) e conter a resolução de encerrar (Manual de EI, Seção III, item 2).`, refs);
+      }
+    }
+
+    // ── transformação: os dois atos juntos ──
+    if (t.has('transformacao') && capas.length) {
+      const cancel = capas.some(c => /cancelamento/i.test(c.ato)) || doTipo('requerimento_empresario').length;
+      const constit = capas.some(c => /acervo da/i.test(c.ato) || /constitu/i.test(c.ato));
+      if (!cancel || !constit) add('atencao', 'Transformação sem um dos atos', `${!cancel ? 'Falta o cancelamento do empresário individual. ' : ''}${!constit ? 'Falta a constituição da LTDA por utilização de acervo. ' : ''}Os dois atos tramitam juntos (Manual de LTDA, item 4.3.2; Manual de EI, Seção III, item 4).`, capas.map(c => c.ref));
+    }
+
+    // ── empresário individual: requerimento completo ──
+    if (processo.natureza === 'ei' && (t.has('constituicao') || t.has('alteracao'))) {
+      doTipo('requerimento_empresario').forEach(p => {
+        const vazios = [['NOME DO EMPRESÁRIO', 'nome do empresário'], ['ESTADO CIVIL', 'estado civil'], ['CPF', 'CPF'], ['NOME EMPRESARIAL', 'nome empresarial'],
+          ['VALOR DO CAPITAL (R$)', 'capital'], ['DOMICILIADO NA', 'endereço do empresário']]
+          .filter(([r]) => campo(p.texto, r) === '').map(([, n]) => n);
+        if (vazios.length) add('erro', 'Requerimento de empresário incompleto', `Campos vazios: ${vazios.join(', ')} (Manual de EI, item 3).`, [p.ref]);
+        if (/casad/i.test(campo(p.texto, 'ESTADO CIVIL') || '') && !campo(p.texto, 'REGIME DE BENS'))
+          add('erro', 'Empresário casado sem regime de bens', 'Informe o regime de bens (Manual de EI, item 3, IV).', [p.ref]);
+      });
+    }
+  }
+
   // ── análise ──
   function analisar(paginasEntrada, ref = {}) {
     const paginas = tipar(paginasEntrada);
@@ -203,6 +392,8 @@
       seq: (p.texto.match(/(\d+)\s*\/\s*(\d+)\s*$/m) || [''])[0].replace(/\s/g, ''),
       exig: campo(p.texto, 'NÚMERO EXIGÊNCIA') || '',
     }));
+
+    const processo = detectarProcesso(paginas, capas);
 
     // 1. Ato de cancelamento com transferência de acervo: dados da empresa individual, não da destinatária
     capas.forEach(c => {
@@ -310,7 +501,7 @@
     if (ficha) {
       const ini = dataISO(campo(ficha.texto, 'INICIO DAS ATIVIDADES'));
       const ass = dataISO(campo(ficha.texto, 'DATA DE ASSINATURA DO DOCUMENTO'));
-      if (ini && ass && ini < ass) add(/acervo/i.test(ficha.texto) ? 'info' : 'atencao', 'Data de início das atividades anterior à assinatura',
+      if (ini && ass && ini < ass && (processo.tipos.has('constituicao') || processo.tipos.has('transformacao'))) add(processo.tipos.has('transformacao') ? 'info' : 'erro', 'Data de início das atividades anterior à assinatura',
         `Início ${BR(ini)}, assinatura ${BR(ass)}. Na constituição isso gera exigência (Manual de LTDA, item 5.1). Na transformação o modelo do DREI admite a data original; se vier exigência, retire a data e mantenha só o prazo indeterminado.`, [ficha.ref]);
       if (ini && textoContrato && !corrido.includes(BR(ini))) add('atencao', 'Data de início da ficha não aparece no contrato', `Ficha: ${BR(ini)}.`, [ficha.ref]);
       const dataContrato = dataExtensoISO(corrido) || dataISO((corrido.match(/[A-Za-zÀ-ú]+\/[A-Z]{2},\s*(\d{2}\/\d{2}\/\d{4})/) || [])[1]);
@@ -328,7 +519,7 @@
     }
 
     // 10. Transformação de ex-MEI: desenquadramento do SIMEI anexado
-    const transf = paginas.some(p => /utiliza[cç][aã]o de acervo|transfer[eê]ncia de seu acervo|Transformar o registro de Empres[aá]rio Individual/i.test(p.texto));
+    const transf = processo.tipos.has('transformacao');
     if (transf) {
       if (!paginas.some(p => /SIMEI|desenquadramento/i.test(p.texto)))
         add('atencao', 'Transformação sem cópia do desenquadramento do SIMEI',
@@ -336,6 +527,17 @@
       if (textoContrato && !/na qualidade de empres[aá]rio individual/i.test(corrido))
         add('erro', 'Contrato não qualifica a empresa individual no preâmbulo',
           'Exigência já recebida da JUCESP: "qualificar a empresa individual no preâmbulo do instrumento e transformar para LTDA". Use o modelo de transformação do portal.', contrato.map(p => p.ref));
+    }
+
+    regrasPorTipo({ processo, paginas, capas, contrato, corrido, ficha, doTipo, add });
+
+    // 12. Texto do instrumento: caracteres trocados e declaração de enquadramento invertida
+    if (textoContrato) {
+      const trocados = [...new Set((corrido.match(/\b[a-zà-ú]{2,}[0-9]+[a-zà-ú]{2,}\b|\b[a-zà-ú]+;[a-zà-ú]+\b/gi) || []))];
+      if (trocados.length) add('erro', 'Instrumento com caracteres trocados',
+        `Palavras com números ou ";" no meio, típicas de PDF convertido ou digitalizado: ${trocados.slice(0, 12).join(', ')}${trocados.length > 12 ? '…' : ''}. Redigite o instrumento a partir de um arquivo de texto (exigência 8.3).`, contrato.map(p => p.ref));
+      if (/se enquadra em (qualquer|alguma|uma) (das )?hip[oó]teses? de exclus/i.test(corrido))
+        add('erro', 'Declaração de enquadramento invertida', 'O texto diz que a empresa "se enquadra" em hipótese de exclusão da LC 123. O correto é "não se enquadra em nenhuma das hipóteses de exclusão" (exigência 17.2).', contrato.map(p => p.ref));
     }
 
     // 11. Assinatura eletrônica
@@ -355,22 +557,20 @@
     }, []);
     const ordem = { erro: 0, atencao: 1, info: 2, ok: 3 };
     achados.sort((a, b) => ordem[a.nivel] - ordem[b.nivel]);
-    return { documentos, capas, achados };
+    return { documentos, capas, achados, processo: { ...processo, tipos: [...processo.tipos] } };
   }
 
   // Regras em uso (exibidas na tela, para a equipe saber o que é conferido)
   const REGRAS = [
-    'Ato de cancelamento com transferência de acervo: capa e requerimento com os dados da empresa individual',
-    'Nome do sócio escrito igual em todos os documentos',
-    'CPFs válidos',
-    'Logradouro e bairro com a mesma grafia em todos os documentos',
-    'Objeto e CNAEs da ficha cadastral iguais aos do contrato',
-    'Capital igual na ficha e no contrato',
-    'Data de início e data de assinatura coerentes',
-    'Profissão na qualificação do sócio (Manual de LTDA, item 3)',
-    'Transformação: empresa individual qualificada no preâmbulo e desenquadramento do SIMEI anexado',
-    'Capas com a mesma data; reentrada com formulário de exigência',
-    'Assinatura eletrônica com relatório de validação; alerta para e-CNPJ',
+    'Identifica o processo (abertura, alteração, transformação, encerramento, enquadramento; LTDA ou empresário individual) e os documentos esperados',
+    'Todos os atos: nome do sócio igual em todas as páginas, CPFs válidos, logradouro e bairro com a mesma grafia, objeto/CNAEs e capital da ficha iguais aos do instrumento, profissão na qualificação, datas das capas, texto sem caracteres trocados',
+    'Abertura (LTDA): cláusulas obrigatórias, nome com LTDA, integralização sem lucros futuros, desimpedimento, enquadramento ME/EPP, visto de advogado quando não é ME/EPP, data de início não anterior à assinatura, sócios do quadro qualificados no contrato',
+    'Abertura/alteração (empresário individual): requerimento com nome, estado civil, regime de bens se casado, CPF, endereço, nome empresarial e capital',
+    'Alteração: título, CNPJ da sociedade no preâmbulo, resolução de alterar, cada ato da capa com cláusula correspondente, consolidação quando obrigatória, desimpedimento de novo administrador',
+    'Transformação: cancelamento do empresário com os dados dele, constituição por acervo junto, empresa individual qualificada no preâmbulo, desenquadramento do SIMEI',
+    'Encerramento: distrato com resolução, bens repartidos ou declaração de que não há, ativo e passivo remanescentes e guarda dos livros; extinção de empresário com CNPJ e resolução',
+    'Enquadramento: declaração presente e porte igual ao da capa; cláusula sem "se enquadra" em hipótese de exclusão',
+    'Reentrada com formulário de exigência; assinatura eletrônica com relatório de validação e alerta para e-CNPJ',
   ];
 
   const api = { linhasDePagina, campo, classificar, analisar, variantes, cpfValido, sim, norm, REGRAS, NOMES_DOC };

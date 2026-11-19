@@ -21,7 +21,7 @@ test('número por extenso', () => {
 test('transformação: empresa individual no preâmbulo e cláusula de transformação', () => {
   const b = M.transformacaoEI({
     numero_alteracao: '1', local: 'Sumaré/SP', data: '13 de novembro de 2026',
-    titular: { nome: 'Fulano de Tal', nacionalidade: 'brasileiro', estado_civil: 'solteiro', nascimento: '01/01/1990',
+    titular: { nome: 'Fulano de Tal', nacionalidade: 'brasileiro', estado_civil: 'solteiro', profissao: 'empresário', nascimento: '01/01/1990',
       rg: '1 SSP/SP', cpf: '000.000.000-00', endereco: 'Rua A, 1, Centro, Sumaré/SP, CEP 13.170-000' },
     ei: { nome: '12.345.678 Fulano de Tal', sede: 'Rua A, 1', nire: '35800000000', cnpj: '12.345.678/0001-00' },
     ltda: { nome: 'Exemplo Ltda', capital: 200000, valor_quota: 1, objeto: ['Carga e descarga (CNAE 5212-5/00);', 'Malote'],
@@ -30,6 +30,7 @@ test('transformação: empresa individual no preâmbulo e cláusula de transform
   const txt = b.map(texto);
   assert.ok(txt[3].includes('na qualidade de empresário individual 12.345.678 FULANO DE TAL'));
   assert.ok(txt[3].includes('NIRE 35800000000'));
+  assert.ok(txt[3].includes('solteiro, empresário, nascido em'));
   assert.ok(txt[4].startsWith('Cláusula Primeira – Transformar o registro de Empresário Individual em Sociedade Limitada'));
   assert.ok(txt.some(t => t.includes('R$ 200.000,00 (duzentos mil reais)') && t.includes('200.000 (duzentas mil) quotas')));
   assert.ok(txt.includes('Carga e descarga (CNAE 5212-5/00);'));
@@ -44,6 +45,7 @@ test('campos vazios aparecem como pendências, sem enquadramento a numeração m
   const f = M.faltando(b);
   assert.ok(f.includes('nome empresarial atual (ficha da Junta)'));
   assert.ok(f.includes('CPF'));
+  assert.ok(f.includes('profissão'));
   assert.ok(f.includes('capital social'));
   const txt = b.map(texto);
   assert.ok(!txt.some(t => t.includes('MICROEMPRESA')));

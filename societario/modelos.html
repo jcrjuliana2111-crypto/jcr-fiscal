@@ -75,6 +75,7 @@ textarea{min-height:120px;resize:vertical}
   <div class="head">
     <div><h1>📄 Modelos de documentos</h1><p id="fonte"></p></div>
     <div class="acts">
+      <a class="btn sec" href="conferidor.html" style="text-decoration:none">🔎 Conferir PDFs</a>
       <select id="modelo" style="width:auto"></select>
       <button class="btn sec" onclick="limpar()">Limpar</button>
       <button class="btn" onclick="baixar()">Baixar Word</button>
@@ -111,6 +112,7 @@ const GRUPOS = [
     ['titular.nacionalidade', 'Nacionalidade', 'text', 'brasileiro'],
     ['titular.estado_civil', 'Estado civil', 'select', ['solteiro', 'casado', 'divorciado', 'viúvo', 'solteiro, em união estável']],
     ['titular.regime_bens', 'Regime de bens (se casado)', 'select', ['', 'comunhão parcial de bens', 'comunhão universal de bens', 'separação total de bens', 'participação final nos aquestos']],
+    ['titular.profissao', 'Profissão', 'text', 'Ex.: empresário. Exigida pelo Manual de LTDA do DREI (item 3)'],
     ['titular.nascimento', 'Data de nascimento', 'text', 'dd/mm/aaaa'],
     ['titular.naturalidade', 'Naturalidade (opcional)', 'text', 'Cidade/UF'],
     ['titular.rg', 'RG e órgão emissor', 'text', '00.000.000 SSP/SP'],

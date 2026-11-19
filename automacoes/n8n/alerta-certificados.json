@@ -1,0 +1,222 @@
+{
+  "name": "JCR — Certificados: avisos de vencimento (Telegram e cliente)",
+  "nodes": [
+    {
+      "id": "97175683-3e6d-5618-ba45-e2f87e9a16df",
+      "name": "Todo dia às 8h15",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "15 8 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9d9edf0e-a3d6-5be5-ba6a-c966b21852f2",
+      "name": "Configuração",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e6cc05fc-c531-5bf2-8e4d-8414ba84f004",
+              "name": "telegram_chat_id",
+              "value": "coloque-aqui-o-chat-id-do-telegram",
+              "type": "string"
+            },
+            {
+              "id": "1dd83391-835a-579a-9a82-a809831cbdf5",
+              "name": "marcos",
+              "value": "60,45,30,15,7,1,0",
+              "type": "string"
+            },
+            {
+              "id": "a11b696b-9fca-5763-befe-1e9b1402ab67",
+              "name": "avisar_cliente",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "68660261-a820-518f-8641-1d0f154f49ed",
+              "name": "escritorio",
+              "value": "JCR",
+              "type": "string"
+            },
+            {
+              "id": "4b37dfad-2b6b-560b-83f7-faa09175370a",
+              "name": "destinatario",
+              "value": "coloque-aqui-o-seu-email@exemplo.com",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "2f074cf2-05a8-5a7b-aaee-cacf513d5721",
+      "name": "Certificados que vencem (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://onecnoicxqjhgolqncjj.supabase.co/rest/v1/rpc/certificados_alerta",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ marcos: String($json.marcos).split(',').map(Number) }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "64d8500d-5010-5d56-bbca-ad13b1c86aba",
+      "name": "Mensagem do Telegram",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "// Nó \"Mensagem do Telegram\" do fluxo alerta-certificados (n8n, nó Code em modo \"Run Once for All Items\").\n// Recebe o JSON da função certificados_alerta do Supabase e devolve { texto } para o Telegram (HTML),\n// (sem o nome do arquivo, que traz a senha), ou nada quando nenhum certificado chegou hoje a um marco (60, 45, 30, 15, 7, 1, 0 dias) nem está vencido.\n// Este arquivo é a fonte do código colado no nó (gerar-fluxos.py); mantenha os dois iguais.\n\nconst r = $input.first().json;\nconst esc = s => String(s ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));\nconst data = iso => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');\nconst itens = r.itens || [];\nif (!itens.length) return [];\nconst quando = d => d < 0 ? `⛔ vencido há ${-d} dia(s)` : d === 0 ? '🔴 vence HOJE' : d <= 7 ? `🟠 vence em ${d} dia(s)` : `🟡 vence em ${d} dias`;\nconst linhas = itens.map(i => `• <b>${esc(i.cliente || i.empresa)}</b> — ${quando(i.dias_restantes)} (${data(i.vencimento)})${i.cnpj ? ` · ${esc(i.cnpj)}` : ''}${i.email_contato || i.whatsapp ? '' : '\\n   ⚠️ cliente sem e-mail/WhatsApp no cadastro'}`);\nreturn [{ json: { texto: `🔐 <b>Certificados digitais</b> — ${data(r.data)}\\n\\n${linhas.join('\\n')}\\n\\nAbra o portal: Painel Societário → Certificados e alvarás.` } }];\n"
+      }
+    },
+    {
+      "id": "e112b8d7-bd68-597d-a7b7-d02d159e428f",
+      "name": "Avisos aos clientes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        120
+      ],
+      "parameters": {
+        "jsCode": "// Nó \"Avisos aos clientes\" do fluxo alerta-certificados (n8n, nó Code em modo \"Run Once for All Items\").\n// Um item por cliente com e-mail: { para, assunto, html, whatsapp, mensagem } (o \"mensagem\" serve para quem\n// quiser ligar um nó de WhatsApp depois). Só roda se avisar_cliente = true na Configuração.\n// Este arquivo é a fonte do código colado no nó (gerar-fluxos.py); mantenha os dois iguais.\n\nconst r = $input.first().json;\nconst cfg = $('Configuração').first().json;\nif (!cfg.avisar_cliente) return [];\nconst esc = s => String(s ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[c]));\nconst data = iso => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');\nconst escritorio = cfg.escritorio || 'nosso escritório';\nreturn (r.itens || []).filter(i => i.email_contato && i.dias_restantes >= 0).map(i => {\n  const nome = String(i.contato_nome || '').split(' ')[0];\n  const prazo = i.dias_restantes === 0 ? 'vence HOJE' : `vence em ${i.dias_restantes} dia(s), no dia ${data(i.vencimento)}`;\n  const mensagem = `Olá${nome ? ', ' + nome : ''}! O certificado digital da ${i.cliente || i.empresa} ${prazo}. Sem ele não conseguimos emitir notas nem entregar obrigações. Vamos agendar a renovação? — ${escritorio}`;\n  return { json: {\n    para: i.email_contato, whatsapp: i.whatsapp || '', mensagem,\n    assunto: `Certificado digital da ${i.cliente || i.empresa} ${i.dias_restantes === 0 ? 'vence hoje' : `vence em ${i.dias_restantes} dias`}`,\n    html: `<div style=\"font-family:Arial,sans-serif;max-width:600px;color:#111\"><p>${esc(mensagem.replace(/ — .*$/, ''))}</p>\n      <p><b>Titular:</b> ${esc(i.titular || i.empresa)}<br><b>Vencimento:</b> ${data(i.vencimento)}</p>\n      <p>É só responder este e-mail que agendamos a renovação.</p><p>${esc(escritorio)}</p></div>`,\n  } };\n});\n"
+      }
+    },
+    {
+      "id": "93fbfafd-1c6d-5ad4-a687-d73468c235c5",
+      "name": "Enviar no Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        -120
+      ],
+      "parameters": {
+        "chatId": "={{ $('Configuração').first().json.telegram_chat_id }}",
+        "text": "={{ $json.texto }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      }
+    },
+    {
+      "id": "ba0e2add-3dd5-515e-95af-bc7c348d06af",
+      "name": "E-mail ao cliente (Gmail)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        120
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.para }}",
+        "subject": "={{ $json.assunto }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Todo dia às 8h15": {
+      "main": [
+        [
+          {
+            "node": "Configuração",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuração": {
+      "main": [
+        [
+          {
+            "node": "Certificados que vencem (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Certificados que vencem (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Mensagem do Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Avisos aos clientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem do Telegram": {
+      "main": [
+        [
+          {
+            "node": "Enviar no Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avisos aos clientes": {
+      "main": [
+        [
+          {
+            "node": "E-mail ao cliente (Gmail)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {}
+}

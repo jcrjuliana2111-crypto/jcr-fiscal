@@ -1,0 +1,25 @@
+{
+  "nodes": [
+    {
+      "id": "6acf4a93-6954-5413-bf54-d6882f6f4d82",
+      "name": "Avisar o portal (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://onecnoicxqjhgolqncjj.supabase.co/rest/v1/rpc/registrar_certificado",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_documento: $json.documento, p_titular: $json.titular, p_vencimento: $json.vencimento, p_arquivo: $json.arquivo, p_emitido: $json.emitido_em || null }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {}
+}

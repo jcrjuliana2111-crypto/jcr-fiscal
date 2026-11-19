@@ -510,9 +510,10 @@ window.JCR_PROCEDIMENTOS = (function () {
       responsavel: 'Societário',
       prazo: 'Renovar com 30 dias de antecedência. A1 vale 1 ano; A3 de 1 a 3 anos.',
       passos: [
-        'Ao receber o certificado A1 do cliente: Painel Societário → "📅 Certificados e alvarás" → "Ler certificado A1 (.pfx)". A validade e o titular são lidos no próprio computador (o arquivo e a senha não saem dele). Salve.',
+        'Ao receber certificados A1: Painel Societário → "📅 Certificados e alvarás" → "📦 Importar certificados em lote". O portal acha a senha no nome do arquivo (ou você digita), lê titular, CNPJ e validade, liga ao cliente pelo CNPJ e grava o arquivo na pasta do robô da VPS (coluna "Na VPS").',
+        'Certificado que chega pelo robô da VPS (Telegram/n8n) aparece sozinho no portal, pelo passo "Avisar o portal" no fluxo do robô.',
         'A3 (token/cartão): cadastrar o vencimento à mão.',
-        'O quadro "Atenção hoje" do Painel e o e-mail diário do n8n avisam os que vencem em 30 dias.',
+        'Avisos automáticos (n8n): Telegram para o escritório e e-mail para o cliente aos 60, 45, 30, 15, 7, 1 e 0 dias; vencidos, lembrete semanal. No portal, o quadro "Atenção hoje" mostra os próximos 30 dias.',
         'Avisar o cliente e agendar a renovação; depois, "Renovado" com a nova data.',
         'Guardar o arquivo do certificado e a senha no local seguro do escritório, nunca por e-mail ou WhatsApp.',
       ],

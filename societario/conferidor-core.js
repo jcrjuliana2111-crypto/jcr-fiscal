@@ -102,6 +102,7 @@
     ['assinaturas', /Relat[oó]rio de (auditoria|Assinaturas)/i],
     ['contrato', /Cl[aá]usula\s+(Primeira|Segunda|Terceira|\d)|^\s*(\S+\s+)?(DISTRATO|INSTRUMENTO PARTICULAR|EXTIN[CÇ][AÃ]O|ALTERA[CÇ][AÃ]O|CONTRATO SOCIAL)\b/im],
   ];
+  const RE_CLAUSULA = /Cl[aá]usula\s+(Primeira|Segunda|Terceira|Quarta|Quinta|Sexta|S[eé]tima|Oitava|Nona|D[eé]cima|Vig[eé]sima|Trig[eé]sima|\d)/i;
   const NOMES_DOC = {
     capa: 'Capa do requerimento', exigencias: 'Formulário de exigências', ficha: 'Ficha cadastral',
     quadro: 'Quadro societário', requerimento_empresario: 'Requerimento de empresário', desimpedimento: 'Declaração de desimpedimento',
@@ -111,6 +112,9 @@
   function classificar(texto) {
     // páginas da lista de exigências: várias linhas "1.1   Substituir…", "12.2   Existência…"
     if ((texto.match(/^\s*\d{1,2}\.\d{1,2}(\.\d)?\s{2,}\S/gm) || []).length >= 3 && !/Cl[aá]usula\s+(Primeira|Segunda)/i.test(texto)) return 'exigencias';
+    // páginas de contrato/instrumento (cláusulas numeradas) vêm antes das declarações: o próprio contrato
+    // tem títulos como "DA DECLARAÇÃO DE DESIMPEDIMENTO" e "DO ENQUADRAMENTO"
+    if (!/CAPA DO REQUERIMENTO|Ficha Cadastral|Requerimento de Empres/i.test(texto) && RE_CLAUSULA.test(texto)) return 'contrato';
     for (const [t, re] of TIPOS_DOC) if (re.test(texto)) return t;
     return 'outro';
   }

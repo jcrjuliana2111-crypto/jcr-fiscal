@@ -7,7 +7,9 @@
  *
  * Campos (todos opcionais, exceto passos):
  *   objetivo, responsavel, prazo, entradas: [], passos: [], checklist: [],
- *   ferramentas: [{ nome, url }], manuais: [{ nome, url }], atencao: [], atualizado: 'AAAA-MM-DD'
+ *   ferramentas: [{ nome, url }], manuais: [{ nome, url }], atencao: [], atualizado: 'AAAA-MM-DD',
+ *   links: ['chave', …] (chaves de societario/links.js; a página mostra online, presencial e prefeituras),
+ *   preencher: { url, campos: [] } (o que preencher no portal para gerar o documento)
  *
  * Exemplo (remova as barras // para usar):
  *
@@ -94,6 +96,8 @@ window.JCR_PROCEDIMENTOS = (function () {
         'Cliente no Gestão Fiscal e no JCR Entregas com regime e obrigações',
       ],
       ferramentas: [PAINEL_SOC, CONFERIDOR, FACILITA_SP, REDESIM, { nome: 'JCR Entregas', url: 'entregas/' }, { nome: 'Gestão Fiscal', url: 'gclik.html' }],
+      links: ['viabilidade_municipal', 'viabilidade_servico', 'vre', 'facilita', 'jucesponline', 'redesim', 'govbr_niveis', 'jucesp_precos', 'simples', 'cartao_cnpj', 'cadesp', 'inscricao_municipal', 'alvara', 'jucesp_agendamento_online', 'jucesp_agendamento'],
+      preencher: { url: 'societario/modelos.html', campos: ['Empresa: nome com LTDA, endereço da sede igual ao IPTU, inscrição imobiliária e área do imóvel (carnê do IPTU)', 'Atividades com CNAE (iguais à viabilidade), forma de atuação', 'Capital, valor da quota, integralização (no ato ou até uma data), enquadramento ME/EPP', 'Cada sócio: nome completo, nacionalidade, estado civil e regime de bens, profissão, nascimento, RG, CPF, endereço, quotas e se é administrador', 'Foro, cidade e data; cláusulas adicionais se houver'] },
       manuais: [MANUAIS_SOC.rapido, MANUAIS_SOC.tradicional, MANUAIS_SOC.mat, MANUAIS_SOC.ltda, MANUAIS_SOC.ei, MANUAIS_SOC.certidao],
       atencao: [
         'No fluxo rápido não existe representação por terceiros: o preenchimento é feito pelos próprios integrantes. Se o escritório for preencher, use o fluxo tradicional.',
@@ -133,6 +137,8 @@ window.JCR_PROCEDIMENTOS = (function () {
       ],
       ferramentas: [PAINEL_SOC, CONFERIDOR, FACILITA_SP, REDESIM],
       manuais: [MANUAIS_SOC.tradicional, MANUAIS_SOC.ltda, MANUAIS_SOC.ei, MANUAIS_SOC.correcao],
+      links: ['viabilidade_municipal', 'viabilidade_servico', 'vre', 'facilita', 'redesim', 'jucesponline', 'jucesp_precos', 'cadesp', 'inscricao_municipal', 'alvara', 'jucesp_agendamento_online', 'jucesp_agendamento'],
+      preencher: { url: 'societario/modelos.html', campos: ['Empresa hoje, como na ficha da JUCESP: nome, CNPJ, NIRE, sede, atividades, capital e quotas', 'O que muda: sócios/quotas (cessões), nome, sede, objeto, capital, administração', 'Cada sócio com a situação na alteração (permanece, entra ou sai) e as quotas depois da alteração', 'Número da alteração, cidade e data; cláusulas adicionais se houver'] },
       atencao: [
         'Novo administrador: anexar identidade e declaração de desimpedimento.',
         'Redução de capital, exclusão de sócio e falecimento de sócio têm regras próprias no Manual da LTDA (Seção II e IV).',
@@ -163,6 +169,8 @@ window.JCR_PROCEDIMENTOS = (function () {
       ],
       checklist: ['Nova natureza jurídica no cartão CNPJ', 'Regime tributário revisto', 'Cadastro interno atualizado'],
       ferramentas: [PAINEL_SOC, CONFERIDOR, { nome: 'Modelo de transformação (Word)', url: 'societario/modelos.html' }, FACILITA_SP, REDESIM],
+      links: ['simples', 'vre', 'facilita', 'redesim', 'jucesponline', 'jucesp_precos', 'cartao_cnpj', 'cadesp', 'inscricao_municipal', 'jucesp_agendamento_online', 'jucesp_agendamento'],
+      preencher: { url: 'societario/modelos.html', campos: ['Nome empresarial atual exatamente como na ficha da JUCESP, CNPJ e NIRE', 'Novo nome com LTDA, sede, IPTU, atividades, início (data de abertura do CNPJ), capital (acervo) e enquadramento', 'Titular: nome, nacionalidade, estado civil, profissão, nascimento, RG, CPF e endereço', 'Número da alteração, cidade e data; cláusulas adicionais se houver'] },
       manuais: [MANUAIS_SOC.tradicional, MANUAIS_SOC.ltda, MANUAIS_SOC.ei],
       atencao: [
         'LTDA com um sócio só não precisa de transformação para virar "SLU": é sociedade limitada unipessoal, ajuste por alteração contratual.',
@@ -203,6 +211,8 @@ window.JCR_PROCEDIMENTOS = (function () {
       checklist: ['Pendências resolvidas ou assumidas pelos sócios por escrito', 'Distrato deferido', 'Certidão de inteiro teor arquivada no Drive do cliente'],
       ferramentas: [PAINEL_SOC, CONFERIDOR, FACILITA_SP, REDESIM],
       manuais: [MANUAIS_SOC.baixa, MANUAIS_SOC.ltda, MANUAIS_SOC.ei, MANUAIS_SOC.certidao],
+      links: ['redesim', 'facilita', 'jucesponline', 'jucesp_precos', 'jucesp_agendamento_online', 'jucesp_agendamento'],
+      preencher: { url: 'societario/modelos.html', campos: ['Empresa como na ficha da JUCESP: nome, CNPJ, NIRE e sede', 'Data de encerramento; se há bens a partilhar ou não', 'Responsável pelo ativo e passivo remanescentes e pela guarda dos livros (nome e endereço)', 'Sócios (todos assinam); cidade e data; cláusulas adicionais se houver'] },
       atencao: [
         'Sócio falecido: informar se há dissolução total pelos remanescentes e anexar formal de partilha (herdeiro) ou nomeação de inventariante.',
         'Sócio menor ou incapaz: representante legal obrigatório, com documento em PDF.',
@@ -226,6 +236,7 @@ window.JCR_PROCEDIMENTOS = (function () {
       ],
       checklist: ['CNPJ baixado', 'IE e CCM baixadas', 'Licenças canceladas', 'Obrigações finais entregues', 'Cliente inativado e honorários encerrados'],
       ferramentas: [PAINEL_SOC, CONFERIDOR, { nome: 'Gestão Fiscal', url: 'gclik.html' }, { nome: 'JCR Entregas', url: 'entregas/' }],
+      links: ['cartao_cnpj', 'cadesp', 'inscricao_municipal', 'situacao_mobiliaria', 'alvara', 'simples'],
       manuais: [MANUAIS_SOC.baixa],
       atencao: ['Débitos não somem com a baixa: os sócios continuam responsáveis. Registre por escrito o que ficou pendente.'],
       atualizado: '2026-11-12',

@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script src="societario-core.js"></script>
+<script src="links.js"></script>
 <style>
 :root{
   --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;
@@ -82,6 +83,11 @@ tbody tr:hover td{background:color-mix(in srgb,var(--surface2) 60%,transparent)}
 .step:last-child{border-bottom:0}
 .step.done .t{text-decoration:line-through;color:var(--text3)}
 .step .d{margin-left:auto;font-size:11.5px;color:var(--text3);white-space:nowrap}
+.step-links{display:flex;flex-wrap:wrap;gap:4px;padding:0 2px 6px 26px;border-bottom:1px dashed var(--border)}
+.step-links a{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border2);text-decoration:none;color:var(--text2);background:var(--surface)}
+.step-links a:hover{border-color:var(--accent);color:var(--text)}
+.step-links a.pres{border-style:dashed}
+.step.com-links{border-bottom:0}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px}
 .kv span{color:var(--text3)}
 .toast{position:fixed;right:18px;bottom:18px;z-index:99;background:var(--surface3);border:1px solid var(--border2);border-left:4px solid var(--ok);padding:11px 16px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:380px}
@@ -183,7 +189,7 @@ function render() {
       <div><h1>🏛️ Painel Societário</h1><p>Abertura, alteração, transformação, encerramento e baixa — etapa por etapa, conforme os manuais do Facilita SP e do DREI.</p></div>
       <div class="acts">
         <a class="btn sec" href="conferidor.html">🔎 Conferir documentos</a>
-        <a class="btn sec" href="modelos.html">📄 Modelos de documentos</a>
+        <a class="btn sec" href="modelos.html">📄 Dados e documentos</a>
         <a class="btn sec" href="${FACILITA}" target="_blank" rel="noopener">Facilita SP ↗</a>
         <button class="btn" onclick="editar()">+ Novo processo</button>
       </div>
@@ -248,6 +254,8 @@ function editar(id) {
         <div class="help">Rápido: só EI/LTDA, sócios pessoas físicas maiores e residentes no Brasil, contrato padrão do DREI e sem procurador.</div></div>
       <div><label>Responsável</label><input id="e-resp" list="l-resp" value="${esc(p.responsavel)}" placeholder="Você, freelance…"><datalist id="l-resp">${resps.map(r => `<option value="${esc(r)}">`).join('')}</datalist></div>
     </div>
+    <div><label>Município da sede</label><input id="e-mun" value="${esc(p.municipio)}" placeholder="Campinas">
+      <div class="help">Define os links da prefeitura nas etapas (viabilidade, inscrição municipal, alvará).</div></div>
     <div><label>O que será feito / motivo</label><textarea id="e-desc" placeholder="Ex.: entrada de sócio e mudança de endereço">${esc(p.descricao)}</textarea></div>
     <div class="f2">
       <div><label>Protocolo Facilita SP</label><input id="e-prot" value="${esc(p.protocolo)}" placeholder="SPB…"></div>
@@ -268,7 +276,7 @@ async function salvar(id) {
   if (!empresa) return toast('Informe a empresa.', true);
   const dados = {
     cliente_id: $('e-cli').value || null, empresa, natureza: $('e-nat').value || null,
-    responsavel: $('e-resp').value.trim() || null, descricao: $('e-desc').value.trim() || null,
+    responsavel: $('e-resp').value.trim() || null, descricao: $('e-desc').value.trim() || null, municipio: $('e-mun').value.trim() || null,
     protocolo: $('e-prot').value.trim() || null, protocolo_redesim: $('e-red').value.trim() || null,
     iniciado_em: $('e-ini').value || hojeISO(), taxas: num($('e-tax').value), honorario: num($('e-hon').value),
     obs: $('e-obs').value.trim() || null, updated_at: new Date().toISOString(),
@@ -297,6 +305,12 @@ async function excluir(id) {
 }
 
 // ── detalhe: etapas, exigência, documentos ──
+// Links oficiais da etapa (com os da prefeitura do processo); links internos do portal levam o processo
+function linksEtapa(p, idEtapa) {
+  const mun = p.municipio || (p.dados && p.dados.empresa && p.dados.empresa.municipio);
+  return LinksSoc.daEtapa(idEtapa, mun).map(l => l.interno ? { ...l, url: l.url.replace('societario/', '') + (l.url.includes('modelos') ? '?processo=' + p.id : '') } : l);
+}
+
 function abrir(id) {
   const p = S.processos.find(x => x.id === id);
   const hoje = hojeISO(), s = SO.situacao(p, hoje), g = SO.progresso(p), t = SO.TIPOS[p.tipo];
@@ -306,14 +320,19 @@ function abrir(id) {
       <div class="bar" style="flex:1"><i style="width:${g.pct}%"></i></div><span class="muted">${g.feitas} de ${g.total} etapas</span></div>
     <div class="det">
       <div class="box"><h4>Etapas</h4>
-        ${(p.etapas || []).map(e => `<label class="step ${e.feito ? 'done' : ''}"><input type="checkbox" ${e.feito ? 'checked' : ''} onchange="marcar('${p.id}','${e.id}',this.checked)">
-          <span class="t">${esc(e.nome)}</span><span class="d">${e.feito ? dataBR(e.data) : ''}</span></label>`).join('') || '<p class="muted">Sem etapas.</p>'}
+        ${(p.etapas || []).map(e => {
+          const ls = linksEtapa(p, e.id);
+          return `<label class="step ${e.feito ? 'done' : ''} ${ls.length ? 'com-links' : ''}"><input type="checkbox" ${e.feito ? 'checked' : ''} onchange="marcar('${p.id}','${e.id}',this.checked)">
+          <span class="t">${esc(e.nome)}</span><span class="d">${e.feito ? dataBR(e.data) : ''}</span></label>${ls.length ? `<div class="step-links">${ls.map(l =>
+            `<a href="${esc(l.url)}" target="_blank" rel="noopener" class="${l.modo === 'presencial' ? 'pres' : ''}" title="${l.modo === 'presencial' ? 'Presencial' : 'Online'}">${l.modo === 'presencial' ? '🏢' : '🌐'} ${esc(l.nome)}${l.conferir ? ' (confirmar)' : ''}</a>`).join('')}</div>` : ''}`;
+        }).join('') || '<p class="muted">Sem etapas.</p>'}
       </div>
       <div style="display:grid;gap:12px;align-content:start">
         <div class="box"><h4>Dados</h4><div class="kv">
           <span>Cliente</span><div>${cliente ? esc(cliente.razao_social) : '<i class="muted">não vinculado</i>'}</div>
           <span>Natureza</span><div>${esc(p.natureza || '—')}${p.fluxo ? ' · fluxo ' + esc(p.fluxo) : ''}</div>
           <span>Responsável</span><div>${esc(p.responsavel || '—')}</div>
+          <span>Município</span><div>${esc(p.municipio || (p.dados && p.dados.empresa && p.dados.empresa.municipio) || '—')}</div>
           <span>Protocolo</span><div>${esc(p.protocolo || '—')}</div>
           <span>REDESIM</span><div>${esc(p.protocolo_redesim || '—')}</div>
           <span>Início</span><div>${dataBR(p.iniciado_em)}${p.concluido_em ? ' · concluído ' + dataBR(p.concluido_em) : ''}</div>
@@ -332,7 +351,7 @@ function abrir(id) {
           <p class="muted">${t ? t.docs.length : 0} itens. Copie a lista e mande ao cliente.</p>
           <button class="btn sec sm" style="margin-top:8px" onclick="copiarDocs('${p.id}')">Copiar lista</button>
           ${t ? `<a class="btn sec sm" style="margin-top:8px" href="../procedimento.html?dep=societario&proc=${t.proc}" target="_blank">Ver procedimento</a>` : ''}
-          ${p.tipo === 'transformacao' ? `<a class="btn sm" style="margin-top:8px" href="modelos.html?processo=${p.id}">Gerar documento (Word)</a>` : ''}
+          ${p.tipo !== 'baixa' ? `<a class="btn sm" style="margin-top:8px" href="modelos.html?processo=${p.id}">${p.dados && Object.keys(p.dados).length ? 'Dados do contrato e Word' : 'Preencher dados e gerar documento'}</a>` : ''}
           <a class="btn sec sm" style="margin-top:8px" href="conferidor.html">Conferir PDFs antes de assinar</a>
         </div>
       </div>

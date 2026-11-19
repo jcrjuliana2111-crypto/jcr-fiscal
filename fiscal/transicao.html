@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/jcr-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Transição de regime · Portal JCR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="transicao-core.js"></script>
+<style>
+:root{--bg:#0d0f14;--surface:#13161e;--surface2:#1a1e2a;--surface3:#222739;--border:#2a2f42;--border2:#363d55;--text:#e8eaf2;--text2:#9aa1b8;--text3:#626a85;--accent:#4f8ef7;--ok:#34d399;--warn:#fbbf24;--danger:#f87171}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font:14px 'DM Sans',system-ui,sans-serif;min-height:100vh}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+main{max-width:1100px;margin:0 auto;padding:24px 24px 90px}
+.crumbs{font-size:12.5px;color:var(--text3);margin-bottom:10px}.crumbs a{color:var(--text2);text-decoration:none}
+.head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px}.head h1{font:800 22px Syne,sans-serif}.head p{color:var(--text2);font-size:13px}
+.head .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--accent),#6b7ff7);color:#fff;white-space:nowrap;text-decoration:none;display:inline-flex;gap:6px;align-items:center}
+.btn.sec{background:var(--surface2);border:1px solid var(--border2);color:var(--text)}.btn.ok{background:linear-gradient(135deg,#10b981,#14b8a6)}.btn.sm{padding:5px 10px;font-size:12.5px}
+label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px}
+input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:8px 11px;outline:none}
+input[type=checkbox]{width:auto;accent-color:var(--ok)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.card h3{font:700 12px Syne,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin-bottom:10px}
+.g{display:grid;gap:10px;grid-template-columns:repeat(4,1fr)}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed var(--border)}.chk:last-child{border-bottom:0}
+.chk .t{flex:1;line-height:1.5}.chk.feito .t{color:var(--text3);text-decoration:line-through}
+.chk a{font-size:12px;white-space:nowrap}
+.prazo{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px;background:rgba(251,191,36,.14);color:var(--warn);margin-right:6px;text-decoration:none}
+.bar{height:8px;border-radius:6px;background:var(--surface3);overflow:hidden}.bar i{display:block;height:100%;background:var(--ok)}
+.lista .linha{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer}.lista .linha:last-child{border-bottom:0}
+.muted{color:var(--text3);font-size:12px}
+.badge{display:inline-flex;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c)}
+.aviso{padding:10px 12px;border-radius:10px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:12px}
+.toast{position:fixed;right:18px;bottom:18px;background:var(--surface3);border:1px solid var(--border2);border-left:4px solid var(--ok);padding:11px 16px;border-radius:10px;max-width:380px;z-index:9}.toast.err{border-left-color:var(--danger)}
+@media (max-width:820px){.g{grid-template-columns:1fr 1fr}main{padding:16px}}
+@media print{body{background:#fff;color:#000}.acts,.no-print,#jcr-portal-pill{display:none!important}.card{border-color:#ccc;background:#fff}.chk .t{color:#000}}
+</style>
+</head>
+<body>
+<main id="view">Carregando…</main>
+<script>
+const sb = supabase.createClient('https://onecnoicxqjhgolqncjj.supabase.co', 'sb_publishable_paOFHdYEcMr7MZdOFx16Lw_sXt0n0-9');
+const T = window.Transicao;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const dataBR = s => (s ? s.split('-').reverse().join('/') : '—');
+function toast(m, e) { const t = document.createElement('div'); t.className = 'toast' + (e ? ' err' : ''); t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), e ? 6000 : 3000); }
+const S = { lista: [], clientes: [], atual: null, filtro: 'andamento' };
+const COR = { andamento: 'var(--accent)', concluida: 'var(--ok)', cancelada: 'var(--text3)' };
+
+async function carregar() {
+  const [t, c] = await Promise.all([sb.from('fis_transicoes').select('*').order('updated_at', { ascending: false }).limit(1000),
+    sb.from('gclik_clientes').select('id,razao_social,cnpj,regime,tipo_empresa,status').order('razao_social').limit(5000)]);
+  if (t.error) throw new Error(t.error.message);
+  S.lista = t.data || []; S.clientes = (c.data || []).filter(x => x.status !== 'Inativo');
+}
+const perfilDe = tr => (tr.checklist && tr.checklist._perfil) || {};
+const listaDe = tr => T.gerar({ origem: tr.origem, destino: tr.destino, motivo: tr.motivo || 'opcao', ...perfilDe(tr) });
+
+function telaLista() {
+  S.atual = null; history.replaceState(null, '', location.pathname);
+  const lista = S.lista.filter(t => S.filtro === 'todas' || t.status === S.filtro);
+  $('view').innerHTML = `
+    <div class="crumbs"><a href="../index.html">Portal</a> › <a href="../index.html#/fiscal">Fiscal e Tributário</a> › Transição de regime</div>
+    <div class="head"><div><h1>🔁 Transição de regime de apuração</h1><p>MEI, Simples Nacional, Lucro Presumido e Lucro Real: a lista de tarefas certa para cada mudança, por cliente.</p></div>
+      <div class="acts"><button class="btn" onclick="nova()">+ Nova transição</button></div></div>
+    <div class="card"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">${[['andamento', 'Em andamento'], ['concluida', 'Concluídas'], ['todas', 'Todas']].map(([k, n]) => `<button class="btn ${S.filtro === k ? '' : 'sec'} sm" onclick="S.filtro='${k}';telaLista()">${n}</button>`).join('')}</div>
+      <div class="lista">${lista.map(t => { const p = T.progresso(listaDe(t), t.checklist); return `<div class="linha" onclick="abrir('${t.id}')">
+        <div style="flex:1"><b>${esc(t.cliente_nome)}</b><div class="muted">${esc(t.origem)} → ${esc(t.destino)} · ${esc(T.MOTIVOS[t.motivo] || '')}${t.efeito_em ? ' · vale a partir de ' + dataBR(t.efeito_em) : ''}</div></div>
+        <div style="width:160px"><div class="bar"><i style="width:${p.pct}%"></i></div><div class="muted">${p.feitos}/${p.total} itens</div></div>
+        <span class="badge" style="--c:${COR[t.status]}">${{ andamento: 'em andamento', concluida: 'concluída', cancelada: 'cancelada' }[t.status]}</span></div>`; }).join('') || '<p class="muted">Nenhuma transição aqui.</p>'}</div></div>`;
+}
+
+function nova() {
+  $('view').innerHTML = `
+    <div class="crumbs"><a href="../index.html">Portal</a> › <a href="#" onclick="telaLista();return false">Transição de regime</a> › Nova</div>
+    <div class="head"><div><h1>Nova transição</h1><p>Escolha o cliente e a mudança: a lista sai pronta para esse caso.</p></div></div>
+    <div class="card"><div class="g">
+      <div style="grid-column:span 2"><label>Cliente</label><select id="n-cli" onchange="clienteMudou()"><option value="">— escolha —</option>${S.clientes.map(c => `<option value="${c.id}">${esc(c.razao_social)}${c.regime ? ' · ' + esc(c.regime) : ''}</option>`).join('')}</select></div>
+      <div><label>Regime atual</label><select id="n-ori" onchange="paresMudaram()">${T.REGIMES.map(r => `<option>${r}</option>`).join('')}</select></div>
+      <div><label>Novo regime</label><select id="n-dst" onchange="paresMudaram()">${T.REGIMES.map(r => `<option ${r === 'Lucro Presumido' ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
+      <div style="grid-column:span 2"><label>Motivo</label><select id="n-mot"></select></div>
+      <div><label>Vale a partir de</label><input type="date" id="n-efe"></div>
+      <div style="display:flex;flex-direction:column;justify-content:flex-end;gap:6px">
+        <label style="display:flex;gap:6px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" id="n-com">Comércio/indústria (ICMS)</label>
+        <label style="display:flex;gap:6px;align-items:center;margin:0;color:var(--text)"><input type="checkbox" id="n-fol">Tem funcionários</label></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="btn sec" onclick="telaLista()">Cancelar</button><button class="btn" onclick="criar()">Criar a lista</button></div></div>`;
+  paresMudaram();
+}
+function clienteMudou() {
+  const c = S.clientes.find(x => x.id === $('n-cli').value); if (!c) return;
+  if (T.REGIMES.includes(c.regime)) $('n-ori').value = c.regime;
+  $('n-com').checked = /com[eé]rcio|ind[uú]stria/i.test(c.tipo_empresa || '');
+  paresMudaram();
+}
+function paresMudaram() {
+  const o = $('n-ori').value, d = $('n-dst').value;
+  $('n-mot').innerHTML = o === d ? '<option>escolha regimes diferentes</option>' : T.motivosPara(o, d).map(m => `<option value="${m}">${esc(T.MOTIVOS[m])}</option>`).join('');
+}
+async function criar() {
+  const c = S.clientes.find(x => x.id === $('n-cli').value);
+  if (!c) return toast('Escolha o cliente.', true);
+  if ($('n-ori').value === $('n-dst').value) return toast('O novo regime precisa ser diferente do atual.', true);
+  const linha = { cliente_id: c.id, cliente_nome: c.razao_social, origem: $('n-ori').value, destino: $('n-dst').value, motivo: $('n-mot').value,
+    efeito_em: $('n-efe').value || null, checklist: { _perfil: { comercio: $('n-com').checked, folha: $('n-fol').checked } } };
+  const r = await sb.from('fis_transicoes').insert(linha).select().single();
+  if (r.error) return toast(r.error.message, true);
+  S.lista.unshift(r.data); abrir(r.data.id);
+}
+
+function abrir(id) {
+  const t = S.lista.find(x => x.id === id); if (!t) return telaLista();
+  S.atual = t; history.replaceState(null, '', '?t=' + id);
+  const grupos = listaDe(t), p = T.progresso(grupos, t.checklist), pf = perfilDe(t);
+  $('view').innerHTML = `
+    <div class="crumbs"><a href="../index.html">Portal</a> › <a href="#" onclick="telaLista();return false">Transição de regime</a> › ${esc(t.cliente_nome)}</div>
+    <div class="head"><div><h1>${esc(t.cliente_nome)}: ${esc(t.origem)} → ${esc(t.destino)}</h1>
+      <p>${esc(T.MOTIVOS[t.motivo] || '')}${t.efeito_em ? ' · vale a partir de ' + dataBR(t.efeito_em) : ''}${pf.comercio ? ' · comércio/indústria' : ''}${pf.folha ? ' · com funcionários' : ''}</p></div>
+      <div class="acts"><button class="btn sec" onclick="print()">🖨️ Imprimir</button>${t.status === 'andamento' ? `<button class="btn sec" onclick="mudarStatus('cancelada')">Cancelar transição</button>` : `<button class="btn sec" onclick="mudarStatus('andamento')">Reabrir</button>`}<button class="btn sec" onclick="telaLista()">← Lista</button></div></div>
+    <div class="card"><h3>Andamento — ${p.feitos} de ${p.total} (${p.pct}%)</h3><div class="bar"><i style="width:${p.pct}%"></i></div>
+      ${p.pct === 100 && t.status === 'andamento' ? '<div style="margin-top:10px"><button class="btn ok" onclick="mudarStatus(\'concluida\')">✓ Concluir a transição</button></div>' : ''}</div>
+    <div class="aviso"><b>Antes de agir:</b> itens com <span class="prazo">PRAZO</span> têm data legal. Regras marcadas "confira" mudaram há pouco ou dependem do caso: confirme na legislação vigente.</div>
+    ${grupos.map(g => `<div class="card"><h3>${esc(g.grupo)}</h3>${g.itens.map(i => { const f = (t.checklist || {})[i.id]; return `<div class="chk ${f ? 'feito' : ''}">
+      <input type="checkbox" ${f ? 'checked' : ''} onchange="marcar('${i.id}', this.checked)">
+      <span class="t">${i.prazo ? '<span class="prazo">PRAZO</span>' : ''}${esc(i.texto)}${f ? ` <span class="muted">(${dataBR(f)})</span>` : ''}</span>
+      ${i.auto === 'portal' ? `<button class="btn sec sm no-print" onclick="atualizarPortal()">Atualizar regime no portal</button>` : ''}
+      ${i.link ? `<a class="no-print" href="${/^https?:/.test(i.link.url) ? esc(i.link.url) : '../' + esc(i.link.url)}" ${/^https?:/.test(i.link.url) ? 'target="_blank" rel="noopener"' : ''}>${esc(i.link.nome)} ↗</a>` : ''}</div>`; }).join('')}</div>`).join('')}
+    <div class="card"><h3>Observações</h3><textarea id="obs" rows="3" placeholder="Decisões, números da simulação, combinados com o cliente…" onchange="salvarObs(this.value)">${esc(t.obs || '')}</textarea></div>`;
+}
+async function salvar(campos) {
+  const r = await sb.from('fis_transicoes').update({ ...campos, updated_at: new Date().toISOString() }).eq('id', S.atual.id).select().single();
+  if (r.error) { toast(r.error.message, true); return false; }
+  Object.assign(S.atual, r.data); return true;
+}
+async function marcar(id, on) {
+  const c = { ...(S.atual.checklist || {}) }; if (on) c[id] = hojeISO(); else delete c[id];
+  if (await salvar({ checklist: c })) abrir(S.atual.id);
+}
+async function salvarObs(v) { if (await salvar({ obs: v })) toast('Observação salva.'); }
+async function mudarStatus(st) { if (st === 'cancelada' && !confirm('Cancelar esta transição?')) return; if (await salvar({ status: st })) { toast(st === 'concluida' ? 'Transição concluída.' : 'Situação atualizada.'); abrir(S.atual.id); } }
+
+// Atualiza o regime no Gestão Fiscal e põe as obrigações do novo regime no JCR Entregas.
+// Obrigações só do regime antigo: pergunta antes de tirar (não apaga entregas já registradas).
+async function atualizarPortal() {
+  const t = S.atual;
+  if (!t.cliente_id) return toast('Transição sem cliente do Gestão Fiscal.', true);
+  const regime = t.destino;
+  try {
+    const r1 = await sb.from('gclik_clientes').update({ regime }).eq('id', t.cliente_id); if (r1.error) throw new Error(r1.error.message);
+    const ob = await sb.from('ent_obrigacoes').select('id,nome,regimes,ativo').eq('ativo', true); if (ob.error) throw new Error(ob.error.message);
+    const vale = o => !o.regimes || !o.regimes.length || o.regimes.includes(regime);
+    const novas = (ob.data || []).filter(vale).map(o => ({ cliente_id: t.cliente_id, obrigacao_id: o.id }));
+    if (novas.length) { const r2 = await sb.from('ent_cliente_obrigacoes').upsert(novas, { onConflict: 'cliente_id,obrigacao_id', ignoreDuplicates: true }); if (r2.error) throw new Error(r2.error.message); }
+    const atuais = await sb.from('ent_cliente_obrigacoes').select('obrigacao_id').eq('cliente_id', t.cliente_id);
+    const sobram = (ob.data || []).filter(o => !vale(o) && (atuais.data || []).some(a => a.obrigacao_id === o.id));
+    if (sobram.length && confirm(`Estas obrigações são só de outros regimes:\n\n${sobram.map(o => '• ' + o.nome).join('\n')}\n\nTirar do cliente no JCR Entregas? (as entregas já registradas continuam no histórico)`)) {
+      const r3 = await sb.from('ent_cliente_obrigacoes').delete().eq('cliente_id', t.cliente_id).in('obrigacao_id', sobram.map(o => o.id)); if (r3.error) throw new Error(r3.error.message);
+    }
+    const c = S.clientes.find(x => x.id === t.cliente_id); if (c) c.regime = regime;
+    await salvar({ checklist: { ...(t.checklist || {}), sis_portal: hojeISO() } });
+    toast(`Regime atualizado para ${regime} e obrigações do JCR Entregas ajustadas.`); abrir(t.id);
+  } catch (e) { toast('Erro: ' + e.message, true); }
+}
+
+(async () => {
+  try {
+    await carregar();
+    const id = new URLSearchParams(location.search).get('t');
+    if (id && S.lista.some(x => x.id === id)) abrir(id); else telaLista();
+  } catch (e) { $('view').innerHTML = `<div class="card">Não foi possível carregar: ${esc(e.message)}</div>`; }
+})();
+</script>
+</body>
+</html>

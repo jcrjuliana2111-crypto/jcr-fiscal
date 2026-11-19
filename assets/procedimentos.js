@@ -525,5 +525,30 @@ window.JCR_PROCEDIMENTOS = (function () {
         'O cofre se tranca sozinho após 10 minutos sem uso. Não use a mesma senha do e-mail ou do portal.'],
       atualizado: '2026-11-19',
     },
+    'fiscal/transicao-regime': {
+      objetivo: 'Mudar o cliente de regime de apuração (MEI, Simples Nacional, Lucro Presumido, Lucro Real) sem perder prazo de opção ou exclusão e sem esquecer obrigações, cadastros e custos que mudam.',
+      responsavel: 'Fiscal / Tributário',
+      prazo: 'Opções do Simples e do MEI: janeiro. Presumido e Real: no primeiro pagamento do ano. Exclusões e desenquadramentos: até o último dia útil do mês seguinte ao fato.',
+      entradas: ['Faturamento dos últimos 12 meses e do ano', 'Folha de pagamento (para Fator R e INSS patronal)', 'Atividades (CNAEs) e se tem ICMS', 'Situação fiscal (débitos e parcelamentos)'],
+      passos: [
+        'Fiscal → "Transição de regime" → "+ Nova transição": escolher o cliente, o regime atual, o novo, o motivo (opção, excesso de receita, obrigatoriedade ou débitos), a data de efeito e o perfil (comércio, funcionários).',
+        'O portal monta a lista em 5 blocos: decisão e prazos, encerrar o regime atual, entrar no novo, cadastros e sistemas, cliente. Itens com PRAZO têm data legal.',
+        'Fazer a simulação de carga antes de decidir e registrar os números em "Observações".',
+        'Ir marcando os itens; o andamento fica salvo e aparece na lista de transições.',
+        'No item de cadastros, "Atualizar regime no portal" muda o regime no Gestão Fiscal e põe as obrigações do novo regime no JCR Entregas (as do regime antigo saem só se você confirmar).',
+        'Com 100%, "Concluir a transição".',
+      ],
+      checklist: ['Prazo de opção/exclusão cumprido', 'Último período do regime antigo fechado', 'Obrigações do novo regime cadastradas', 'Emissor de notas e sistema contábil ajustados', 'Cliente avisado do que muda'],
+      ferramentas: [{ nome: 'Transição de regime', url: 'fiscal/transicao.html' }, { nome: 'Gestão Fiscal', url: 'gclik.html' }, { nome: 'JCR Entregas', url: 'entregas/' }, { nome: 'Simulador da Reforma', url: 'reforma/' }],
+      manuais: [{ nome: 'Portal do Simples Nacional', url: 'https://www8.receita.fazenda.gov.br/SimplesNacional/' }],
+      atencao: [
+        'Opção pelo Simples fora de janeiro só para empresa nova; quem perde o prazo fica o ano inteiro no Presumido ou no Real.',
+        'Lucro Presumido e Real: a opção é o pagamento do primeiro DARF do ano e não pode ser trocada no meio do ano.',
+        'Sair do Lucro Real: prejuízo fiscal fica parado e valores diferidos no e-Lalur precisam ser adicionados — confira antes de recomendar.',
+        'Sair do Simples encarece a folha (INSS patronal de 20% fora do DAS): mostre o número ao cliente.',
+        'Regras de 2026 a conferir: acréscimo nas presunções do Presumido (LC 224/2025) e IR sobre dividendos (Lei 15.270/2025).',
+      ],
+      atualizado: '2026-11-20',
+    },
   };
 })();

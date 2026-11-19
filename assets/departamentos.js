@@ -51,11 +51,13 @@ window.JCR_DEPARTAMENTOS = [
       { id: 'defis', nome: 'DEFIS / DASN-SIMEI', freq: 'Anual' },
       { id: 'guias', nome: 'Emissão e envio de guias', freq: 'Mensal' },
       { id: 'fechamento-fiscal', nome: 'Fechamento fiscal mensal', freq: 'Mensal' },
+      { id: 'transicao-regime', nome: 'Transição de regime de apuração (MEI, Simples, Presumido, Real)', freq: 'Sob demanda' },
       { id: 'reforma-tributaria', nome: 'Adequação à Reforma Tributária (IBS/CBS)', freq: 'Projeto' },
     ],
     ferramentas: [
       { nome: 'JCR Entregas', url: 'entregas/', desc: 'Obrigações por cliente e departamento, prazos em dia útil, metas, protocolo e portal do cliente.', status: 'ativa' },
       { nome: 'Gestão Fiscal', url: 'gclik.html', desc: 'Tarefas, obrigações, agenda e fechamento fiscal.', status: 'ativa' },
+      { nome: 'Transição de regime', url: 'fiscal/transicao.html', desc: 'Lista de tarefas para MEI ↔ Simples ↔ Presumido ↔ Real conforme o motivo e o perfil do cliente, com prazos legais; no fim atualiza o regime no Gestão Fiscal e as obrigações no JCR Entregas.', status: 'ativa' },
       { nome: 'EFD Contribuições', url: 'hub/efd_pis_cofins.html', desc: 'Apuração PIS/COFINS — débitos, créditos e retenções.', status: 'ativa' },
       { nome: 'Apuração ICMS — DF', url: 'hub/Apuracao_ICMS_5005_WFB.html', desc: 'Lei 5.005/2012 do Distrito Federal.', status: 'ativa' },
       { nome: 'Base de Tributação', url: 'hub/base_de_tributacao.html', desc: 'Base legal e regras de tributação.', status: 'ativa' },

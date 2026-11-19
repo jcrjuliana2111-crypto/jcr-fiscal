@@ -75,9 +75,9 @@ window.JCR_DEPARTAMENTOS = [
     ],
     ferramentas: [
       { nome: 'Simulador e tabelas da Reforma', url: 'reforma/', desc: 'Simulação ano a ano (2026–2033) por cliente, salva no portal; consulta de cClassTrib, CST, NCM, NBS e itens da LC 116 com redução e fundamento legal.', status: 'ativa' },
-      { nome: 'Calculadora oficial da Receita (API)', url: 'reforma/#api', desc: 'Como rodar a calculadora de código aberto da Receita e chamar pelo n8n para conferir notas item a item.', status: 'ativa' },
-      { nome: 'Atualização automática das tabelas', desc: 'Rotina mensal (GitHub Actions ou n8n) que baixa o repositório da Receita, roda o script e avisa quando houver versão nova.', status: 'ideia' },
-      { nome: 'Classificação em lote pelos XMLs', desc: 'n8n lê os XMLs de saída do cliente e sugere a cClassTrib de cada item pelo NCM/NBS.', status: 'ideia' },
+      { nome: 'Calculadora oficial da Receita', url: 'reforma/#calc', desc: 'O programa oficial da Receita dentro do portal: calcula CBS, IBS e Imposto Seletivo item a item com a memória de cálculo, gera e valida o grupo IBS/CBS do XML (NF-e, NFC-e, CT-e).', status: 'ativa' },
+      { nome: 'Classificação em lote pelos XMLs', url: 'reforma/#lote', desc: 'Envie os XMLs de saída do cliente (NF-e, NFC-e, NFS-e): o portal agrupa os itens, sugere CST e cClassTrib pelo NCM/NBS/LC 116, salva por cliente e exporta CSV para o emissor.', status: 'ativa' },
+      { nome: 'Atualização automática das tabelas', url: 'https://github.com/jcrjuliana2111-crypto/jcr-fiscal/actions/workflows/reforma-tabelas.yml', desc: 'Todo dia 6 confere se a Receita publicou versão nova; se sim, regera as tabelas, atualiza o servidor oficial e abre um pull request para aprovar.', status: 'ativa' },
     ],
   },
   {

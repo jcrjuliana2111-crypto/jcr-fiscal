@@ -108,6 +108,8 @@ def exportar(c):
                                     from ALIQUOTA_REFERENCIA a join TRIBUTO t on t.TBTO_ID = a.ALRE_TBTO_ID order by a.ALRE_INICIO_VIGENCIA'''))
     gravar('simples_atividades.json', linhas(c, '''select ATSN_ORDEM ordem, ATSN_DESCRICAO desc, ATSN_ANEXO_SEM_FATOR_R anexo, ATSN_ANEXO_COM_FATOR_R anexo_fator_r,
                                     ATSN_CATIVSN codigo, ATSN_INICIO_VIGENCIA inicio from ATIVIDADE_SIMPLES_NACIONAL order by ATSN_ORDEM'''))
+    gravar('municipios.json', [[r['cd'], r['uf'], r['nome']] for r in linhas(c, '''select m.MUNI_CD cd, u.UF_SIGLA uf, m.MUNI_NOME nome
+                                    from MUNICIPIO m join UF u on u.UF_CD = m.MUNI_UF_CD order by u.UF_SIGLA, m.MUNI_NOME''')])
     v = linhas(c, 'select VRBD_VERSAO_BASE_DADO versao, VRBD_DATA data, VRBD_DESCRICAO descricao from VERSAO_BASE_DADO order by rowid desc limit 1')[0]
     v['fonte'] = 'https://github.com/ReceitaFederal/calculadora-rtc-regime-regular'
     gravar('versao.json', v)

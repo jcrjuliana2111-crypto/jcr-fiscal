@@ -1,0 +1,79 @@
+# Todo mês confere se a Receita publicou versão nova da calculadora da Reforma Tributária
+# (github.com/ReceitaFederal/calculadora-rtc-regime-regular). Se publicou:
+#  - regera as tabelas do portal (reforma/dados) com reforma/scripts/gerar_dados.py
+#  - troca a versão do servidor oficial (RTC_REF em reforma/servidor/Dockerfile)
+#  - roda os testes e abre um pull request para revisão. Ao aprovar, o portal e o servidor
+#    (Render, deploy automático) passam a usar a versão nova.
+name: Atualizar tabelas da Reforma Tributária
+
+on:
+  schedule:
+    - cron: '23 11 6 * *'   # dia 6 de cada mês, 08:23 de Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versão publicada pela Receita
+        id: versao
+        run: |
+          nova=$(git ls-remote https://github.com/ReceitaFederal/calculadora-rtc-regime-regular.git refs/heads/main | cut -f1)
+          atual=$(sed -n 's/^ARG RTC_REF=//p' reforma/servidor/Dockerfile)
+          echo "nova=$nova" >> "$GITHUB_OUTPUT"
+          echo "atual=$atual" >> "$GITHUB_OUTPUT"
+          if [ -z "$nova" ] || [ "$nova" = "$atual" ]; then echo "mudou=nao" >> "$GITHUB_OUTPUT"; else echo "mudou=sim" >> "$GITHUB_OUTPUT"; fi
+          echo "Receita: $nova | portal: $atual"
+
+      - name: Baixar a versão nova e regerar as tabelas
+        if: steps.versao.outputs.mudou == 'sim'
+        run: |
+          git init -q /tmp/rtc && cd /tmp/rtc
+          git remote add origin https://github.com/ReceitaFederal/calculadora-rtc-regime-regular.git
+          git fetch -q --depth 1 origin "${{ steps.versao.outputs.nova }}" && git checkout -q FETCH_HEAD
+          cd "$GITHUB_WORKSPACE"
+          python3 reforma/scripts/gerar_dados.py /tmp/rtc
+          sed -i "s/^ARG RTC_REF=.*/ARG RTC_REF=${{ steps.versao.outputs.nova }}/" reforma/servidor/Dockerfile
+
+      - uses: actions/setup-node@v4
+        if: steps.versao.outputs.mudou == 'sim'
+        with:
+          node-version: 22
+
+      - name: Testes
+        if: steps.versao.outputs.mudou == 'sim'
+        run: node --test tests/*.test.js
+
+      - name: Abrir pull request
+        if: steps.versao.outputs.mudou == 'sim'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curta=$(echo "${{ steps.versao.outputs.nova }}" | cut -c1-7)
+          ramo="atualizacao/receita-$curta"
+          base=$(python3 -c "import json;v=json.load(open('reforma/dados/versao.json'));print(v['versao'],'-',v['descricao'])")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$ramo"
+          git add reforma/dados reforma/servidor/Dockerfile
+          git commit -m "Reforma: tabelas e calculadora oficial da Receita ($curta, base $base)"
+          git push -f origin "$ramo"
+          corpo="A Receita publicou versão nova da calculadora (commit ${{ steps.versao.outputs.nova }}, base $base).
+
+          - Tabelas do portal regeradas (reforma/dados)
+          - Servidor oficial passa a usar a versão nova ao aprovar (Render faz o deploy sozinho)
+          - Testes passaram
+
+          Compare: https://github.com/ReceitaFederal/calculadora-rtc-regime-regular/compare/${{ steps.versao.outputs.atual }}...${{ steps.versao.outputs.nova }}"
+          gh pr create --base main --head "$ramo" --title "Reforma: atualizar para a versão $curta da Receita" --body "$corpo" \
+            || gh issue create --title "Reforma: nova versão da Receita ($curta) pronta no ramo $ramo" \
+                 --body "$corpo
+
+          Não consegui abrir o pull request automaticamente (permita em Settings → Actions → General → 'Allow GitHub Actions to create and approve pull requests'). Abra o PR do ramo $ramo para a main."

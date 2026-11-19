@@ -64,10 +64,14 @@
   function campo(texto, rotulo) {
     const linhas = texto.split('\n');
     const alvo = semAcento(rotulo).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const reRotulo = new RegExp('(^|[^A-Z])' + alvo + '(?![A-Z])');
+    // 1ª passada: o rótulo é a coluna inteira ("NÚMERO" não casa com "NÚMERO DE IDENTIFICAÇÃO…",
+    // "MUNICIPIO" não casa com "CÓDIGO DO MUNICIPIO"); 2ª passada: palavra inteira em qualquer posição
+    const exato = new RegExp('(^[\\s\u2063]*|\\s{2,})' + alvo + '(?=\\s{2,}|\\s*$)');
+    const solto = new RegExp('(^|[^A-Z])' + alvo + '(?![A-Z])');
     const ordem = linhas.map((l, i) => i).filter(i => i < linhas.length - 1)
       .sort((a, b) => (linhas[b].startsWith(ROTULO) ? 1 : 0) - (linhas[a].startsWith(ROTULO) ? 1 : 0) || a - b);
-    for (const i of ordem) {
+    const tentativas = [...ordem.map(i => [i, exato]), ...ordem.map(i => [i, solto])];
+    for (const [i, reRotulo] of tentativas) {
       const achou = reRotulo.exec(semAcento(linhas[i]));
       if (!achou) continue;
       const pos = achou.index + achou[1].length;

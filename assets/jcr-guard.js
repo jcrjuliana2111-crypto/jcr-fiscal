@@ -60,6 +60,29 @@
     a.innerHTML = '<b><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></b>Portal';
     document.body.appendChild(a);
   }
-  if (document.body) botaoPortal();
-  else document.addEventListener('DOMContentLoaded', botaoPortal);
+  // Botão flutuante "Maju" (chat com a assistente) em todas as ferramentas, menos na própria página dela.
+  function botaoMaju() {
+    if (document.getElementById('jcr-maju-pill') || /\/maju\/?(index\.html)?$/.test(location.pathname)) return;
+    var st = document.createElement('style');
+    st.textContent =
+      '#jcr-maju-pill{position:fixed;right:16px;bottom:16px;z-index:2147483000;display:flex;align-items:center;gap:8px;' +
+      'padding:8px 14px 8px 10px;border-radius:999px;background:rgba(19,22,30,.92);color:#e8eaf2;' +
+      'border:1px solid #363d55;font:600 12.5px/1 "DM Sans",system-ui,sans-serif;text-decoration:none;' +
+      'box-shadow:0 6px 24px rgba(0,0,0,.35);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);' +
+      'transition:transform .15s,border-color .15s}' +
+      '#jcr-maju-pill:hover{transform:translateY(-1px);border-color:#a78bfa}' +
+      '#jcr-maju-pill b{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;' +
+      'background:linear-gradient(135deg,#4f8ef7,#a78bfa);color:#fff;font-size:12px}' +
+      '@media print{#jcr-maju-pill{display:none}}';
+    document.head.appendChild(st);
+    var a = document.createElement('a');
+    a.id = 'jcr-maju-pill';
+    a.href = ROOT + 'maju/';
+    a.title = 'Conversar com a Maju';
+    a.innerHTML = '<b>✦</b>Maju';
+    document.body.appendChild(a);
+  }
+  function botoes() { botaoPortal(); botaoMaju(); }
+  if (document.body) botoes();
+  else document.addEventListener('DOMContentLoaded', botoes);
 })();

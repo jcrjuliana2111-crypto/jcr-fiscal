@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/jcr-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maju · Portal JCR</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14; --surface: #13161e; --surface2: #1a1e2a; --border: #2a2f42;
+    --accent: #4f8ef7; --accent2: #a78bfa; --warn: #ffb84f; --danger: #ff5f5f; --success: #4fcf8a;
+    --text: #e8eaf2; --text2: #9aa1b8; --text3: #626a85;
+    --font: 'DM Sans', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); display: flex; flex-direction: column; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 16px; height: 64px; flex: none; }
+  .logo { display: flex; align-items: center; gap: 12px; font-family: 'Syne', var(--font); font-size: 16px; font-weight: 700; }
+  .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #4f8ef7, #a78bfa); border-radius: 50%; display: grid; place-items: center; font-size: 15px; }
+  .sub { color: var(--text3); font-size: 12px; font-family: var(--mono); }
+  .header-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: var(--font); text-decoration: none; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  #conversa { flex: 1; overflow-y: auto; padding: 24px 16px 12px; }
+  .wrap { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .msg { max-width: 88%; padding: 12px 16px; border-radius: 14px; font-size: 14px; line-height: 1.6; white-space: normal; word-wrap: break-word; }
+  .msg.eu { align-self: flex-end; background: rgba(79,142,247,.16); border: 1px solid rgba(79,142,247,.35); border-bottom-right-radius: 4px; }
+  .msg.maju { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .msg.erro { align-self: flex-start; background: rgba(255,95,95,.1); border: 1px solid rgba(255,95,95,.4); color: #ffb3b3; }
+  .msg ul, .msg ol { margin: 4px 0 4px 20px; }
+  .msg code { font-family: var(--mono); font-size: 12px; background: var(--surface2); padding: 1px 5px; border-radius: 4px; }
+  .msg a { color: var(--accent); }
+  .quem { font-size: 11px; font-family: var(--mono); color: var(--text3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .06em; }
+  .pensando { color: var(--text2); font-style: italic; }
+  .pensando::after { content: '…'; animation: pts 1.2s steps(3) infinite; }
+  @keyframes pts { 0% { content: '.'; } 33% { content: '..'; } 66% { content: '...'; } }
+  .vazio { text-align: center; color: var(--text2); margin-top: 6vh; }
+  .vazio h1 { font-family: 'Syne', var(--font); font-size: 26px; color: var(--text); margin-bottom: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+  .chip { padding: 7px 12px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); font-size: 13px; cursor: pointer; font-family: var(--font); }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+  footer { flex: none; border-top: 1px solid var(--border); background: var(--surface); padding: 14px 16px 18px; }
+  form { max-width: 860px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; }
+  textarea { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 11px 14px; font-size: 14px; font-family: var(--font); resize: none; min-height: 46px; max-height: 180px; outline: none; line-height: 1.5; }
+  textarea:focus { border-color: var(--accent); }
+  .nota { max-width: 860px; margin: 8px auto 0; font-size: 11.5px; color: var(--text3); }
+  @media (max-width: 640px) { .sub { display: none; } header { padding: 0 14px; } .msg { max-width: 96%; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><div class="logo-icon">✦</div>Maju</div>
+  <span class="sub">// assistente da JCR · Portal JCR</span>
+  <div class="header-right">
+    <button class="btn btn-outline" id="limpar" type="button">Nova conversa</button>
+    <a class="btn btn-outline" href="../index.html">‹ Portal</a>
+  </div>
+</header>
+
+<div id="conversa"><div class="wrap" id="lista"></div></div>
+
+<footer>
+  <form id="form">
+    <textarea id="texto" rows="1" placeholder="Pergunte à Maju — ex.: o que vence esta semana? quais contas estão vencidas?" autofocus></textarea>
+    <button class="btn btn-primary" id="enviar" type="submit">Enviar</button>
+  </form>
+  <p class="nota">A Maju lê o Portal, os prazos do Acessórias e a equipe de especialistas. Ela só grava algo no Portal depois que você confirmar. Enter envia · Shift+Enter quebra a linha.</p>
+</footer>
+
+<script>
+(function () {
+  // Mesmo endereço do n8n usado pela Maju no Telegram
+  var WEBHOOK = 'https://n8n.jcrconsultoriatributaria.com.br/webhook/maju-portal';
+  var STORAGE_KEY = 'sb-onecnoicxqjhgolqncjj-auth-token';
+  var HIST = 'jcr-maju-portal-conversa';
+  var SUGESTOES = [
+    'O que vence esta semana?',
+    'Quais contas a pagar estão vencidas?',
+    'Honorários pendentes',
+    'Como estão os processos societários?',
+    'Meus atrasados no Acessórias',
+    'Próximos vencimentos da Receita'
+  ];
+
+  var lista = document.getElementById('lista');
+  var caixa = document.getElementById('conversa');
+  var texto = document.getElementById('texto');
+  var botao = document.getElementById('enviar');
+  var conversa = [];
+  try { conversa = JSON.parse(sessionStorage.getItem(HIST) || '[]'); } catch (e) { conversa = []; }
+
+  function token() {
+    try {
+      var s = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      if (s && s.currentSession) s = s.currentSession;
+      return s && s.access_token ? s.access_token : '';
+    } catch (e) { return ''; }
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  // Markdown simples e seguro: escapa tudo e depois aplica negrito, itálico, código, links e listas
+  function md(t) {
+    var linhas = esc(t).split('\n');
+    var html = '', emLista = null;
+    function fecha() { if (emLista) { html += '</' + emLista + '>'; emLista = null; } }
+    linhas.forEach(function (l) {
+      var mUl = l.match(/^\s*[-•*]\s+(.*)$/), mOl = l.match(/^\s*\d+[.)]\s+(.*)$/);
+      var inline = function (x) {
+        return x.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+                .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/(https?:\/\/[^\s<)]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+      };
+      if (mUl) { if (emLista !== 'ul') { fecha(); html += '<ul>'; emLista = 'ul'; } html += '<li>' + inline(mUl[1]) + '</li>'; }
+      else if (mOl) { if (emLista !== 'ol') { fecha(); html += '<ol>'; emLista = 'ol'; } html += '<li>' + inline(mOl[1]) + '</li>'; }
+      else { fecha(); html += (l.trim() ? inline(l) : '') + '<br>'; }
+    });
+    fecha();
+    return html.replace(/(<br>)+$/, '');
+  }
+
+  function desenha() {
+    if (!conversa.length) {
+      lista.innerHTML = '<div class="vazio"><h1>Oi, Ju!</h1><p>Pergunte sobre prazos, financeiro, honorários, societário ou peça uma tarefa.</p>' +
+        '<div class="chips">' + SUGESTOES.map(function (s) { return '<button class="chip" type="button">' + esc(s) + '</button>'; }).join('') + '</div></div>';
+      Array.prototype.forEach.call(lista.querySelectorAll('.chip'), function (b) {
+        b.addEventListener('click', function () { envia(b.textContent); });
+      });
+      return;
+    }
+    lista.innerHTML = conversa.map(function (m) {
+      if (m.quem === 'eu') return '<div class="msg eu">' + md(m.texto) + '</div>';
+      if (m.quem === 'pensando') return '<div class="msg maju"><div class="quem">Maju</div><span class="pensando">Pensando — consultas à equipe e à Receita podem levar até 1 minuto</span></div>';
+      return '<div class="msg ' + (m.quem === 'erro' ? 'erro' : 'maju') + '"><div class="quem">' + (m.quem === 'erro' ? 'Aviso' : 'Maju') + '</div>' + md(m.texto) + '</div>';
+    }).join('');
+    caixa.scrollTop = caixa.scrollHeight;
+  }
+
+  function salva() {
+    try { sessionStorage.setItem(HIST, JSON.stringify(conversa.filter(function (m) { return m.quem !== 'pensando'; }).slice(-60))); } catch (e) {}
+  }
+
+  function envia(msg) {
+    msg = String(msg || '').trim();
+    if (!msg || botao.disabled) return;
+    var tk = token();
+    if (!tk) { location.href = '../index.html?next=' + encodeURIComponent(location.href); return; }
+    conversa.push({ quem: 'eu', texto: msg });
+    conversa.push({ quem: 'pensando' });
+    texto.value = ''; ajusta();
+    botao.disabled = true; desenha(); salva();
+
+    var ctrl = new AbortController();
+    var limite = setTimeout(function () { ctrl.abort(); }, 180000);
+    // Corpo em text/plain para não precisar de pré-verificação de CORS
+    fetch(WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ token: tk, mensagem: msg }), signal: ctrl.signal })
+      .then(function (r) { return r.text().then(function (t) { return { status: r.status, t: t }; }); })
+      .then(function (res) {
+        var d = {}; try { d = JSON.parse(res.t); } catch (e) {}
+        conversa = conversa.filter(function (m) { return m.quem !== 'pensando'; });
+        if (res.status === 401) conversa.push({ quem: 'erro', texto: 'Sua sessão do Portal expirou. Recarregue a página para entrar de novo.' });
+        else if (res.status >= 300 || !d.resposta) conversa.push({ quem: 'erro', texto: 'A Maju não conseguiu responder agora (' + res.status + '). Tente de novo em instantes.' });
+        else conversa.push({ quem: 'maju', texto: d.resposta });
+      })
+      .catch(function (e) {
+        conversa = conversa.filter(function (m) { return m.quem !== 'pensando'; });
+        conversa.push({ quem: 'erro', texto: e && e.name === 'AbortError' ? 'Demorou demais para responder. Tente uma pergunta mais curta.' : 'Sem conexão com a Maju. Confira a internet e tente de novo.' });
+      })
+      .then(function () { clearTimeout(limite); botao.disabled = false; desenha(); salva(); texto.focus(); });
+  }
+
+  function ajusta() { texto.style.height = 'auto'; texto.style.height = Math.min(texto.scrollHeight, 180) + 'px'; }
+  texto.addEventListener('input', ajusta);
+  texto.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); envia(texto.value); }
+  });
+  document.getElementById('form').addEventListener('submit', function (e) { e.preventDefault(); envia(texto.value); });
+  document.getElementById('limpar').addEventListener('click', function () { conversa = []; salva(); desenha(); texto.focus(); });
+
+  var q = new URLSearchParams(location.search).get('q');
+  desenha();
+  if (q) envia(q);
+})();
+</script>
+</body>
+</html>

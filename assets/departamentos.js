@@ -266,6 +266,7 @@ window.JCR_DEPARTAMENTOS = [
 ];
 
 window.JCR_ACESSO_RAPIDO = [
+  { nome: 'Maju', url: 'maju/', ic: '✦' },
   { nome: 'Entregas', url: 'entregas/', ic: '✅' },
   { nome: 'Gestão Fiscal', url: 'gclik.html', ic: '📊' },
   { nome: 'Financeiro JCR', url: 'financeiro/', ic: '💰' },

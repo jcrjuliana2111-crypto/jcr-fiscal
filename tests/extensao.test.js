@@ -117,3 +117,9 @@ test('VRE: telefone sem rótulo dentro do bloco de endereço não recebe o logra
   assert.strictEqual(M.identificar({ rotulo: '', nome: 'endereco', contexto: 'Endereço da Empresa' }).chave, 'empresa.logradouro');
   assert.strictEqual(M.identificar({ rotulo: 'Inicio Atividade:', contexto: 'Dados da Empresa' }).chave, 'empresa.inicio');
 });
+
+test('VRE: siglas com pontos (N.I.R.E. da Cedente, U.F.) são reconhecidas', () => {
+  const M = require('../extensao/mapa.js');
+  assert.strictEqual(M.identificar({ rotulo: 'N.I.R.E. da Cedente :', contexto: 'Empresa Cedente do Acervo' }).chave, 'empresa.nire');
+  assert.strictEqual(M.identificar({ rotulo: 'U.F.:', contexto: 'Endereço da Empresa' }).chave, 'empresa.uf');
+});

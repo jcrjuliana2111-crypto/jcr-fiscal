@@ -7,10 +7,10 @@ const S = require('../societario/societario-core.js');
 test('links da etapa trazem os da prefeitura quando o município tem cadastro', () => {
   const campinas = L.daEtapa('viabilidade', 'Campinas').map(l => l.nome);
   assert.ok(campinas[0].startsWith('Campinas — Zoneamento'));
-  assert.ok(campinas.some(n => n.startsWith('Via Rápida Empresa')));
+  assert.ok(campinas.some(n => n.startsWith('VRE — Via Rápida Empresa')));
   const outra = L.daEtapa('viabilidade', 'Sumaré').map(l => l.nome);
   assert.ok(!outra.some(n => n.startsWith('Campinas')));
-  assert.ok(outra.some(n => n.startsWith('Via Rápida Empresa')));
+  assert.ok(outra.some(n => n.startsWith('VRE — Via Rápida Empresa')));
   assert.ok(L.municipio('CAMPINAS') && L.municipio('campinas'));
 });
 
@@ -34,4 +34,14 @@ test('Sumaré tem viabilidade, inscrição e ISS', () => {
   const v = L2.daEtapa('viabilidade', 'Sumaré').map(l => l.nome).join(' | ');
   assert.ok(v.startsWith('Sumaré'));
   assert.ok(L2.daEtapa('ccm', 'SUMARE').some(l => /SIGISS/.test(l.nome)));
+});
+
+test('etapas que passam pelo VRE trazem o link do VRE e do Preenchedor', () => {
+  const L = require('../societario/links.js');
+  for (const id of ['dbe', 'ato', 'contrato', 'minuta', 'distrato']) {
+    const nomes = L.daEtapa(id, 'Sumaré').map(l => l.nome);
+    assert.ok(nomes.some(n => n.startsWith('VRE')), id + ' sem VRE');
+    assert.ok(nomes.some(n => n.startsWith('JCR Preenchedor')), id + ' sem Preenchedor');
+  }
+  assert.ok(L.daEtapa('vicio', 'Sumaré').some(l => l.nome.startsWith('VRE')));
 });

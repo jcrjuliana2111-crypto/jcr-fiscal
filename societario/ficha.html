@@ -109,7 +109,7 @@ function render() {
   try {
     const tipoDoc = { abertura: 'constituicao', alteracao: 'alteracao', transformacao: 'transformacao', encerramento: 'extincao' }[p.tipo];
     if (tipoDoc && MC) {
-      const dd = { ...d, tipo: d.tipo || tipoDoc };
+      const dd = { ...d, tipo: MC.MODELOS[d.tipo] ? d.tipo : tipoDoc };
       pend = MC.validar(dd).map(x => (x.nivel === 'erro' ? '⛔ ' : '⚠ ') + x.msg);
       const ja = pend.join(' ').toLowerCase();
       MC.faltando(MC.gerar(dd)).filter(x => !/data por extenso/.test(x) && !ja.includes(x.toLowerCase())).forEach(x => pend.push('⚠ Falta no contrato: ' + x));

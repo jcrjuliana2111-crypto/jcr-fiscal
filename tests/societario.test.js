@@ -55,3 +55,19 @@ test('holding: abertura de holding aponta para o procedimento de holding', () =>
   assert.strictEqual(S.procedimentoDe({ tipo: 'abertura', empresa: 'Padaria Pão Bom' }), S.TIPOS.abertura.proc);
   assert.strictEqual(S.procedimentoDe({ tipo: 'encerramento', empresa: 'X HOLDING' }), S.TIPOS.encerramento.proc);
 });
+
+test('processo em papel: etapas de impressão, protocolo e retirada; troca sem perder etapas marcadas', () => {
+  const S = require('../societario/societario-core.js');
+  const dig = S.etapasPadrao('abertura', 'rapido', 'LTDA').map(e => e.id);
+  const pap = S.etapasPadrao('abertura', 'rapido', 'LTDA', 'papel').map(e => e.id);
+  assert.ok(dig.includes('assinaturas') && !dig.includes('retirada'));
+  assert.ok(!pap.includes('assinaturas') && pap.indexOf('impressao') < pap.indexOf('dare') && pap.indexOf('protocolo') === pap.indexOf('dare') + 1 && pap.indexOf('retirada') === pap.indexOf('deferimento') + 1);
+  const p = { tipo: 'transformacao', fluxo: 'rapido', natureza: 'LTDA', etapas: S.etapasPadrao('transformacao', 'rapido', 'LTDA').map(e => (['docs', 'assinaturas'].includes(e.id) ? { ...e, feito: true, data: '2026-10-28' } : e)) };
+  const novas = S.ajustarEtapas(p, 'papel');
+  assert.ok(novas.find(e => e.id === 'docs').feito, 'marcada continua');
+  assert.ok(novas.find(e => e.id === 'assinaturas'), 'etapa marcada que saiu do modelo não some');
+  assert.ok(novas.some(e => e.id === 'protocolo' && !e.feito));
+  const def = { entrada: 'papel', status: 'concluido', etapas: [{ id: 'deferimento', feito: true, data: '2026-11-01' }, { id: 'retirada', feito: false }] };
+  assert.deepStrictEqual(S.retiradaPendente(def, '2026-11-25'), { desde: '2026-11-01', restam: 66 });
+  assert.strictEqual(S.retiradaPendente({ ...def, entrada: 'digital' }, '2026-11-25'), null);
+});

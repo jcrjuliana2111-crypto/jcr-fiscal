@@ -9,7 +9,7 @@
   const LINKS = {
     facilita: { nome: 'Facilita SP (abertura, alteração e baixa)', url: 'https://portalfacilitasp.sp.gov.br/facilitasp', modo: 'online' },
     facilita_assinaturas: { nome: 'Facilita SP — Minhas assinaturas (gov.br Ouro)', url: 'https://portalfacilitasp.sp.gov.br/facilitasp', modo: 'online' },
-    vre: { nome: 'VRE — Via Rápida Empresa (cadastro do processo, documentos da JUCESP, exigências e licenciamento)', url: 'https://www.vreredesim.sp.gov.br/', modo: 'online' },
+    vre: { nome: 'VRE — Via Rápida Empresa (cadastro do processo, documentos da JUCESP, exigências e licenciamento)', url: 'https://vreredesim.sp.gov.br/home', modo: 'online' },
     redesim: { nome: 'REDESIM — Coletor Nacional (DBE)', url: 'https://www.gov.br/empresas-e-negocios/pt-br/redesim', modo: 'online' },
     jucesponline: { nome: 'JucespOnline — nome empresarial, ficha cadastral, certidões e andamento', url: 'https://www.jucesponline.sp.gov.br/', modo: 'online' },
     jucesp_precos: { nome: 'JUCESP — serviços e tabela de preços (a DARE sai pronta no sistema do ato)', url: 'https://www.institucional.jucesp.sp.gov.br/empresas.html', modo: 'info' },
@@ -48,7 +48,7 @@
     sumare: {
       nome: 'Sumaré',
       links: {
-        viabilidade_municipal: { nome: 'Sumaré — viabilidade pelo Via Rápida Empresa / Facilita SP (confirmar se o município responde pelo sistema; senão, pedir na prefeitura)', url: 'https://www.vreredesim.sp.gov.br/', modo: 'online', conferir: true },
+        viabilidade_municipal: { nome: 'Sumaré — viabilidade pelo Via Rápida Empresa / Facilita SP (confirmar se o município responde pelo sistema; senão, pedir na prefeitura)', url: 'https://vreredesim.sp.gov.br/home', modo: 'online', conferir: true },
         viabilidade_servico: { nome: 'Sumaré — Plano Diretor e mapas de zoneamento (uso do solo)', url: 'https://www.sumare.sp.gov.br/plano_diretor/', modo: 'info', conferir: true },
         inscricao_municipal: { nome: 'Sumaré — Portal do Cidadão: ISS / NF Eletrônica (cadastro mobiliário, certidões)', url: 'https://www.sumare.sp.gov.br/cidadao/pagina/iss-nf-eletronica', modo: 'online' },
         alvara: { nome: 'Sumaré — Portal do Cidadão (alvará e serviços para empresas)', url: 'https://www.sumare.sp.gov.br/cidadao/', modo: 'online', conferir: true },

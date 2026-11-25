@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/jcr-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Manual do Societário · Portal JCR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="../assets/departamentos.js"></script>
+<script src="../assets/procedimentos.js"></script>
+<script src="links.js"></script>
+<script src="societario-core.js"></script>
+<style>
+:root{--bg:#0d0f14;--surface:#13161e;--surface2:#1a1e2a;--border:#2a2f42;--border2:#363d55;--text:#e8eaf2;--text2:#9aa1b8;--text3:#626a85;--accent:#60a5fa;--ok:#34d399;--warn:#fbbf24;--bad:#f87171}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:14px/1.6 'DM Sans',system-ui,sans-serif}
+main{max-width:960px;margin:0 auto;padding:26px 20px 90px}
+.crumbs{font-size:12.5px;color:var(--text3);margin-bottom:12px}.crumbs a{color:var(--text2);text-decoration:none}
+h1{font:800 26px Syne,sans-serif;margin-bottom:4px}
+h2{font:800 20px Syne,sans-serif;margin:34px 0 10px;padding-top:6px;border-top:1px solid var(--border)}
+h3{font:700 13px Syne,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);margin:16px 0 6px}
+.sub{color:var(--text2);margin-bottom:14px}
+section,.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+ol,ul{padding-left:20px}li{margin:3px 0}
+p+p{margin-top:6px}
+a{color:var(--accent)}
+code{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:1px 6px;font-size:12.5px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}
+th,td{border:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--surface2);color:var(--text2);font-weight:600}
+.aviso{padding:10px 12px;border-radius:10px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.3);margin:8px 0}
+.aviso b{color:var(--warn)}
+.dica{padding:10px 12px;border-radius:10px;background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.3);margin:8px 0}
+.toc{columns:2;gap:24px}.toc a{text-decoration:none}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
+.btn{display:inline-flex;gap:6px;align-items:center;padding:8px 14px;border-radius:10px;background:linear-gradient(135deg,#10b981,#4f8ef7);color:#fff;text-decoration:none;font-weight:700;border:0;cursor:pointer;font:inherit;font-weight:700}
+.etapa{display:flex;gap:8px;padding:5px 0;border-bottom:1px dashed var(--border)}
+.etapa .n{color:var(--text3);min-width:22px}
+.etapa small{display:block;color:var(--text3)}
+.muted{color:var(--text3);font-size:12.5px}
+.proc-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+@media (max-width:760px){.toc{columns:1}}
+@media print{
+  :root{--bg:#fff;--surface:#fff;--surface2:#f3f4f6;--border:#d1d5db;--border2:#9ca3af;--text:#111;--text2:#374151;--text3:#6b7280;--accent:#1d4ed8}
+  .crumbs,.acts{display:none}
+  main{max-width:none;padding:0}
+  h2{page-break-before:always;border-top:0}
+  h2.primeiro{page-break-before:avoid}
+  h2,h3{page-break-after:avoid}
+  tr,.etapa,li{page-break-inside:avoid}
+  a{text-decoration:none}
+}
+</style>
+</head>
+<body>
+<main id="view"></main>
+<script>
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const P = window.JCR_PROCEDIMENTOS || {}, L = window.LinksSoc, SO = window.Societario;
+const lista = (itens, tag = 'ul') => itens && itens.length ? `<${tag}>${itens.map(i => `<li>${esc(i)}</li>`).join('')}</${tag}>` : '';
+const urlPortal = u => (/^https?:/.test(u) ? u : '../' + u);
+const lk = (nome, url) => `<a href="${esc(url)}" ${/^https?:/.test(url) ? 'target="_blank" rel="noopener"' : ''}>${esc(nome)}</a>`;
+
+// Etapas do Painel com os links de cada uma (os mesmos que aparecem no processo)
+function etapasHtml(tipo) {
+  const t = SO.TIPOS[tipo]; if (!t) return '';
+  return t.etapas.map(([id, nome, o = {}], i) => {
+    const ls = L.daEtapa(id, null);
+    const cond = o.fluxo ? ` (só no fluxo ${o.fluxo})` : o.naturezas ? ` (só ${o.naturezas.join(', ')})` : '';
+    return `<div class="etapa"><span class="n">${i + 1}.</span><div>${esc(nome)}${esc(cond)}${ls.length ? `<small>${ls.map(l => lk(l.nome.split(' (')[0], l.interno ? urlPortal(l.url) : l.url)).join(' · ')}</small>` : ''}</div></div>`;
+  }).join('');
+}
+
+// Um processo: procedimento do portal + documentos do cliente + etapas do Painel
+function processo(num, titulo, chave, tipo, extra = '') {
+  const p = P['societario/' + chave] || {};
+  const t = tipo && SO.TIPOS[tipo];
+  return `<h2 id="${chave}">${num}. ${esc(titulo)}</h2>
+    <section>
+      <div class="proc-head"><b>${esc(p.objetivo || '')}</b><a href="../procedimento.html?dep=societario&proc=${chave}">abrir o procedimento ↗</a></div>
+      <p class="muted">${p.responsavel ? 'Responsável: ' + esc(p.responsavel) + '. ' : ''}${p.prazo ? 'Prazo: ' + esc(p.prazo) : ''}</p>
+    </section>
+    ${extra}
+    ${t ? `<h3>Pedir ao cliente</h3><section>${lista(t.docs)}${p.entradas && p.entradas.length ? `<p class="muted" style="margin-top:6px">Também:</p>${lista(p.entradas)}` : ''}</section>`
+      : p.entradas ? `<h3>Pedir ao cliente / receber</h3><section>${lista(p.entradas)}</section>` : ''}
+    ${p.passos ? `<h3>Passo a passo</h3><section>${lista(p.passos, 'ol')}</section>` : ''}
+    ${t ? `<h3>Etapas no Painel Societário (com os links)</h3><section>${etapasHtml(tipo)}</section>` : ''}
+    ${p.preencher ? `<h3>O que preencher em "Dados e documentos"</h3><section>${lista(p.preencher.campos)}</section>` : ''}
+    ${p.checklist ? `<h3>Conferir antes de concluir</h3><section>${lista(p.checklist)}</section>` : ''}
+    ${p.atencao ? `<h3>Pontos de atenção</h3><section>${lista(p.atencao)}</section>` : ''}`;
+}
+
+const vre = L.LINKS.vre.url, facilita = L.LINKS.facilita.url;
+const hoje = new Date().toLocaleDateString('pt-BR');
+
+document.getElementById('view').innerHTML = `
+  <div class="crumbs"><a href="../index.html">Portal</a> › <a href="./">Painel Societário</a> › Manual</div>
+  <h1>📘 Manual do Societário</h1>
+  <p class="sub">Abertura, alteração, transformação, holding, encerramento, baixa, licenças, inscrições e certificados — como fazemos na JCR, com as ferramentas do portal. Gerado a partir dos procedimentos e etapas do portal em ${hoje}: quando um procedimento muda, este manual muda junto.</p>
+  <div class="acts"><button class="btn" onclick="print()">🖨️ Imprimir / salvar em PDF</button><a class="btn" href="./">🏛️ Painel Societário</a></div>
+
+  <section><b>Sumário</b>
+    <div class="toc">
+      <div><a href="#rotina">1. Rotina de todo processo</a></div>
+      <div><a href="#sistemas">2. Sistemas do governo: Facilita SP, VRE, REDESIM, JucespOnline</a></div>
+      <div><a href="#porte">3. Natureza, porte, taxas e fluxo</a></div>
+      <div><a href="#abertura">4. Abertura</a></div>
+      <div><a href="#alteracao-contratual">5. Alteração contratual</a></div>
+      <div><a href="#transformacao">6. Transformação (MEI, EI, LTDA)</a></div>
+      <div><a href="#holding">7. Holding</a></div>
+      <div><a href="#encerramento">8. Encerramento (distrato)</a></div>
+      <div><a href="#baixa">9. Baixa nos órgãos</a></div>
+      <div><a href="#alvaras">10. Alvarás e licenças</a></div>
+      <div><a href="#inscricoes">11. Inscrições estadual e municipal</a></div>
+      <div><a href="#certificado-digital">12. Certificados digitais</a></div>
+      <div><a href="#exigencias">13. Exigências: como cumprir</a></div>
+      <div><a href="#erros">14. Erros que já deram exigência</a></div>
+      <div><a href="#preenchedor">15. JCR Preenchedor (extensão)</a></div>
+    </div>
+  </section>
+
+  <h2 id="rotina" class="primeiro">1. Rotina de todo processo</h2>
+  <section><ol>
+    <li><b>Cadastrar no Painel Societário</b> (<a href="./">+ Novo processo</a>): tipo do ato, natureza, fluxo (rápido ou tradicional) e município. As etapas já vêm prontas, com os links de cada uma.</li>
+    <li><b>Pedir os documentos ao cliente</b>: no processo, "Copiar lista" gera a mensagem para WhatsApp ou e-mail.</li>
+    <li><b>Preencher "Dados e documentos"</b> (<a href="modelos.html">abrir</a>): envie RG/CNH, comprovante, IPTU, contrato anterior ou ficha da JUCESP e o portal lê e preenche. Confira tudo: é deste cadastro que saem o contrato em Word e o preenchimento automático do governo.</li>
+    <li><b>Resolver as validações</b> que o portal aponta (regime de bens, quotas x capital, CPF, sócios casados entre si, visto de advogado). Nada entre colchetes pode sobrar.</li>
+    <li><b>Viabilidade</b> (nome e endereço) e <b>DBE</b>, quando o ato pede.</li>
+    <li><b>Gerar o documento</b> (contrato, alteração, ato de transformação, distrato) e mandar ao cliente revisar.</li>
+    <li><b>Preencher o sistema do governo com a extensão</b> (Facilita SP ou VRE): em cada tela, ícone do JCR Preenchedor → processo → Preencher esta página.</li>
+    <li><b>Conferir os PDFs gerados</b> no <a href="conferidor.html">Conferidor</a> antes de assinar: ele compara nome, endereço, sócios, capital e CNAEs entre todos os documentos.</li>
+    <li><b>Assinaturas</b> (gov.br Ouro/Prata ou certificado), <b>DARE</b> e envio. Anotar o protocolo no processo.</li>
+    <li><b>Acompanhar</b>: o quadro "Atenção hoje" do Painel e o e-mail diário avisam exigências, processos parados e vencimentos.</li>
+    <li><b>Depois do deferimento</b>: inscrições, licenças, certificado digital, tributação e cadastro no Gestão Fiscal e no JCR Entregas.</li>
+  </ol></section>
+
+  <h2 id="sistemas">2. Sistemas do governo</h2>
+  <section><table>
+    <tr><th>Sistema</th><th>Para que usamos</th></tr>
+    <tr><td>${lk('Facilita SP', facilita)}</td><td><b>Processos novos</b> de abertura, alteração e baixa na JUCESP. Assinatura pelo gov.br dentro do sistema. Tem o <b>fluxo rápido</b> (contrato padrão e viabilidade aprovada: registro quase automático) e o <b>tradicional</b> (cláusulas próprias: analisado por técnico).</td></tr>
+    <tr><td>${lk('VRE — Via Rápida Empresa', vre)}</td><td>Sistema antigo. Usar para <b>processos que começaram nele</b> (exigência de processo do VRE se cumpre no VRE: não migra), <b>licenciamento</b> (CLI, declarações) e atos que ainda não estão no Facilita (alguns tipos de transformação).</td></tr>
+    <tr><td>${lk('REDESIM — Coletor Nacional', L.LINKS.redesim.url)}</td><td>DBE (Documento Básico de Entrada) da Receita Federal, quando o fluxo pede.</td></tr>
+    <tr><td>${lk('JucespOnline', L.LINKS.jucesponline.url)}</td><td>Busca de nome, ficha cadastral, certidões, andamento e agendamento presencial.</td></tr>
+  </table>
+  <div class="dica">Regra prática: <b>abertura, alteração ou baixa nova → Facilita SP</b>. <b>Exigência ou reenvio de processo antigo → onde ele começou</b> (quase sempre VRE).</div></section>
+
+  <h2 id="porte">3. Natureza, porte, taxas e fluxo</h2>
+  <section>
+    <h3>Natureza jurídica</h3>
+    <table>
+      <tr><th>Natureza</th><th>Quando</th></tr>
+      <tr><td>MEI</td><td>Só ocupações da lista do MEI (Resolução CGSN 140/2018, anexo XI) e faturamento até o limite. Ex.: social media, publicidade e holding <b>não</b> podem ser MEI.</td></tr>
+      <tr><td>Empresário individual (EI)</td><td>Uma pessoa, sem separação de patrimônio.</td></tr>
+      <tr><td>Sociedade Limitada Unipessoal (SLU)</td><td>Uma pessoa, com patrimônio separado. Mesmo custo do EI: é a recomendação padrão para quem abre sozinho.</td></tr>
+      <tr><td>Sociedade Limitada (LTDA)</td><td>Dois ou mais sócios.</td></tr>
+    </table>
+    <h3>Porte</h3>
+    <ul>
+      <li><b>ME</b> (até R$ 360 mil/ano) e <b>EPP</b> (até R$ 4,8 milhões/ano): taxa menor na Junta e <b>dispensa o visto de advogado</b> no contrato.</li>
+      <li><b>Normal ("Demais")</b>: o contrato social de LTDA precisa do <b>visto de advogado</b> (nome e OAB).</li>
+      <li>Não pode ser ME/EPP (LC 123/2006, art. 3º, §4º): quem <b>participa do capital de outra empresa</b> (inclusive ações na bolsa), S/A, sócio com mais de 10% ou administrador de outra empresa quando a receita somada passa de R$ 4,8 milhões, entre outros.</li>
+      <li><b>ME não é Simples Nacional.</b> Ex.: holding só de imóveis próprios pode ser ME, mas não pode optar pelo Simples (locação de imóveis próprios é vedada: art. 17, XV) → Lucro Presumido.</li>
+    </ul>
+    <h3>Taxas da JUCESP 2026</h3>
+    <table>
+      <tr><th>Ato</th><th>Normal</th><th>ME/EPP</th></tr>
+      <tr><td>Contrato social de LTDA (inclui SLU)</td><td>R$ 273,55</td><td>R$ 218,99</td></tr>
+      <tr><td>Empresário individual</td><td>R$ 120,25</td><td>R$ 94,90</td></tr>
+    </table>
+    <p class="muted">Portaria JUCESP nº 146/2025 (UFESP 2026 = R$ 38,42). A taxa é paga numa DARE (código 370-0), que sai pronta no sistema do ato com o valor certo. Houve atualização da tabela em julho/2026 (Portaria nº 74/2026): confirme o valor na guia. Viabilidade, DBE e CNPJ não têm taxa. Certificado e-CNPJ A1: cerca de R$ 150 a R$ 250 por ano. Taxa municipal: varia por cidade.</p>
+    <h3>Tributação na abertura (lembrete)</h3>
+    <ul>
+      <li>Serviços intelectuais (publicidade, marketing, consultoria…) caem no <b>Anexo V</b> do Simples (15,5% na 1ª faixa). Com pró-labore de pelo menos 28% do faturamento (<b>Fator R</b>), vão para o <b>Anexo III</b> (6%). O pró-labore paga 11% de INSS.</li>
+      <li>Use a <a href="../fiscal/transicao.html">Transição de regime</a> quando o cliente muda de regime.</li>
+    </ul>
+  </section>
+
+  ${processo(4, 'Abertura de empresa', 'abertura', 'abertura')}
+  ${processo(5, 'Alteração contratual', 'alteracao-contratual', 'alteracao')}
+  ${processo(6, 'Transformação (MEI, EI, LTDA)', 'transformacao', 'transformacao', `
+    <section><b>Empresário individual → LTDA no VRE: são 3 documentos</b>
+      <table>
+        <tr><th>Doc.</th><th>Ato</th><th>Com os dados de</th></tr>
+        <tr><td>1/3</td><td>Constituição por utilização do acervo de empresário</td><td><b>LTDA nova</b> (nome novo, porte ME). Em "Empresa cedente do acervo": origem São Paulo e o <b>NIRE do empresário individual</b>.</td></tr>
+        <tr><td>2/3</td><td>Enquadramento de Microempresa</td><td>LTDA nova</td></tr>
+        <tr><td>3/3</td><td>Cancelamento com transferência do acervo (Requerimento de Empresário)</td><td><b>Empresário individual</b>: nome "CNPJ-base + NOME DO TITULAR" e o porte atual dele. Já deu exigência por vir com o nome da LTDA.</td></tr>
+      </table>
+      <ul>
+        <li>Contrato: instrumento de transformação + contrato social consolidado. O capital é <b>integralizado com o acervo</b> do empresário (não "em moeda corrente").</li>
+        <li>No cabeçalho do consolidado vai só o CNPJ: a LTDA recebe NIRE novo. O NIRE antigo aparece só como do empresário individual.</li>
+        <li>Término de atividade: em branco (prazo indeterminado).</li>
+      </ul>
+    </section>`)}
+  ${processo(7, 'Holding patrimonial e de participações', 'holding', null, `
+    <section><b>Decisões que definem o processo</b>
+      <table>
+        <tr><th>A holding vai ter…</th><th>CNAEs</th><th>Porte</th><th>Visto de advogado</th></tr>
+        <tr><td>Só imóveis próprios (+ aplicações como CDB, Tesouro, fundos)</td><td>6810-2/01, 6810-2/02</td><td>ME</td><td>dispensado</td></tr>
+        <tr><td>Quotas ou ações de outras empresas (inclusive na bolsa)</td><td>+ 6462-0/00 (controla) ou 6463-8/00 (sem controle)</td><td>Normal</td><td>obrigatório</td></tr>
+      </table>
+      <ul>
+        <li>No Painel, cadastre como <b>Abertura</b>: com "holding" no nome ou CNAE 6462/6463, o botão abre o procedimento de holding.</li>
+        <li><b>Sócios casados entre si</b>: proibido em comunhão universal ou separação obrigatória (CC art. 977). Peça a certidão de casamento antes de tudo; o portal avisa.</li>
+        <li>Nunca usar 6821/6822 (imóveis de terceiros, exige CRECI) nem "financeira" no nome ou no objeto (instituição financeira exige autorização do Banco Central): a holding só aplica recursos próprios.</li>
+        <li>Confira o IPTU da sede: imóvel cadastrado como "terreno vago" ou sem número pode travar a viabilidade.</li>
+      </ul>
+      <p><b>Perguntas ao cliente</b>: regime de bens; endereço e regularidade do imóvel da sede; outras empresas (mais de 10% ou administração); quais imóveis, valor no IR, matrícula, financiamento; entram já ou depois; aluguéis recebidos; planos de venda; herdeiros, doação de quotas com usufruto; forma de administração.</p>
+    </section>`)}
+  ${processo(8, 'Encerramento (distrato na Junta)', 'encerramento', 'encerramento')}
+  ${processo(9, 'Baixa nos órgãos (CNPJ, IE, CCM, licenças)', 'baixa', 'baixa')}
+  ${processo(10, 'Alvarás, licenças e renovações', 'alvaras', null, `<section>Vencimentos de alvarás e licenças ficam em <a href="vencimentos.html">Certificados, alvarás e licenças</a>, com aviso no Telegram e ao cliente.</section>`)}
+  ${processo(11, 'Inscrições estadual e municipal', 'inscricoes', null)}
+  ${processo(12, 'Controle de certificados digitais', 'certificado-digital', null, `<section>No portal: <a href="vencimentos.html">Certificados, alvarás e licenças</a> — importação em lote (a senha vem do nome do arquivo), envio do PEM ao robô da VPS, cofre criptografado para baixar o .pfx e avisos de 60/45/30 dias. Na transformação ou mudança de nome, o e-CNPJ precisa ser emitido de novo.</section>`)}
+
+  <h2 id="exigencias">13. Exigências: como cumprir</h2>
+  <section><ol>
+    <li>No Painel, abra o processo e clique em <b>Registrar exigência</b> (motivo e data). O prazo é de <b>${SO.PRAZO_EXIGENCIA} dias</b> sem nova taxa; depois disso vira processo novo, com taxa nova.</li>
+    <li>Clique em <b>🛠️ Corrigir exigência</b>: o Conferidor abre ligado ao processo. Arraste os PDFs que foram enviados e clique em Conferir.</li>
+    <li>Na tabela de correções, escolha para cada linha: corrigir o formulário, "o PDF está certo" ou trazer para os dados. Diferença só de escrita (maiúsculas, acento, "nº", pontuação) não aparece. Inclua correções à mão e o texto da exigência. <b>Salvar correções no processo</b>.</li>
+    <li>Se o erro estiver no contrato, gere o Word de novo em Dados e documentos.</li>
+    <li>Abra o sistema onde o processo começou (botão <b>VRE ↗</b> no processo) e use a extensão: ela mostra as correções e preenche só os campos corrigidos (contorno azul).</li>
+    <li>Gere os PDFs novos, confira de novo no Conferidor, reenvie e clique em <b>Marcar como reenviadas</b> e em <b>Exigência cumprida</b>.</li>
+  </ol></section>
+
+  <h2 id="erros">14. Erros que já deram exigência (e como evitar)</h2>
+  <section><table>
+    <tr><th>Erro</th><th>Como evitar</th></tr>
+    <tr><td>Documento do empresário individual (doc. 3/3 da transformação) com o nome da LTDA</td><td>Na extensão, opção "Doc. 3/3 – empresário individual".</td></tr>
+    <tr><td>Endereço escrito diferente entre contrato, fichas e declarações ("Viana"/"Vianna", "Parque Jardim da Amizade"/"Parque da Amizade")</td><td>Use exatamente o do IPTU/CNPJ em "Dados e documentos": contrato e formulários saem do mesmo cadastro.</td></tr>
+    <tr><td>Nome do sócio digitado errado em declaração ("SANTAOS")</td><td>Conferir o nome do responsável/signatário no cadastro do sistema; passar todos os PDFs no Conferidor.</td></tr>
+    <tr><td>Descrição do objeto na ficha cadastral com erros de digitação e diferente do contrato</td><td>Copiar o objeto do contrato (a extensão preenche a partir dos CNAEs do portal).</td></tr>
+    <tr><td>CNAEs diferentes entre contrato, ficha e portal</td><td>Decidir os CNAEs antes da viabilidade; um único cadastro no portal.</td></tr>
+    <tr><td>Capital "em moeda corrente" num contrato de transformação</td><td>Corrigido no modelo: integralizado com o acervo.</td></tr>
+    <tr><td>Datas diferentes entre contrato e capas</td><td>Uma data só para todos os documentos do mesmo ato.</td></tr>
+    <tr><td>Objeto só com o código CNAE, sem descrição</td><td>O contrato do portal escreve o código e a descrição de cada atividade.</td></tr>
+    <tr><td>Modelo de outro cliente com cláusulas que não se aplicam (ex.: corretor de imóveis)</td><td>Gerar sempre pelo portal, a partir dos dados do processo.</td></tr>
+    <tr><td>Contrato de porte normal sem visto de advogado</td><td>O portal avisa quando não há enquadramento ME/EPP.</td></tr>
+  </table></section>
+
+  <h2 id="preenchedor">15. JCR Preenchedor (extensão do Chrome)</h2>
+  <section>
+    <ul>
+      <li>Instalação e atualização: <a href="extensao.html">Preenchedor automático</a>. O botão fica na barra do Chrome, não no portal.</li>
+      <li>Em cada tela: ícone → processo → opção (Automático, Só empresa, Sócio N, Doc. 3/3 – empresário individual) → <b>Preencher esta página</b>. Ela nunca avança nem envia.</li>
+      <li>Cores: <b style="color:var(--ok)">verde</b> preenchido, <b style="color:#3b82f6">azul</b> corrigido por exigência, <b style="color:var(--warn)">amarelo</b> não reconhecido (botão direito → "JCR: este campo é…" para ensinar).</li>
+      <li>Telas já preenchidas pelo sistema: marque "Substituir o que já estiver preenchido".</li>
+      <li>Algo errado ou amarelo? <b>📋 Copiar diagnóstico desta página</b> e mande ao suporte: a extensão é ajustada para aquela tela.</li>
+      <li>Telefone em dois campos (DDD + número), Ramal, Término de atividade e "N.I.R.E. da Cedente" já são tratados no VRE.</li>
+    </ul>
+  </section>
+  <p class="muted" style="margin-top:20px">Fontes: procedimentos e etapas do Portal JCR, manuais do Facilita SP e do DREI (IN 81/2020), LC 123/2006, Código Civil e tabela de preços da JUCESP 2026. Leis e taxas mudam: confira a fonte oficial em caso de dúvida.</p>
+`;
+</script>
+</body>
+</html>

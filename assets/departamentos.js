@@ -26,6 +26,7 @@ window.JCR_DEPARTAMENTOS = [
       { id: 'certificado-digital', nome: 'Controle de certificados digitais', freq: 'Contínuo' },
     ],
     ferramentas: [
+      { nome: 'Manual do Societário', url: 'societario/manual.html', desc: 'Abertura, alteração, transformação, holding, encerramento, baixa, licenças, inscrições e certificados num só lugar: rotina, sistemas (Facilita SP x VRE), porte e taxas, etapas com links, exigências e erros já vistos. Imprime em PDF.', status: 'ativa' },
       { nome: 'Painel Societário', url: 'societario/', desc: 'Processos por cliente com as etapas dos manuais do Facilita SP, exigências com prazo de 30 dias e lista de documentos para o cliente.', status: 'ativa' },
       { nome: 'Preenchedor automático (extensão do Chrome)', url: 'societario/extensao.html', desc: 'Preenche sozinho os formulários do Facilita SP, VRE, REDESIM e prefeituras com os dados do "Dados e documentos": sede, sócios, capital, CNAEs, encerramento.', status: 'ativa' },
       { nome: 'Certificados, alvarás e licenças', url: 'societario/vencimentos.html', desc: 'Importa certificados A1 em lote (senha pelo nome do arquivo), grava na pasta do robô da VPS e guarda o .pfx num cofre criptografado para baixar quando precisar. Acompanha vencimentos de certificados, alvarás e licenças, com avisos no Telegram e ao cliente.', status: 'ativa' },

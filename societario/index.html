@@ -366,7 +366,7 @@ function abrir(id) {
             ? `<p style="font-size:13px"><b>${esc(p.exigencia_motivo || 'Sem motivo informado')}</b></p>
                <p class="muted">Desde ${dataBR(p.exigencia_em)} · prazo ${dataBR(SO.prazoExigencia(p))} (${SO.PRAZO_EXIGENCIA} dias, sem nova taxa)</p>
                ${p.dados && p.dados.correcoes && p.dados.correcoes.itens && p.dados.correcoes.itens.length ? `<p class="muted" style="margin-top:6px">🛠️ ${p.dados.correcoes.itens.length} correção(ões) registrada(s) em ${dataBR(p.dados.correcoes.em)}: use o JCR Preenchedor no formulário.</p>` : ''}
-               <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><a class="btn sm" href="conferidor.html?processo=${p.id}">🛠️ Corrigir exigência</a>
+               <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><a class="btn sm" href="conferidor.html?processo=${p.id}">🛠️ Corrigir exigência</a><a class="btn sm" href="extensao.html#exigencia" title="Como preencher o formulário do governo com a extensão JCR Preenchedor">🧾 Preencher com a extensão</a>
                <button class="btn sec sm" onclick="mudarStatus('${p.id}','andamento')">Exigência cumprida</button></div>`
             : `<p class="muted">A JUCESP dá ${SO.PRAZO_EXIGENCIA} dias para cumprir exigência ou corrigir vício sem pagar nova taxa.</p>
                ${p.status === 'andamento' ? `<button class="btn sec sm" style="margin-top:8px" onclick="exigencia('${p.id}')">Registrar exigência</button>` : ''}`}

@@ -223,7 +223,7 @@ function renderForm() {
     ${S.processo ? `<div class="c6 help">Processo: <b>${esc(S.processo.empresa)}</b>. Os dados ficam salvos no processo.</div>` : '<div class="c6 help">Sem processo vinculado: os dados ficam só nesta tela. Abra pelo Painel Societário para salvar.</div>'}
   </div>`);
 
-  h += card('Documentos do processo', S.processo ? `<div class="campos">
+  h += card('📎 Importar documentos (RG/CNH, IPTU, contrato…)', S.processo ? `<div class="campos">
       ${campo('_up.tipo', 'Tipo de documento', 'c3', { tipo: 'select', re: true, opcoes: Object.entries(LeitorSoc.TIPOS_DOC) })}
       ${LeitorSoc.DO_SOCIO.has(S.up.tipo) ? `<div class="c3"><label for="f-up-socio">De qual sócio</label><select id="f-up-socio" onchange="S.up.socio=+this.value">${d.socios.map((s, i) => `<option value="${i}" ${i === S.up.socio ? 'selected' : ''}>${esc(s.nome || 'Sócio ' + (i + 1))}</option>`).join('')}<option value="${d.socios.length}" ${S.up.socio === d.socios.length ? 'selected' : ''}>+ novo sócio</option></select></div>` : '<div class="c3"></div>'}
       <div class="c6"><input type="file" id="f-up-arq" accept="application/pdf,image/jpeg,image/png,image/webp" onchange="enviarDocumento(this)">
@@ -231,7 +231,9 @@ function renderForm() {
     </div>
     <div class="docs-lista">${S.docs.map(x => `<div class="doc"><span>📎</span><span class="n" title="${esc(x.nome_arquivo)}">${esc(x.nome_arquivo)}<br><span class="t">${esc(LeitorSoc.TIPOS_DOC[x.tipo_doc] || x.tipo_doc)}${x.socio != null && LeitorSoc.DO_SOCIO.has(x.tipo_doc) ? ' · ' + esc((d.socios[x.socio] || {}).nome || 'sócio ' + (x.socio + 1)) : ''} · ${new Date(x.created_at).toLocaleDateString('pt-BR')}${x.lido_por ? ' · lido ' + (x.lido_por === 'ia' ? 'pela IA' : 'no navegador') : ''}</span></span>
       <button class="btn sec sm" onclick="verDocumento('${x.id}')">Ver</button><button class="btn sec sm" onclick="lerDocumento('${x.id}')">Ler e preencher</button><button class="btn sec sm" onclick="excluirDocumento('${x.id}')">✕</button></div>`).join('') || '<div class="help">Nenhum documento enviado ainda.</div>'}</div>`
-    : '<div class="help">Abra este formulário pelo processo no Painel Societário para enviar documentos (RG/CNH, comprovante, IPTU, contrato anterior, ficha da JUCESP, cartão CNPJ). Eles ficam guardados no processo e preenchem os campos.</div>');
+    : `<div class="campos"><div class="c6"><label for="f-escolher">Escolha o processo para importar os documentos</label>
+        <select id="f-escolher" onchange="if(this.value) location.href='modelos.html?processo='+this.value"><option value="">— processos do Painel Societário —</option>${(S.lista || []).map(x => `<option value="${x.id}">${esc(x.empresa)} · ${esc(x.tipo)}</option>`).join('')}</select>
+        <div class="help">Os documentos (RG/CNH, comprovante, IPTU, contrato anterior, ficha da JUCESP, cartão CNPJ) ficam guardados no processo e preenchem os campos. Processo novo? Crie em <a href="./">Painel Societário → + Novo processo</a>.</div></div></div>`);
 
   if (t === 'constituicao') h += card('Empresa', `<div class="campos">
     ${campo('empresa.nome', 'Nome empresarial (com LTDA)', 'c6', { help: 'Igual ao aprovado na viabilidade/busca de nome.' })}
@@ -588,6 +590,11 @@ async function baixar() {
 const params = new URLSearchParams(location.search);
 renderForm(); atualizar();
 if (params.get('processo')) carregarProcesso(params.get('processo')).catch(e => toast('Erro ao carregar: ' + e.message, true));
+else if (window.supabase) {
+  // Sem processo na URL: lista os processos para escolher onde importar os documentos
+  supabase.createClient(SUPABASE_URL, SUPABASE_KEY).from('soc_processos').select('id,empresa,tipo,status').neq('status', 'cancelado').order('updated_at', { ascending: false }).limit(200)
+    .then(r => { if (!r.error) { S.lista = r.data || []; renderForm(); } });
+}
 </script>
 </body>
 </html>

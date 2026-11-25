@@ -110,3 +110,10 @@ test('VRE: Ramal e Término de atividade não recebem dados, mesmo dentro do blo
   assert.strictEqual(M.identificar({ rotulo: 'Título de Estabelecimento:', contexto: 'Dados da Empresa' }).chave, 'empresa.nome_fantasia');
   assert.strictEqual(M.identificar({ rotulo: 'Logradouro:', contexto: 'Endereço da Empresa' }).chave, 'empresa.logradouro');
 });
+
+test('VRE: telefone sem rótulo dentro do bloco de endereço não recebe o logradouro; início de atividade reconhecido', () => {
+  const M = require('../extensao/mapa.js');
+  assert.strictEqual(M.identificar({ rotulo: '', nome: 'ucEndereco_txtTel', id: 'ucEndereco_txtTel', contexto: 'Endereço da Empresa' }), null);
+  assert.strictEqual(M.identificar({ rotulo: '', nome: 'endereco', contexto: 'Endereço da Empresa' }).chave, 'empresa.logradouro');
+  assert.strictEqual(M.identificar({ rotulo: 'Inicio Atividade:', contexto: 'Dados da Empresa' }).chave, 'empresa.inicio');
+});

@@ -36,7 +36,7 @@
     ['empresa.cnaes_secundarios', 'CNAEs secundários', 'empresa', [/(cnaes?|atividades?) secundari/]],
     ['empresa.email', 'E-mail da empresa', 'empresa', [/e-?mail/, /correio eletronico/]],
     ['empresa.telefone', 'Telefone da empresa', 'empresa', [/telefone/, /celular/, /\bddd\b/, /fone/]],
-    ['empresa.inicio', 'Data de início das atividades', 'empresa', [/inicio (das )?atividades/, /data de inicio/]],
+    ['empresa.inicio', 'Data de início das atividades', 'empresa', [/inicio (da |das )?atividades?/, /data de inicio/]],
     ['empresa.enquadramento', 'Porte (ME/EPP)', 'empresa', [/enquadramento/, /^porte$/, /porte da empresa/]],
     ['ato.nome_novo', 'Novo nome empresarial', 'ato', [/novo nome/, /nome empresarial (novo|pretendido)/]],
     ['ato.data_encerramento', 'Data do encerramento', 'ato', [/data (do |de )?(encerramento|extincao|distrato)/]],
@@ -92,7 +92,9 @@
     if (rot && NUNCA.some(r => r.test(rot))) return null;
     // nome técnico em palavras: "txtCpfSocio" e "cep_estabelecimento" → "txt cpf socio", "cep estabelecimento"
     const tec = semAcento([d.nome, d.id].filter(Boolean).join(' ').replace(/([a-z])([A-Z])/g, '$1 $2')).replace(/[^a-z0-9]+/g, ' ').trim();
-    const palavras = tec ? tec.split(' ') : [];
+    // palavras genéricas de bloco (ex.: "ucEndereco_txtTel") não identificam o campo sozinhas
+    const GENERICAS = new Set(['endereco', 'dados', 'empresa', 'socio', 'integrante', 'uc', 'txt', 'cph', 'ctl00']);
+    const palavras = tec ? tec.split(' ').filter(w => !GENERICAS.has(w)) : [];
     const dica = semAcento(limpa(d.dica));
     const blk = forcar || bloco(d.contexto || '') || bloco(tec);
     let melhor = null;

@@ -67,6 +67,7 @@ function tela() {
       <div class="linha"><input type="checkbox" id="subst" ${E.substituir ? 'checked' : ''}><span>Substituir o que já estiver preenchido</span></div>
       <button id="b-preencher">Preencher esta página</button>
       <div id="res">${resultadoHtml()}</div>
+      <button class="sec" id="b-diag" title="Copia a lista de campos desta página e como a extensão reconhece cada um. Cole na conversa com o suporte para ajustar.">📋 Copiar diagnóstico desta página</button>
       <button class="sec" id="b-ficha">${E.verFicha ? 'Esconder' : 'Ver'} os dados (para copiar)</button>
       ${E.verFicha ? fichaHtml(f) : ''}` : '<p class="muted" style="margin-top:10px">Escolha o processo. Os dados vêm do "Dados e documentos" do portal.</p>'}
     <p class="muted" style="margin-top:10px">A extensão não envia nada ao governo nem clica em "Avançar": confira e siga. Campo em amarelo = não reconhecido; clique nele com o botão direito → "JCR: este campo é…" para ensinar.</p>`;
@@ -79,6 +80,7 @@ function tela() {
   if ($('so-corr')) $('so-corr').onchange = e => { E.somenteCorrigidos = e.target.checked; };
   $('b-preencher').onclick = preencher;
   $('b-ficha').onclick = () => { E.verFicha = !E.verFicha; tela(); };
+  $('b-diag').onclick = diagnostico;
   document.querySelectorAll('[data-copiar]').forEach(a => a.onclick = () => navigator.clipboard.writeText(a.dataset.copiar).then(() => { a.textContent = 'copiado'; }));
 }
 
@@ -112,6 +114,22 @@ async function preencher() {
     const r = await chrome.scripting.executeScript({ target: { tabId: aba.id, allFrames: true }, func: (f, o) => self.__jcrPreencher(f, o), args: [ficha, op] });
     E.resultado = { quadros: r.map(x => x.result).filter(Boolean) };
   } catch (e) { E.resultado = { erro: 'Não foi possível acessar esta página: ' + e.message }; }
+  tela();
+}
+
+// Copia o mapa dos campos da página aberta (todas as molduras) para colar na conversa de suporte
+async function diagnostico() {
+  const [aba] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const { aprendidos = {} } = await chrome.storage.local.get('aprendidos');
+  const ei = E.bloco === 'ei' && M.fichaDoEmpresario(E.ficha);
+  const [bloco, iSocio] = E.bloco.startsWith('socio:') ? ['socio', +E.bloco.split(':')[1]] : ei ? ['auto', null] : [E.bloco, null];
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: aba.id, allFrames: true }, files: ['mapa.js', 'preencher.js'] });
+    const r = await chrome.scripting.executeScript({ target: { tabId: aba.id, allFrames: true }, func: (f, o) => self.__jcrDiagnostico(f, o), args: [ei || E.ficha, { bloco, socio: iSocio, aprendidos }] });
+    const texto = [`JCR Preenchedor ${chrome.runtime.getManifest().version} · opção: ${E.bloco}`, ...r.map(x => x.result).filter(Boolean)].join('\n\n');
+    await navigator.clipboard.writeText(texto);
+    E.resultado = { erro: '📋 Diagnóstico copiado. Cole (Ctrl+V) na conversa com o suporte.' };
+  } catch (e) { E.resultado = { erro: 'Não foi possível ler esta página: ' + e.message }; }
   tela();
 }
 

@@ -71,3 +71,11 @@ test('processo em papel: etapas de impressão, protocolo e retirada; troca sem p
   assert.deepStrictEqual(S.retiradaPendente(def, '2026-11-25'), { desde: '2026-11-01', restam: 66 });
   assert.strictEqual(S.retiradaPendente({ ...def, entrada: 'digital' }, '2026-11-25'), null);
 });
+
+test('taxa da JUCESP 2026 pelo tipo, natureza e porte', () => {
+  const S = require('../societario/societario-core.js');
+  assert.strictEqual(S.taxaJucesp({ tipo: 'abertura', natureza: 'LTDA', dados: { empresa: { enquadramento: 'ME' } } }).valor, 218.99);
+  assert.strictEqual(S.taxaJucesp({ tipo: 'abertura', natureza: 'LTDA', dados: { empresa: { enquadramento: '' } } }).valor, 273.55);
+  assert.strictEqual(S.taxaJucesp({ tipo: 'abertura', natureza: 'EI', dados: { empresa: { enquadramento: 'ME' } } }).valor, 94.90);
+  assert.strictEqual(S.taxaJucesp({ tipo: 'baixa' }), null);
+});

@@ -292,7 +292,8 @@ function editar(id) {
     </div>
     <div class="f3">
       <div><label>Início</label><input type="date" id="e-ini" value="${esc(p.iniciado_em)}"></div>
-      <div><label>Taxas (DARE etc.)</label><input id="e-tax" value="${p.taxas == null ? '' : String(p.taxas).replace('.', ',')}" placeholder="0,00"></div>
+      <div><label>Taxas (DARE etc.)</label><input id="e-tax" value="${p.taxas == null ? '' : String(p.taxas).replace('.', ',')}" placeholder="0,00">
+        ${(() => { const t = SO.taxaJucesp(p); return t ? `<div class="help">JUCESP 2026: <b>${brl(t.valor)}</b> (${esc(t.texto)}). <a href="#" onclick="$('e-tax').value='${String(t.valor).replace('.', ',')}';return false">Usar</a></div>` : '<div class="help">Valor da DARE que sai no sistema do ato.</div>'; })()}</div>
       <div><label>Honorário cobrado</label><input id="e-hon" value="${p.honorario == null ? '' : String(p.honorario).replace('.', ',')}" placeholder="0,00"></div>
     </div>
     <div><label>Observações</label><textarea id="e-obs">${esc(p.obs)}</textarea></div>`,
@@ -371,7 +372,7 @@ function abrir(id) {
           <span>Protocolo</span><div>${esc(p.protocolo || '—')}</div>
           <span>REDESIM</span><div>${esc(p.protocolo_redesim || '—')}</div>
           <span>Início</span><div>${dataBR(p.iniciado_em)}${p.concluido_em ? ' · concluído ' + dataBR(p.concluido_em) : ''}</div>
-          <span>Taxas</span><div>${brl(p.taxas)}</div>
+          <span>Taxas</span><div>${p.taxas != null ? brl(p.taxas) : (SO.taxaJucesp(p) ? `<span class="muted">prevista ${brl(SO.taxaJucesp(p).valor)} (${esc(SO.taxaJucesp(p).texto)})</span>` : brl(p.taxas))}</div>
           <span>Honorário</span><div>${brl(p.honorario)}</div>
         </div>${p.descricao ? `<p style="margin-top:8px;font-size:13px">${esc(p.descricao)}</p>` : ''}${p.obs ? `<p class="muted" style="margin-top:6px">${esc(p.obs)}</p>` : ''}</div>
         <div class="box"><h4>Exigência / vício</h4>

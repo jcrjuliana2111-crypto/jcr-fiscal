@@ -156,6 +156,22 @@
     t.etapas.splice(iDef + 1, 0, ['retirada', `Documentos retirados na JUCESP (até ${PRAZO_RETIRADA} dias)`, { entrada: 'papel' }]);
   });
 
+  // Taxa da JUCESP (DARE) de 2026 — Portaria JUCESP nº 146/2025, UFESP R$ 38,42. Só os atos com valor conferido.
+  const TAXAS_JUCESP = {
+    fonte: 'Tabela JUCESP 2026 (Portaria nº 146/2025)',
+    ltda: { normal: 273.55, me_epp: 218.99 },
+    ei: { normal: 120.25, me_epp: 94.90 },
+  };
+  function taxaJucesp(p) {
+    if (!p || !['abertura', 'transformacao'].includes(p.tipo)) return null;
+    const porte = ((p.dados && p.dados.empresa) || {}).enquadramento;
+    const me = /^(ME|EPP)$/i.test(porte || '');
+    const ei = p.tipo === 'abertura' && /^(EI|MEI)$/.test(p.natureza || '');
+    const t = ei ? TAXAS_JUCESP.ei : TAXAS_JUCESP.ltda;
+    const valor = me ? t.me_epp : t.normal;
+    return { valor, texto: `${ei ? 'Empresário individual' : 'Contrato social de LTDA'} ${me ? porte.toUpperCase() : 'porte normal'}`, fonte: TAXAS_JUCESP.fonte };
+  }
+
   function addDias(iso, n) {
     const d = new Date(iso + 'T12:00:00');
     d.setDate(d.getDate() + n);
@@ -241,7 +257,7 @@
   }
 
   const api = { TIPOS, STATUS, PRAZO_EXIGENCIA, DIAS_PARADO, addDias, diasEntre, etapasPadrao, progresso,
-    prazoExigencia, ultimoMovimento, situacao, marcarEtapa, textoDocumentos, ehHolding, procedimentoDe, ajustarEtapas, retiradaPendente, PRAZO_RETIRADA };
+    prazoExigencia, ultimoMovimento, situacao, marcarEtapa, textoDocumentos, ehHolding, procedimentoDe, ajustarEtapas, retiradaPendente, PRAZO_RETIRADA, TAXAS_JUCESP, taxaJucesp };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Societario = api;
 })(typeof window !== 'undefined' ? window : globalThis);

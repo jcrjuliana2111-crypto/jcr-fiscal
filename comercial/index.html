@@ -635,7 +635,8 @@ async function salvarConfig() {
   p.servicos = p.servicos.map((s, i) => ({ ...s, nome: v('s-nome-' + i) || s.nome, ...(s.cobranca === 'exito' ? { percentual: num(v('s-val-' + i)) } : { valor: num(v('s-val-' + i)) }) }));
   p.decimo_terceiro = v('c-13') === '1'; p.indice_reajuste = v('c-indice') || 'IPCA'; p.validade_dias = num(v('c-val')) || 15; p.desconto_maximo = num(v('c-desc'));
   p.multa_atraso = num(v('c-multa')); p.juros_mes = num(v('c-juros')); p.aviso_previo_dias = num(v('c-aviso')) || 30; p.dia_documentos = num(v('c-docs')) || 5;
-  const escritorio = { nome: v('e-nome'), cnpj: v('e-cnpj'), crc_empresa: v('e-crcemp'), responsavel: v('e-resp'), crc: v('e-crc'), endereco: v('e-end'), cidade: v('e-cid'), whatsapp: v('e-zap') };
+  // mantém o que outras telas guardam no escritório (ex.: layout da ficha do Societário)
+  const escritorio = { ...(S.cfg.escritorio || {}), nome: v('e-nome'), cnpj: v('e-cnpj'), crc_empresa: v('e-crcemp'), responsavel: v('e-resp'), crc: v('e-crc'), endereco: v('e-end'), cidade: v('e-cid'), whatsapp: v('e-zap') };
   const textos = { ...(S.cfg.textos || {}), apresentacao: v('t-apres'), boas_vindas: { assunto: v('t-bv-assunto'), corpo: $('t-bv-corpo').value } };
   const r = await sb.from('com_config').upsert({ escritorio, precos: p, textos, updated_at: new Date().toISOString() }, { onConflict: 'user_id' }).select().single();
   if (r.error) return toast('Não salvou: ' + r.error.message, true);

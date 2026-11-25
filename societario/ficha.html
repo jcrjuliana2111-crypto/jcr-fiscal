@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../assets/jcr-guard.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Ficha de preenchimento · Portal JCR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="../extensao/mapa.js"></script>
+<script src="modelos-core.js"></script>
+<script src="societario-core.js"></script>
+<style>
+/* A ficha é um papel: fundo branco na tela e na impressão; a barra de configuração só aparece na tela */
+:root{--cor:#1e3a8a;--txt:#111827;--txt2:#4b5563;--linha:#d1d5db;--falta:#b45309;--fundo-falta:#fef3c7}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e5e7eb;color:var(--txt);font:12.5px/1.45 'DM Sans',system-ui,sans-serif}
+.barra{background:#0d0f14;color:#e8eaf2;padding:12px 18px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:2}
+.barra a{color:#93c5fd}
+.barra label{font-size:12px;color:#9aa1b8;display:flex;gap:6px;align-items:center}
+.barra input[type=text]{background:#1a1e2a;border:1px solid #363d55;border-radius:8px;color:#e8eaf2;padding:6px 9px;font:inherit;min-width:260px}
+.barra button,.barra .bt{background:linear-gradient(135deg,#10b981,#4f8ef7);color:#fff;border:0;border-radius:9px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer;text-decoration:none}
+.barra .sec{background:#1a1e2a;border:1px solid #363d55}
+.barra .msg{font-size:12px;color:#34d399}
+.folha{background:#fff;width:210mm;min-height:297mm;margin:18px auto;padding:14mm 13mm;box-shadow:0 4px 24px rgba(0,0,0,.18)}
+.cab{display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:3px solid var(--cor);padding-bottom:10px;margin-bottom:12px}
+.cab img{max-height:56px;max-width:220px;object-fit:contain}
+.cab .esc{text-align:right;font-size:11px;color:var(--txt2)}
+.cab .esc b{display:block;font-size:13.5px;color:var(--cor)}
+.semlogo{font:800 20px Syne,sans-serif;color:var(--cor)}
+h1{font:800 17px Syne,sans-serif;color:var(--cor);margin-bottom:2px}
+.sub{color:var(--txt2);font-size:11.5px;margin-bottom:10px}
+h2{font:700 11.5px Syne,sans-serif;letter-spacing:.07em;text-transform:uppercase;color:#fff;background:var(--cor);padding:4px 8px;margin:12px 0 0;border-radius:4px 4px 0 0}
+table{width:100%;border-collapse:collapse;page-break-inside:auto}
+tr{page-break-inside:avoid}
+td{border:1px solid var(--linha);padding:4px 7px;vertical-align:top}
+td.r{width:34%;color:var(--txt2);font-size:11.5px;background:#f9fafb}
+td.ok{width:26px;text-align:center;color:var(--linha);font-size:14px}
+td.falta{background:var(--fundo-falta);color:var(--falta);font-weight:600}
+.pend{border:1px solid #f59e0b;background:#fffbeb;border-radius:6px;padding:7px 10px;margin:10px 0;font-size:11.5px}
+.pend b{color:var(--falta)}
+.pend ul{padding-left:18px}
+.rod{margin-top:16px;padding-top:7px;border-top:1px solid var(--linha);font-size:10.5px;color:var(--txt2);display:flex;justify-content:space-between;gap:10px}
+.legenda{font-size:10.5px;color:var(--txt2);margin-top:4px}
+.erro{max-width:600px;margin:60px auto;background:#fff;padding:20px;border-radius:10px}
+@page{size:A4;margin:10mm}
+@media print{
+  body{background:#fff}
+  .barra,body > :not(#view){display:none !important}
+  .folha{width:auto;min-height:0;margin:0;padding:0;box-shadow:none}
+  h2{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  td.r,td.falta,.pend{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  h2{page-break-after:avoid}
+}
+</style>
+</head>
+<body>
+<div class="barra" id="barra">
+  <a href="./">← Painel</a>
+  <button onclick="print()">🖨️ Imprimir / salvar PDF</button>
+  <label>Logo <input type="file" id="f-logo" accept="image/png,image/jpeg,image/svg+xml,image/webp"></label>
+  <label>Cor <input type="color" id="f-cor" value="#1e3a8a"></label>
+  <label>Rodapé <input type="text" id="f-rod" placeholder="Endereço · telefone · e-mail · site do escritório"></label>
+  <button class="sec" onclick="salvarLayout()">Salvar layout</button>
+  <span class="msg" id="msg"></span>
+</div>
+<div id="view"></div>
+<script>
+const SUPABASE_URL = 'https://onecnoicxqjhgolqncjj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_paOFHdYEcMr7MZdOFx16Lw_sXt0n0-9';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const M = window.JcrMapa, MC = window.ModelosSoc, SO = window.Societario;
+const $ = id => document.getElementById(id);
+const S = { sb: null, p: null, cliente: null, cfg: null, layout: { logo: '', cor: '#1e3a8a', rodape: '' } };
+
+const NATUREZA = { MEI: 'MEI', EI: 'Empresário individual', SLU: 'Sociedade Limitada Unipessoal', LTDA: 'Sociedade Limitada' };
+const ROT = c => (M.POR_CHAVE[c] || {}).rotulo || c;
+
+// Linhas de um bloco da ficha: rótulo | valor (ou "falta") | ☐ para marcar ao preencher no sistema
+function linhas(chaves, valores, obrigatorias = []) {
+  return chaves.map(c => {
+    const v = valores[c];
+    const falta = (v == null || v === '');
+    if (falta && !obrigatorias.includes(c)) return '';
+    return `<tr><td class="r">${esc(ROT(c))}</td><td class="${falta ? 'falta' : ''}">${falta ? '⚠ falta' : esc(v)}</td><td class="ok">☐</td></tr>`;
+  }).join('');
+}
+
+const EMPRESA = ['empresa.nome', 'empresa.nome_fantasia', 'empresa.cnpj', 'empresa.nire', 'empresa.enquadramento', 'empresa.inicio',
+  'empresa.cep', 'empresa.logradouro', 'empresa.numero', 'empresa.complemento', 'empresa.bairro', 'empresa.municipio', 'empresa.uf',
+  'empresa.iptu', 'empresa.area', 'empresa.email', 'empresa.telefone'];
+const CAPITAL = ['empresa.capital', 'empresa.total_quotas', 'empresa.valor_quota'];
+const ATIV = ['empresa.cnae_principal', 'empresa.cnaes_secundarios', 'empresa.objeto'];
+const SOCIO = ['socio.nome', 'socio.cpf', 'socio.rg', 'socio.rg_orgao', 'socio.rg_uf', 'socio.nascimento', 'socio.sexo', 'socio.nacionalidade',
+  'socio.naturalidade', 'socio.estado_civil', 'socio.regime_bens', 'socio.profissao', 'socio.cep', 'socio.logradouro', 'socio.numero',
+  'socio.complemento', 'socio.bairro', 'socio.municipio', 'socio.uf', 'socio.quotas', 'socio.valor_participacao', 'socio.administrador'];
+
+function render() {
+  const p = S.p, d = p.dados || {}, e = d.empresa || {};
+  const f = M.montarFicha(p, S.cliente);
+  const tipo = (SO.TIPOS[p.tipo] || {}).nome || p.tipo;
+  const L = S.layout, esc0 = S.cfg && S.cfg.escritorio || {};
+  document.documentElement.style.setProperty('--cor', L.cor || '#1e3a8a');
+
+  // Pendências: o que o gerador de documentos aponta (regime de bens, quotas x capital, sócios casados entre si…)
+  let pend = [];
+  try {
+    const tipoDoc = { abertura: 'constituicao', alteracao: 'alteracao', transformacao: 'transformacao', encerramento: 'extincao' }[p.tipo];
+    if (tipoDoc && MC) {
+      const dd = { ...d, tipo: d.tipo || tipoDoc };
+      pend = MC.validar(dd).map(x => (x.nivel === 'erro' ? '⛔ ' : '⚠ ') + x.msg);
+      const ja = pend.join(' ').toLowerCase();
+      MC.faltando(MC.gerar(dd)).filter(x => !/data por extenso/.test(x) && !ja.includes(x.toLowerCase())).forEach(x => pend.push('⚠ Falta no contrato: ' + x));
+    }
+  } catch (_) { /* sem pendências calculáveis */ }
+
+  const extraEmp = { 'empresa.enquadramento': e.enquadramento ? (e.enquadramento === 'ME' ? 'Microempresa (ME)' : e.enquadramento === 'EPP' ? 'Empresa de Pequeno Porte (EPP)' : e.enquadramento) : (p.tipo === 'baixa' ? '' : 'Normal ("Demais")') };
+  const emp = { ...f.empresa, ...extraEmp };
+  const obrig = p.tipo === 'baixa' ? ['empresa.nome', 'empresa.cnpj'] : ['empresa.nome', 'empresa.cep', 'empresa.logradouro', 'empresa.numero', 'empresa.bairro', 'empresa.municipio', 'empresa.uf', 'empresa.iptu'];
+  const temCapital = !['encerramento', 'baixa'].includes(p.tipo);
+
+  let ato = '';
+  if (p.tipo === 'transformacao' && f.empresarioIndividual) {
+    const ei = f.empresarioIndividual;
+    ato = `<h2>Empresário individual (cedente do acervo · doc. 3/3)</h2><table>
+      <tr><td class="r">Nome empresarial do empresário individual</td><td>${esc(ei['empresa.nome'])}</td><td class="ok">☐</td></tr>
+      <tr><td class="r">NIRE da cedente</td><td class="${ei['empresa.nire'] ? '' : 'falta'}">${esc(ei['empresa.nire'] || '⚠ falta')}</td><td class="ok">☐</td></tr>
+      <tr><td class="r">CNPJ (permanece o mesmo)</td><td>${esc(ei['empresa.cnpj'] || '')}</td><td class="ok">☐</td></tr>
+      <tr><td class="r">Porte atual do empresário individual</td><td class="falta">⚠ conferir no cadastro</td><td class="ok">☐</td></tr></table>`;
+  }
+  if (Object.keys(f.ato || {}).length) ato += `<h2>Dados do ato</h2><table>${linhas(Object.keys(f.ato), f.ato)}</table>`;
+
+  $('view').innerHTML = `<div class="folha">
+    <div class="cab">
+      ${L.logo ? `<img src="${L.logo}" alt="Logo">` : `<div class="semlogo">${esc(esc0.nome || 'JCR')}</div>`}
+      <div class="esc">${L.logo ? `<b>${esc(esc0.nome || '')}</b>` : ''}${esc0.cnpj ? 'CNPJ ' + esc(esc0.cnpj) : ''}</div>
+    </div>
+    <h1>Ficha de preenchimento — ${esc(tipo)}</h1>
+    <div class="sub">${esc(p.empresa)} · ${esc(NATUREZA[p.natureza] || p.natureza || '')}${p.fluxo ? ' · fluxo ' + esc(p.fluxo) : ''}${p.municipio ? ' · ' + esc(p.municipio) : ''} · gerada em ${new Date().toLocaleDateString('pt-BR')}${p.protocolo ? ' · protocolo ' + esc(p.protocolo) : ''}</div>
+    ${pend.length ? `<div class="pend"><b>Pendências antes de protocolar</b><ul>${pend.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+    <h2>Empresa</h2><table>${linhas(EMPRESA, emp, obrig)}</table>
+    ${temCapital ? `<h2>Capital</h2><table>${linhas(CAPITAL, emp, ['empresa.capital'])}</table>
+      <h2>Atividades</h2><table>${linhas(ATIV, emp, ['empresa.cnae_principal', 'empresa.objeto'])}</table>` : ''}
+    ${ato}
+    ${f.socios.map((s, i) => `<h2>${p.tipo === 'transformacao' ? 'Titular / sócio' : 'Sócio'} ${f.socios.length > 1 ? i + 1 : ''}${s['socio.nome'] ? ' — ' + esc(s['socio.nome']) : ''}</h2>
+      <table>${linhas(SOCIO, s, ['socio.nome', 'socio.cpf', 'socio.rg', 'socio.nascimento', 'socio.estado_civil', 'socio.profissao', 'socio.cep', 'socio.logradouro', 'socio.numero', 'socio.bairro', 'socio.municipio', 'socio.uf'].concat(/casad/i.test(s['socio.estado_civil'] || '') ? ['socio.regime_bens'] : []))}</table>`).join('')}
+    ${f.correcoes ? `<h2>Correções da exigência</h2><table>${f.correcoes.itens.map(c => `<tr><td class="r">${esc(c.rotulo)}</td><td><s>${esc(c.errado || '—')}</s> → <b>${esc(c.certo)}</b></td><td class="ok">☐</td></tr>`).join('')}</table>` : ''}
+    <div class="legenda">☐ marque ao digitar no sistema (Facilita SP / VRE / REDESIM). ⚠ falta = dado que não veio nos documentos: pedir ao cliente ou completar em "Dados e documentos".</div>
+    <div class="rod"><span>${esc(L.rodape || '')}</span><span>Portal JCR · Societário</span></div>
+  </div>`;
+}
+
+// Logo: reduzida no navegador (máx. 600 px) para guardar leve no cadastro do escritório
+function lerLogo(file) {
+  return new Promise((ok, falha) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      if (file.type === 'image/svg+xml') return ok(fr.result);
+      const img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, 600 / Math.max(img.width, img.height));
+        const cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        ok(cv.toDataURL('image/png'));
+      };
+      img.onerror = falha; img.src = fr.result;
+    };
+    fr.onerror = falha; fr.readAsDataURL(file);
+  });
+}
+
+async function salvarLayout() {
+  const escritorio = { ...((S.cfg && S.cfg.escritorio) || {}), ficha: S.layout };
+  const r = await S.sb.from('com_config').upsert({ escritorio, updated_at: new Date().toISOString() }, { onConflict: 'user_id' }).select().single();
+  if (r.error) { $('msg').textContent = 'Erro ao salvar: ' + r.error.message; $('msg').style.color = '#f87171'; return; }
+  S.cfg = r.data; $('msg').style.color = '#34d399'; $('msg').textContent = 'Layout salvo: vale para todas as fichas.';
+}
+
+(async () => {
+  const id = new URLSearchParams(location.search).get('processo');
+  if (!id) { $('view').innerHTML = '<div class="erro">Abra a ficha pelo processo no Painel Societário.</div>'; return; }
+  S.sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const [rp, rc] = await Promise.all([
+    S.sb.from('soc_processos').select('*').eq('id', id).single(),
+    S.sb.from('com_config').select('*').maybeSingle(),
+  ]);
+  if (rp.error || !rp.data) { $('view').innerHTML = '<div class="erro">Processo não encontrado.</div>'; return; }
+  S.p = rp.data; S.cfg = rc.data || null;
+  S.layout = { ...S.layout, ...(((S.cfg || {}).escritorio || {}).ficha || {}) };
+  if (S.p.cliente_id) {
+    const c = await S.sb.from('gclik_clientes').select('razao_social,nome_fantasia,cnpj,email,telefone').eq('id', S.p.cliente_id).maybeSingle();
+    S.cliente = c.data || null;
+  }
+  document.title = `Ficha — ${S.p.empresa} · Portal JCR`;
+  $('f-cor').value = S.layout.cor || '#1e3a8a';
+  $('f-rod').value = S.layout.rodape || '';
+  $('f-cor').oninput = ev => { S.layout.cor = ev.target.value; render(); };
+  $('f-rod').oninput = ev => { S.layout.rodape = ev.target.value; render(); };
+  $('f-logo').onchange = async ev => {
+    const file = ev.target.files[0]; if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { $('msg').textContent = 'Logo muito grande (máx. 3 MB).'; return; }
+    S.layout.logo = await lerLogo(file); render(); $('msg').textContent = 'Clique em "Salvar layout" para usar em todas as fichas.';
+  };
+  render();
+})();
+</script>
+</body>
+</html>

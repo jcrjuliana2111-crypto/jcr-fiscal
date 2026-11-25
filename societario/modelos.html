@@ -114,6 +114,7 @@ textarea{min-height:64px;resize:vertical}
     <div class="acts">
       <span class="salvo" id="salvo"></span>
       <a class="btn sec" href="conferidor.html">🔎 Conferir PDFs</a>
+      <a class="btn sec" id="b-ficha" hidden target="_blank">🖨️ Ficha para preencher</a>
       <button class="btn sec" id="b-salvar" onclick="salvar()" hidden>Salvar no processo</button>
       <button class="btn" onclick="baixar()">Baixar Word</button>
     </div>
@@ -419,6 +420,7 @@ async function carregarProcesso(id) {
   const r = await S.sb.from('soc_processos').select('*').eq('id', id).single();
   if (r.error || !r.data) { toast('Processo não encontrado.', true); return; }
   const p = S.processo = r.data;
+  if ($('b-ficha')) { $('b-ficha').href = 'ficha.html?processo=' + p.id; $('b-ficha').hidden = false; }
   const tipo = TIPO_DO_PROCESSO[p.tipo] || 'constituicao';
   const temDados = p.dados && Object.keys(p.dados).length;
   if (temDados) { const base = vazio(p.dados.tipo || tipo); S.d = { ...base, ...p.dados, empresa: { ...base.empresa, ...p.dados.empresa }, alteracao: { ...base.alteracao, ...p.dados.alteracao }, distrato: { ...base.distrato, ...p.dados.distrato } }; }

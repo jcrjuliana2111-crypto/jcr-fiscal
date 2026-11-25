@@ -60,7 +60,7 @@
     SETTER[el.tagName].call(el, valor);
     ['input', 'change', 'keyup', 'blur'].forEach(t => el.dispatchEvent(new Event(t, { bubbles: true })));
   }
-  function marcar(el, cor, titulo) { el.style.outline = `2px ${cor === 'ok' ? 'solid #34d399' : 'dashed #fbbf24'}`; el.style.outlineOffset = '1px'; el.title = titulo; }
+  function marcar(el, cor, titulo) { el.style.outline = `2px ${cor === 'ok' ? 'solid #34d399' : cor === 'corrigido' ? 'solid #3b82f6' : 'dashed #fbbf24'}`; el.style.outlineOffset = '1px'; el.title = titulo; }
 
   self.__jcrPreencher = function (ficha, op = {}) {
     const lista = titulos();
@@ -78,12 +78,17 @@
       const iSocio = op.socio != null ? +op.socio : ocorrencias[achado.chave] - 1;
       const valor = M.valorDe(ficha, achado.chave, iSocio);
       if (valor == null || valor === '') continue;
-      if (el.value && !op.substituir && d.tipo !== 'select') continue;
+      // Correção de exigência: troca o valor errado que já está no formulário
+      const corrigir = M.corrigida(ficha, achado.chave, iSocio);
+      if (op.somenteCorrigidos && !corrigir) continue;
+      if (el.value && !op.substituir && !corrigir && d.tipo !== 'select') continue;
+      const antes = el.value;
       const aj = M.ajustarValor(achado.chave, valor, d);
       if (!aj) { sem.push(`${d.rotulo || d.nome} (sem opção para "${valor}")`); marcar(el, 'sem', 'JCR: escolha manualmente'); continue; }
       escrever(el, aj.opcao != null ? aj.opcao : aj.valor);
-      marcar(el, 'ok', `JCR: ${M.POR_CHAVE[achado.chave] ? M.POR_CHAVE[achado.chave].rotulo : achado.chave}`);
-      feitos.push({ rotulo: d.rotulo || d.nome, chave: achado.chave, valor: aj.opcao != null ? valor : aj.valor });
+      const nomeCampo = M.POR_CHAVE[achado.chave] ? M.POR_CHAVE[achado.chave].rotulo : achado.chave;
+      marcar(el, corrigir ? 'corrigido' : 'ok', corrigir ? `JCR: corrigido pela exigência (${nomeCampo}${antes ? ', antes: ' + antes : ''})` : `JCR: ${nomeCampo}`);
+      feitos.push({ rotulo: d.rotulo || d.nome, chave: achado.chave, valor: aj.opcao != null ? valor : aj.valor, corrigido: corrigir, antes: corrigir ? antes : undefined });
     }
     return { pagina: location.href, preenchidos: feitos, sem };
   };

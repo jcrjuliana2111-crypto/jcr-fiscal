@@ -175,12 +175,43 @@
       };
     });
     const limpar = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v != null && String(v).trim() !== '').map(([k, v]) => [k, String(v)]));
-    return { titulo: `${limpa(e.nome || p.empresa || 'Processo')} — ${p.tipo || ''}`, empresa: limpar(empresa), ato: limpar(ato), socios: socios.map(limpar) };
+    // Correções de exigência (registradas no Conferidor): campos que devem ser trocados no formulário
+    const corr = (d.correcoes && d.correcoes.itens) || [];
+    const corrigidos = { empresa: [], socios: (d.socios || []).map(() => []) };
+    corr.forEach(c => { const r = chavesDoCaminho(c.caminho); if (r.socio == null) corrigidos.empresa.push(...r.chaves); else if (corrigidos.socios[r.socio]) corrigidos.socios[r.socio].push(...r.chaves); });
+    return { titulo: `${limpa(e.nome || p.empresa || 'Processo')} — ${p.tipo || ''}`, empresa: limpar(empresa), ato: limpar(ato), socios: socios.map(limpar),
+      correcoes: corr.length ? { exigencia: d.correcoes.exigencia || '', em: d.correcoes.em || '', itens: corr } : null, corrigidos };
   }
 
   const UF_NOME = { AC: 'acre', AL: 'alagoas', AP: 'amapa', AM: 'amazonas', BA: 'bahia', CE: 'ceara', DF: 'distrito federal', ES: 'espirito santo', GO: 'goias',
     MA: 'maranhao', MT: 'mato grosso', MS: 'mato grosso do sul', MG: 'minas gerais', PA: 'para', PB: 'paraiba', PR: 'parana', PE: 'pernambuco', PI: 'piaui',
     RJ: 'rio de janeiro', RN: 'rio grande do norte', RS: 'rio grande do sul', RO: 'rondonia', RR: 'roraima', SC: 'santa catarina', SP: 'sao paulo', SE: 'sergipe', TO: 'tocantins' };
+
+  // Caminho dos dados do processo (ex.: "socios.0.endereco") → chaves da ficha que ele preenche
+  function chavesDoCaminho(caminho) {
+    const p = String(caminho || '').split('.');
+    if (p[0] === 'socios') {
+      const c = p[2], s = +p[1];
+      const mapa = { endereco: ['cep', 'logradouro', 'numero', 'complemento', 'bairro', 'municipio', 'uf'], rg: ['rg', 'rg_orgao', 'rg_uf'], quotas: ['quotas', 'valor_participacao'] };
+      return { socio: s, chaves: (mapa[c] || [c]).map(k => 'socio.' + k) };
+    }
+    if (p[0] === 'alteracao' && p[1] === 'endereco_novo') return { socio: null, chaves: ['empresa.' + p[2]] };
+    if (p[0] === 'alteracao' && p[1] === 'nome_novo') return { socio: null, chaves: ['ato.nome_novo'] };
+    if (p[0] === 'distrato') return { socio: null, chaves: ['ato.' + p[1]] };
+    if (p[0] === 'empresa') {
+      const c = p[1];
+      if (c === 'nome_ei') return { socio: null, chaves: ['empresa.nome'] };
+      if (c === 'objeto') return { socio: null, chaves: ['empresa.objeto', 'empresa.cnae_principal', 'empresa.cnaes_secundarios'] };
+      if (c === 'valor_quota') return { socio: null, chaves: ['empresa.valor_quota'] };
+      return { socio: null, chaves: ['empresa.' + c] };
+    }
+    return { socio: null, chaves: [] };
+  }
+  // A chave foi corrigida (exigência) para este bloco?
+  function corrigida(ficha, chave, iSocio = 0) {
+    const c = (ficha && ficha.corrigidos) || {};
+    return chave.startsWith('socio.') ? ((c.socios || [])[iSocio] || []).includes(chave) : (c.empresa || []).includes(chave);
+  }
 
   // Valor no formato do campo. campo = { tipo, maxlength, opcoes: [{valor, texto}] }
   function ajustarValor(chave, valor, campo) {
@@ -223,7 +254,7 @@
   // Assinatura estável de um campo, para lembrar o que a pessoa ensinou
   const assinatura = (host, d) => `${host}|${d.id || d.nome || semAcento(limpa(d.rotulo)).slice(0, 60)}`;
 
-  const api = { CAMPOS, POR_CHAVE, semAcento, bloco, identificar, partirEndereco, partirRg, cnaes, montarFicha, ajustarValor, valorDe, assinatura };
+  const api = { CAMPOS, POR_CHAVE, semAcento, bloco, identificar, partirEndereco, partirRg, cnaes, montarFicha, ajustarValor, valorDe, assinatura, chavesDoCaminho, corrigida };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.JcrMapa = api;
 })(typeof self !== 'undefined' ? self : globalThis);

@@ -167,7 +167,7 @@
       'empresa.complemento': sede.complemento, 'empresa.bairro': sede.bairro, 'empresa.municipio': sede.municipio || p.municipio, 'empresa.uf': sede.uf || 'SP',
       'empresa.iptu': sede.iptu || e.iptu, 'empresa.area': sede.area || e.area, 'empresa.capital': moeda(capital), 'empresa.valor_quota': moeda(e.valor_quota),
       'empresa.total_quotas': totalQuotas || '', 'empresa.objeto': objeto.map(limpa).join('; '), 'empresa.cnae_principal': lista[0] || '',
-      'empresa.cnaes_secundarios': lista.slice(1).join(', '), 'empresa.email': cl.email, 'empresa.telefone': cl.telefone, 'empresa.inicio': e.inicio,
+      'empresa.cnaes_secundarios': lista.slice(1).join(', '), 'empresa.email': e.email || cl.email, 'empresa.telefone': e.telefone || cl.telefone, 'empresa.inicio': e.inicio,
       'empresa.enquadramento': e.enquadramento,
     };
     const ato = { 'ato.nome_novo': muda.nome ? alt.nome_novo : '', 'ato.data_encerramento': ds.data_encerramento, 'ato.livros_nome': ds.livros_nome, 'ato.livros_endereco': ds.livros_endereco };

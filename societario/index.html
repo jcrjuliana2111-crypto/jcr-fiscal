@@ -379,6 +379,7 @@ function abrir(id) {
           <button class="btn sec sm" style="margin-top:8px" onclick="copiarDocs('${p.id}')">Copiar lista</button>
           ${t ? `<a class="btn sec sm" style="margin-top:8px" href="../procedimento.html?dep=societario&proc=${SO.procedimentoDe(p)}" target="_blank">${SO.ehHolding(p) ? 'Ver procedimento de holding' : 'Ver procedimento'}</a>` : ''}
           ${p.tipo !== 'baixa' ? `<a class="btn sm" style="margin-top:8px" href="modelos.html?processo=${p.id}">${p.dados && Object.keys(p.dados).length ? 'Dados do contrato e Word' : 'Preencher dados e gerar documento'}</a>` : ''}
+          <a class="btn sec sm" style="margin-top:8px" href="ficha.html?processo=${p.id}" target="_blank">🖨️ Ficha para preencher</a>
           <a class="btn sec sm" style="margin-top:8px" href="conferidor.html">Conferir PDFs antes de assinar</a>
         </div>
       </div>

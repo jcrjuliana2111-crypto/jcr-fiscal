@@ -53,6 +53,7 @@ window.JCR_PROCEDIMENTOS = (function () {
     'Deferimento automático não é o fim: a JUCESP faz o exame posterior (análise de vício, até 2 dias úteis). Só conclua depois dele.',
     'Todos que assinam (sócios, contador, testemunhas) precisam de gov.br nível Ouro. Confira antes de começar.',
     'Correção de vício: na etapa "Gerenciamento de Impressão", escolha "Saneamento de Vício" para não pagar nova DARE.',
+    'Exigência: Painel Societário → processo → "🛠️ Corrigir exigência". O Conferidor compara os PDFs enviados com o "Dados e documentos", salva as correções no processo e o JCR Preenchedor troca só esses campos no formulário (contorno azul).',
   ];
 
   return {

@@ -73,3 +73,16 @@ test('ajusta o valor ao campo: listas, máscaras e datas', () => {
   assert.deepStrictEqual(M.ajustarValor('socio.nascimento', '01/02/1990', { tipo: 'date' }), { valor: '1990-02-01' });
   assert.strictEqual(M.ajustarValor('socio.estado_civil', 'viúvo', { tipo: 'select', opcoes: ec }), null);
 });
+
+test('correções de exigência viram chaves corrigidas na ficha', () => {
+  assert.deepStrictEqual(M.chavesDoCaminho('socios.1.endereco').chaves.slice(0, 2), ['socio.cep', 'socio.logradouro']);
+  assert.strictEqual(M.chavesDoCaminho('socios.1.endereco').socio, 1);
+  assert.deepStrictEqual(M.chavesDoCaminho('alteracao.endereco_novo.cep'), { socio: null, chaves: ['empresa.cep'] });
+  assert.deepStrictEqual(M.chavesDoCaminho('empresa.nome_ei').chaves, ['empresa.nome']);
+  const f = M.montarFicha({ empresa: 'X', tipo: 'abertura', dados: { empresa: { nome: 'X Ltda', logradouro: 'Avenida Brasil' }, socios: [{ nome: 'A', cpf: '111.444.777-35' }, { nome: 'B' }],
+    correcoes: { exigencia: 'corrigir', em: '2026-11-25', itens: [{ caminho: 'empresa.logradouro', rotulo: 'Sede — Logradouro', errado: 'Avenida Brazil', certo: 'Avenida Brasil' }, { caminho: 'socios.0.cpf', rotulo: 'CPF', errado: '1', certo: '111.444.777-35' }] } } });
+  assert.ok(M.corrigida(f, 'empresa.logradouro') && M.corrigida(f, 'socio.cpf', 0));
+  assert.ok(!M.corrigida(f, 'socio.cpf', 1) && !M.corrigida(f, 'empresa.cep'));
+  assert.strictEqual(f.correcoes.itens.length, 2);
+  assert.strictEqual(M.montarFicha({ dados: { empresa: {} } }).correcoes, null);
+});

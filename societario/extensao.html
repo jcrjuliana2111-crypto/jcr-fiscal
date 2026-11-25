@@ -50,9 +50,19 @@ a{color:var(--accent)}
       <li>No portal, abra o processo no Painel Societário e preencha <b>"Dados e documentos"</b> (ou envie RG, comprovante, IPTU e contrato anterior para leitura automática). É de lá que a extensão tira os dados.</li>
       <li>Entre no site do governo com o seu gov.br e abra a tela do formulário (endereço, integrantes, capital etc.).</li>
       <li>Clique no ícone da extensão, escolha o processo e clique em <b>Preencher esta página</b>.</li>
-      <li>Os campos preenchidos ficam com contorno <b style="color:var(--ok)">verde</b>. Os que ela não reconheceu ficam com contorno <b style="color:var(--warn)">amarelo</b>.</li>
+      <li>Os campos preenchidos ficam com contorno <b style="color:var(--ok)">verde</b>, os corrigidos por exigência com contorno <b style="color:#3b82f6">azul</b> e os que ela não reconheceu com contorno <b style="color:var(--warn)">amarelo</b>.</li>
       <li>Confira tudo e clique em "Avançar"/"Salvar" no site. A extensão <b>nunca envia</b> o formulário nem assina nada por você.</li>
       <li>Repita a cada tela do formulário. Com vários sócios na mesma tela, o 1º bloco recebe o sócio 1, o 2º o sócio 2, e assim por diante. Para preencher só um sócio, escolha "Sócio N" na lista.</li>
+    </ol>
+  </section>
+
+  <section><h2>Processo em exigência: corrigir só o que está errado</h2>
+    <ol>
+      <li>No Painel Societário, abra o processo em exigência e clique em <b>"🛠️ Corrigir exigência"</b> (abre o Conferidor já ligado ao processo).</li>
+      <li>Arraste os PDFs que foram enviados à JUCESP (ficha, quadro societário, requerimento, capas) e clique em <b>Conferir</b>.</li>
+      <li>O conferidor compara cada campo com o "Dados e documentos" do processo e mostra: o que está errado no formulário, o que faltava nos dados e o que você quiser corrigir à mão. Clique em <b>Salvar correções no processo</b>.</li>
+      <li>No Facilita SP, abra o processo em "Cumprir exigência" e clique na extensão: ela mostra as correções e já vem em <b>"Preencher só os campos corrigidos"</b>. Esses campos são trocados mesmo que já estejam preenchidos e ficam com contorno <b style="color:#3b82f6">azul</b>.</li>
+      <li>Gere os PDFs novos, confira de novo no Conferidor e reenvie. Depois, no Conferidor, "Marcar como reenviadas" limpa as correções.</li>
     </ol>
   </section>
 
@@ -75,7 +85,7 @@ a{color:var(--accent)}
   </section>
 
   <section><h2>Atualizar a extensão</h2>
-    <p>Quando o portal avisar de versão nova: baixe o pacote de novo, substitua os arquivos na mesma pasta e clique em <b>Recarregar</b> (↻) no cartão da extensão em <code>chrome://extensions</code>. Os campos ensinados continuam guardados.</p>
+    <p>Versão atual: <b>1.1.0</b> (correções de exigência). Quando o portal avisar de versão nova: baixe o pacote de novo, substitua os arquivos na mesma pasta e clique em <b>Recarregar</b> (↻) no cartão da extensão em <code>chrome://extensions</code>. Os campos ensinados continuam guardados.</p>
   </section>
 </main>
 </body>

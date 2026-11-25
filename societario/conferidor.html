@@ -9,7 +9,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script src="conferidor-core.js"></script>
+<script src="leitor-core.js"></script>
+<script src="exigencia-core.js"></script>
 <style>
 :root{
   --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e2a; --surface3:#222739;
@@ -44,7 +47,9 @@ main{max-width:1100px;margin:0 auto;padding:24px 24px 90px}
 details summary{cursor:pointer;color:var(--text2);font-size:13px;font-weight:600}
 .f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px}
 label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px}
-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:8px 11px;outline:none}
+input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:8px 11px;outline:none}
+.corr td{vertical-align:middle}.corr s{color:var(--danger)}.corr b{color:var(--ok)}
+.op{display:flex;gap:6px;align-items:center;margin:2px 0;font-size:12.5px;color:var(--text2)}.op input{width:auto}
 input:focus{border-color:var(--accent)}
 .help{font-size:11.5px;color:var(--text3);margin-top:6px;line-height:1.45}
 .veredito{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:14px;margin-bottom:12px;border:1px solid}
@@ -78,6 +83,14 @@ td{padding:7px 9px;border-bottom:1px solid var(--border);vertical-align:top}
     <div><h1>🔎 Conferidor de documentos</h1>
       <p>Para abertura, alteração, transformação, encerramento e enquadramento, de LTDA ou empresário individual. Arraste os PDFs gerados para a JUCESP (capas, fichas, requerimento, declarações e contrato, distrato ou alteração) <b>antes de assinar</b>. O conferidor identifica o tipo de processo, aplica as regras do DREI para aquele ato e compara os documentos entre si.</p></div>
     <div class="acts"><a class="btn sec" href="modelos.html" style="text-decoration:none">📄 Modelos</a></div>
+  </div>
+
+  <div class="card" id="proc-card">
+    <h2>Corrigir exigência de um processo (opcional)</h2>
+    <div class="f3" style="grid-template-columns:2fr 1fr"><div><label for="proc">Processo do Painel Societário</label><select id="proc" onchange="escolherProcesso(this.value)"><option value="">— sem processo (só conferir) —</option></select></div>
+      <div style="display:flex;align-items:flex-end"><a class="btn sec" id="proc-dados" style="text-decoration:none;display:none" target="_blank">📄 Dados e documentos</a></div></div>
+    <div id="proc-info"></div>
+    <p class="help">Com um processo escolhido, depois de conferir os PDFs que você enviou à JUCESP, o conferidor compara cada dado com o "Dados e documentos" do processo (que vem dos documentos dos sócios, do IPTU e da ficha) e monta as correções. Elas ficam salvas no processo e o JCR Preenchedor troca esses campos no formulário (contorno azul).</p>
   </div>
 
   <div class="card">
@@ -170,6 +183,13 @@ async function conferir() {
     const ref = { socio: $('r-socio').value.trim(), logradouro: $('r-logr').value.trim(), bairro: $('r-bairro').value.trim() };
     const r = C.analisar(paginas, ref);
     S.ultimo = { r, paginas: paginas.length, semTexto };
+    // Com processo: compara o que foi enviado com os dados certos do processo
+    S.difs = null;
+    if (S.processo && window.LeitorSoc && window.ExigenciaSoc) {
+      const extraido = LeitorSoc.lerFormulariosJucesp(paginas, C.campo);
+      S.difs = ExigenciaSoc.diferencas(S.processo.dados || {}, extraido);
+      S.lidoFormulario = !!extraido;
+    }
     render();
   } finally { b.disabled = !S.arquivos.length; b.textContent = 'Conferir'; }
 }
@@ -191,6 +211,7 @@ function render() {
         <div class="t">${esc(a.titulo)}</div>${a.detalhe ? `<div class="d">${esc(a.detalhe)}</div>` : ''}
         ${a.paginas.length ? `<div class="p">📍 ${esc(a.paginas.join(' · '))}</div>` : ''}</div>`).join('') || '<div class="empty">Nada para mostrar.</div>'}
     </div>
+    ${correcaoHtml()}
     ${r.capas.length ? `<div class="card"><h2>Atos do pacote</h2><div class="tbl"><table>
       <tr><th>Seq.</th><th>Ato</th><th>Nome empresarial</th><th>Porte</th><th>Data</th></tr>
       ${r.capas.map(c => `<tr><td>${esc(c.seq)}</td><td>${esc(c.ato)}</td><td>${esc(c.nome)}</td><td>${esc(c.porte)}</td><td>${c.data ? c.data.split('-').reverse().join('/') : '—'}</td></tr>`).join('')}
@@ -201,6 +222,90 @@ function render() {
     </table></div></div>`;
   $('resultado').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+// ═════════════ Corrigir exigência (processo do Painel Societário) ═════════════
+const sb = window.supabase ? supabase.createClient('https://onecnoicxqjhgolqncjj.supabase.co', 'sb_publishable_paOFHdYEcMr7MZdOFx16Lw_sXt0n0-9') : null;
+const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const dataBR = s => (s ? s.split('-').reverse().join('/') : '');
+S.processos = []; S.processo = null; S.difs = null; S.manuais = [];
+async function carregarProcessos() {
+  if (!sb) return;
+  const r = await sb.from('soc_processos').select('id,empresa,tipo,status,exigencia_motivo,exigencia_em,dados,obs').neq('status', 'cancelado').order('updated_at', { ascending: false }).limit(500);
+  if (r.error) return;
+  S.processos = r.data || [];
+  $('proc').innerHTML = '<option value="">— sem processo (só conferir) —</option>' + S.processos.map(p => `<option value="${p.id}">${p.status === 'exigencia' ? '⚠️ ' : ''}${esc(p.empresa)} · ${esc(p.tipo)}${p.status === 'exigencia' ? ' · em exigência' : ''}</option>`).join('');
+  const id = new URLSearchParams(location.search).get('processo');
+  if (id && S.processos.some(p => p.id === id)) { $('proc').value = id; escolherProcesso(id); }
+}
+function escolherProcesso(id) {
+  S.processo = S.processos.find(p => p.id === id) || null; S.difs = null; S.manuais = [];
+  const d = (S.processo && S.processo.dados) || {};
+  $('proc-dados').style.display = S.processo ? '' : 'none';
+  if (S.processo) $('proc-dados').href = 'modelos.html?processo=' + S.processo.id;
+  // referências do conferidor a partir dos dados certos do processo
+  const soc = (d.socios || [])[0] || {}, sede = (d.alteracao && d.alteracao.muda && d.alteracao.muda.endereco && d.alteracao.endereco_novo) || d.empresa || {};
+  if (S.processo) { $('r-socio').value = soc.nome || ''; $('r-logr').value = sede.logradouro || ''; $('r-bairro').value = sede.bairro || ''; }
+  const c = d.correcoes;
+  $('proc-info').innerHTML = !S.processo ? '' : `
+    <div style="margin-top:10px">${S.processo.status === 'exigencia' ? `<p><b>Exigência:</b> ${esc(S.processo.exigencia_motivo || 'sem texto registrado')} <span class="help">desde ${dataBR(S.processo.exigencia_em)}</span></p>` : ''}
+    ${!d.empresa ? '<p class="help" style="color:var(--warn)">Este processo ainda não tem "Dados e documentos" preenchido: preencha (ou envie os documentos para leitura) antes, para ter os dados certos para comparar.</p>' : ''}
+    ${c && c.itens && c.itens.length ? `<p class="help">🛠️ Já há ${c.itens.length} correção(ões) salvas em ${dataBR(c.em)}. <a href="#" onclick="limparCorrecoes();return false">Marcar como reenviadas (limpar)</a></p>` : ''}</div>`;
+  if (S.ultimo) render();
+}
+function correcaoHtml() {
+  if (!S.processo || !S.ultimo) return '';
+  const difs = S.difs || [];
+  const campos = ExigenciaSoc.camposManuais(S.processo.dados || {});
+  const linha = (x, i) => `<tr><td>${esc(x.rotulo)}</td>
+    <td>${x.tipo === 'divergente' ? `<s>${esc(fmt(x.noPdf))}</s>` : esc(fmt(x.noPdf))}</td><td>${x.certo == null ? '<span class="help">vazio</span>' : `<b>${esc(fmt(x.certo))}</b>`}</td>
+    <td>${x.tipo === 'divergente'
+      ? `<label class="op"><input type="radio" name="d${i}" ${x.escolha === 'documento' ? 'checked' : ''} onchange="S.difs[${i}].escolha='documento'">Corrigir o formulário (dado do processo)</label><label class="op"><input type="radio" name="d${i}" ${x.escolha === 'pdf' ? 'checked' : ''} onchange="S.difs[${i}].escolha='pdf'">O PDF está certo (atualizar o processo)</label>`
+      : `<label class="op"><input type="checkbox" ${x.escolha === 'pdf' ? 'checked' : ''} onchange="S.difs[${i}].escolha=this.checked?'pdf':'ignorar'">${x.tipo === 'socio_so_no_pdf' ? 'Incluir este sócio nos dados' : 'Trazer para os dados do processo'}</label>`}</td></tr>`;
+  return `<div class="card" style="border-color:#3b82f6"><h2>🛠️ Corrigir a exigência — ${esc(S.processo.empresa)}</h2>
+    ${!S.lidoFormulario ? '<p class="help" style="color:var(--warn)">Não encontrei ficha cadastral, quadro societário nem requerimento nos PDFs: inclua esses formulários para comparar campo a campo. Você ainda pode registrar correções à mão abaixo.</p>' : ''}
+    ${difs.length ? `<div class="tbl corr"><table><thead><tr><th>Campo</th><th>No PDF enviado</th><th>No processo (documentos)</th><th>O que fazer</th></tr></thead><tbody>${difs.map(linha).join('')}</tbody></table></div>`
+      : S.lidoFormulario ? '<p>✅ Os formulários enviados batem com os dados do processo. Se a exigência é sobre outro dado, registre abaixo.</p>' : ''}
+    <h2 style="margin-top:14px">Correção à mão (quando o documento também estava errado)</h2>
+    <div class="f3" style="grid-template-columns:2fr 2fr auto"><select id="m-campo">${campos.map(c => `<option value="${esc(c.caminho)}" data-r="${esc(c.rotulo)}">${esc(c.rotulo)}${c.atual ? ' — hoje: ' + esc(c.atual.slice(0, 40)) : ''}</option>`).join('')}</select>
+      <input id="m-valor" placeholder="Valor correto"><button class="btn sec" onclick="addManual()">+ Incluir</button></div>
+    ${S.manuais.length ? `<ul class="regras" style="margin-top:8px">${S.manuais.map((m, i) => `<li>${esc(m.rotulo)} → <b>${esc(m.valor)}</b> <a href="#" onclick="S.manuais.splice(${i},1);render();return false">remover</a></li>`).join('')}</ul>` : ''}
+    <label style="margin-top:12px">Texto da exigência</label><textarea id="m-exig" rows="2">${esc((S.processo.dados && S.processo.dados.correcoes && S.processo.dados.correcoes.exigencia) || S.processo.exigencia_motivo || '')}</textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap"><button class="btn" id="b-salvar-corr" onclick="salvarCorrecoes()">💾 Salvar correções no processo</button></div>
+    <div id="corr-ok"></div></div>`;
+}
+const fmt = v => (Array.isArray(v) ? v.join('; ') : v == null ? '' : String(v));
+function addManual() {
+  const sel = $('m-campo'), valor = $('m-valor').value.trim();
+  if (!valor) return toast('Digite o valor correto.', true);
+  S.manuais = S.manuais.filter(m => m.caminho !== sel.value).concat({ caminho: sel.value, rotulo: sel.selectedOptions[0].dataset.r, valor });
+  render();
+}
+async function salvarCorrecoes() {
+  const b = $('b-salvar-corr'); b.disabled = true;
+  try {
+    const exig = $('m-exig').value;
+    const { dados, correcoes } = ExigenciaSoc.registrar(S.processo.dados || {}, S.difs || [], S.manuais, exig, hojeISO(),
+      () => ({ nome: '', sexo: 'M', nacionalidade: 'brasileiro', estado_civil: 'solteiro', quotas: null, administrador: false, situacao: 'permanece' }));
+    const obs = [S.processo.obs, ExigenciaSoc.resumo(correcoes)].filter(Boolean).join('\n\n');
+    const r = await sb.from('soc_processos').update({ dados, obs, updated_at: new Date().toISOString(), ...(S.processo.status !== 'exigencia' && exig ? { status: 'exigencia', exigencia_em: hojeISO(), exigencia_motivo: exig } : {}) }).eq('id', S.processo.id);
+    if (r.error) throw new Error(r.error.message);
+    Object.assign(S.processo, { dados, obs });
+    $('corr-ok').innerHTML = `<div class="veredito v-ok" style="margin-top:12px"><div class="ic">✅</div><div><b>${correcoes.itens.length} correção(ões) salvas no processo</b>
+      <span>1) Se o contrato/alteração também mudou, gere o Word de novo em <a href="modelos.html?processo=${S.processo.id}" target="_blank">Dados e documentos</a>.
+      2) No Facilita SP, abra o processo em "Cumprir exigência" e clique no JCR Preenchedor: ele já vem em "só os campos corrigidos" e troca esses campos (contorno azul).
+      3) Gere os PDFs novos e passe aqui de novo antes de assinar.</span></div></div>`;
+    toast('Correções salvas.');
+  } catch (e) { toast('Não salvou: ' + e.message, true); }
+  b.disabled = false;
+}
+async function limparCorrecoes() {
+  if (!confirm('As correções já foram reenviadas à JUCESP? Elas saem do processo (o histórico fica nas observações).')) return;
+  const d = { ...(S.processo.dados || {}) }; delete d.correcoes;
+  const r = await sb.from('soc_processos').update({ dados: d, updated_at: new Date().toISOString() }).eq('id', S.processo.id);
+  if (r.error) return toast(r.error.message, true);
+  S.processo.dados = d; escolherProcesso(S.processo.id); toast('Correções marcadas como reenviadas.');
+}
+carregarProcessos();
 
 async function copiar() {
   const { r } = S.ultimo;

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JCR Preenchedor",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Preenche os formulários da Junta Comercial, REDESIM, VRE e prefeituras com os dados salvos no Portal JCR.",
   "permissions": [
     "storage",

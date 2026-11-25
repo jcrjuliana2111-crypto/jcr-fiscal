@@ -179,8 +179,24 @@
     const corr = (d.correcoes && d.correcoes.itens) || [];
     const corrigidos = { empresa: [], socios: (d.socios || []).map(() => []) };
     corr.forEach(c => { const r = chavesDoCaminho(c.caminho); if (r.socio == null) corrigidos.empresa.push(...r.chaves); else if (corrigidos.socios[r.socio]) corrigidos.socios[r.socio].push(...r.chaves); });
+    // Transformação: o doc. 3/3 do VRE (Requerimento de Empresário, cancelamento com transferência do acervo)
+    // leva os dados do empresário individual, não os da LTDA nova
+    let empresarioIndividual = null;
+    if (p.tipo === 'transformacao' && limpa(e.nome_ei)) {
+      const ei = { ...empresa, 'empresa.nome': limpa(e.nome_ei), 'empresa.enquadramento': e.porte_ei || '' };
+      ['empresa.nome_fantasia', 'empresa.capital', 'empresa.valor_quota', 'empresa.total_quotas', 'empresa.objeto', 'empresa.cnae_principal', 'empresa.cnaes_secundarios']
+        .forEach(k => delete ei[k]);
+      empresarioIndividual = limpar(ei);
+    }
     return { titulo: `${limpa(e.nome || p.empresa || 'Processo')} — ${p.tipo || ''}`, empresa: limpar(empresa), ato: limpar(ato), socios: socios.map(limpar),
-      correcoes: corr.length ? { exigencia: d.correcoes.exigencia || '', em: d.correcoes.em || '', itens: corr } : null, corrigidos };
+      correcoes: corr.length ? { exigencia: d.correcoes.exigencia || '', em: d.correcoes.em || '', itens: corr } : null, corrigidos, empresarioIndividual };
+  }
+
+  // Ficha para preencher o doc. 3/3 da transformação: mesma pessoa, mas a "empresa" é o empresário individual
+  function fichaDoEmpresario(ficha) {
+    if (!ficha || !ficha.empresarioIndividual) return null;
+    return { ...ficha, empresa: ficha.empresarioIndividual, ato: {}, socios: ficha.socios.slice(0, 1),
+      corrigidos: { empresa: [], socios: [[]] }, correcoes: null };
   }
 
   const UF_NOME = { AC: 'acre', AL: 'alagoas', AP: 'amapa', AM: 'amazonas', BA: 'bahia', CE: 'ceara', DF: 'distrito federal', ES: 'espirito santo', GO: 'goias',
@@ -254,7 +270,7 @@
   // Assinatura estável de um campo, para lembrar o que a pessoa ensinou
   const assinatura = (host, d) => `${host}|${d.id || d.nome || semAcento(limpa(d.rotulo)).slice(0, 60)}`;
 
-  const api = { CAMPOS, POR_CHAVE, semAcento, bloco, identificar, partirEndereco, partirRg, cnaes, montarFicha, ajustarValor, valorDe, assinatura, chavesDoCaminho, corrigida };
+  const api = { CAMPOS, POR_CHAVE, semAcento, bloco, identificar, partirEndereco, partirRg, cnaes, montarFicha, fichaDoEmpresario, ajustarValor, valorDe, assinatura, chavesDoCaminho, corrigida };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.JcrMapa = api;
 })(typeof self !== 'undefined' ? self : globalThis);

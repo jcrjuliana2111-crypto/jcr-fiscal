@@ -42,3 +42,16 @@ test('campos para correção manual incluem os sócios', () => {
   assert.ok(c.some(x => x.caminho === 'empresa.iptu'));
   assert.ok(c.some(x => x.caminho === 'socios.0.cpf' && x.atual === '529.982.247-25' && x.rotulo.startsWith('Fulano de Tal')));
 });
+
+test('escrita diferente do mesmo dado não vira correção; CNAE compara pelos códigos', () => {
+  assert.ok(E.mesmoConteudo('Sumaré', 'SUMARE/SP'));
+  assert.ok(E.mesmoConteudo('3588929391-0', '35889293910'));
+  assert.ok(E.mesmoConteudo('Rua Antonio Vianna de Oliveira, nº 180, Parque da Amizade (nova Veneza), Sumaré/SP, CEP 13177-360',
+    'RUA ANTONIO VIANNA DE OLIVEIRA, 180, PARQUE DA AMIZADE (NOVA VENEZA), SUMARÉ - SP, CEP 13177-360'));
+  assert.ok(!E.mesmoConteudo('Rua Antonio Viana de Oliveira, 180', 'Rua Antonio Vianna de Oliveira, 180'));
+  assert.ok(E.mesmoConteudo(['53.20-2-01 - Malote', '52.12-5-00 - Carga e descarga'], 'Carga e descarga (CNAE 5212-5/00); Malote (CNAE 5320-2/01)'));
+  assert.ok(!E.mesmoConteudo(['53.20-2-01 - Malote'], 'Malote (CNAE 5320-2/01); Software (CNAE 6201-5/01)'));
+  const d = dados(); d.empresa.nire = '35200000000';
+  const difs = E.diferencas(d, { ...doPdf, nire: '3520000000-0', municipio: 'SUMARE' });
+  assert.ok(!difs.some(x => x.caminho === 'empresa.nire' || x.caminho === 'empresa.municipio'));
+});

@@ -21,6 +21,8 @@
     if (!extraido) return [];
     return L.propostas('ficha', extraido, copia(dados))
       .filter(s => !IGNORAR.has(s.caminho))
+      // só formato diferente (maiúsculas, acento, "nº", "/SP", pontuação do NIRE/CNAE) não é erro
+      .filter(s => s.socio_novo || vazio(s.atual) || !mesmoConteudo(s.atual, s.novo))
       .map(s => {
         const faltaNosDados = vazio(s.atual) || (!s.conflito && s.marcar);
         return {
@@ -30,6 +32,18 @@
           sugestao: s,
         };
       });
+  }
+
+  const UFS = new Set('ac al ap am ba ce df es go ma mt ms mg pa pb pr pe pi rj rn rs ro rr sc sp se to'.split(' '));
+  const normal = v => texto(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/n[º°o]\.?\s/g, ' ').replace(/(\d)[.\-/](?=\d)/g, '$1').replace(/[^a-z0-9]+/g, ' ')
+    .split(' ').filter(t => t && t !== 'n' && !UFS.has(t)).join(' ');
+  const cnaes = v => (texto(v).match(/\d{2}\.?\d{2}-?\d[-/]?\d{2}/g) || []).map(c => c.replace(/\D/g, '')).sort().join(',');
+  // Mesmo conteúdo com escrita diferente? Listas de atividades comparam os códigos CNAE.
+  function mesmoConteudo(a, b) {
+    const ca = cnaes(a), cb = cnaes(b);
+    if (ca && cb) return ca === cb;
+    return normal(a) === normal(b);
   }
 
   // Campos que podem ser corrigidos à mão (quando o PDF e os dados estavam errados)
@@ -86,7 +100,7 @@
       ...c.itens.map(i => `• ${i.rotulo}: era "${i.errado || '—'}", correto "${i.certo}"`)].filter(Boolean).join('\n');
   }
 
-  const api = { diferencas, camposManuais, registrar, resumo };
+  const api = { diferencas, camposManuais, registrar, resumo, mesmoConteudo };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ExigenciaSoc = api;
 })(typeof window !== 'undefined' ? window : globalThis);

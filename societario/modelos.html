@@ -425,6 +425,8 @@ async function carregarProcesso(id) {
   if ($('b-ficha')) { $('b-ficha').href = 'ficha.html?processo=' + p.id; $('b-ficha').hidden = false; }
   const tipo = TIPO_DO_PROCESSO[p.tipo] || 'constituicao';
   const temDados = p.dados && Object.keys(p.dados).length;
+  // tipo do documento salvo inválido (ex.: "abertura" em vez de "constituicao") → usa o do processo
+  if (temDados && !M.MODELOS[p.dados.tipo]) p.dados.tipo = tipo;
   if (temDados) { const base = vazio(p.dados.tipo || tipo); S.d = { ...base, ...p.dados, empresa: { ...base.empresa, ...p.dados.empresa }, alteracao: { ...base.alteracao, ...p.dados.alteracao }, distrato: { ...base.distrato, ...p.dados.distrato } }; }
   else {
     S.d = vazio(tipo);

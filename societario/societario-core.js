@@ -195,8 +195,19 @@
       '\n\nPode enviar por aqui mesmo. Qualquer dúvida, estamos à disposição.';
   }
 
+  // Holding: abertura (ou alteração) de holding segue o procedimento próprio, não o da abertura comum
+  function ehHolding(p) {
+    const e = (p && p.dados && p.dados.empresa) || {};
+    const cnaes = [].concat(e.objeto || []).join(' ').replace(/\D+/g, ' ');
+    return /holding/i.test(`${p && p.empresa} ${e.nome || ''}`) || /\b(64620|64638)/.test(cnaes.replace(/ /g, ''));
+  }
+  function procedimentoDe(p) {
+    if (!p || !TIPOS[p.tipo]) return null;
+    return (p.tipo === 'abertura' || p.tipo === 'alteracao') && ehHolding(p) ? 'holding' : TIPOS[p.tipo].proc;
+  }
+
   const api = { TIPOS, STATUS, PRAZO_EXIGENCIA, DIAS_PARADO, addDias, diasEntre, etapasPadrao, progresso,
-    prazoExigencia, ultimoMovimento, situacao, marcarEtapa, textoDocumentos };
+    prazoExigencia, ultimoMovimento, situacao, marcarEtapa, textoDocumentos, ehHolding, procedimentoDe };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Societario = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -9,7 +9,7 @@
   const LINKS = {
     facilita: { nome: 'Facilita SP (abertura, alteração e baixa)', url: 'https://portalfacilitasp.sp.gov.br/facilitasp', modo: 'online' },
     facilita_assinaturas: { nome: 'Facilita SP — Minhas assinaturas (gov.br Ouro)', url: 'https://portalfacilitasp.sp.gov.br/facilitasp', modo: 'online' },
-    vre: { nome: 'Via Rápida Empresa (VRE/REDESIM SP) — viabilidade e licenciamento', url: 'https://www.vreredesim.sp.gov.br/', modo: 'online' },
+    vre: { nome: 'VRE — Via Rápida Empresa (cadastro do processo, documentos da JUCESP, exigências e licenciamento)', url: 'https://www.vreredesim.sp.gov.br/', modo: 'online' },
     redesim: { nome: 'REDESIM — Coletor Nacional (DBE)', url: 'https://www.gov.br/empresas-e-negocios/pt-br/redesim', modo: 'online' },
     jucesponline: { nome: 'JucespOnline — nome empresarial, ficha cadastral, certidões e andamento', url: 'https://www.jucesponline.sp.gov.br/', modo: 'online' },
     jucesp_precos: { nome: 'JUCESP — serviços e tabela de preços (a DARE sai pronta no sistema do ato)', url: 'https://www.institucional.jucesp.sp.gov.br/empresas.html', modo: 'info' },
@@ -21,6 +21,7 @@
     cadesp: { nome: 'SEFAZ-SP — CADESP (inscrição estadual)', url: 'https://www.cadesp.fazenda.sp.gov.br/', modo: 'online' },
     modelos: { nome: 'Portal — preencher dados e gerar o documento (Word)', url: 'societario/modelos.html', modo: 'online', interno: true },
     conferidor: { nome: 'Portal — conferir os PDFs antes de assinar', url: 'societario/conferidor.html', modo: 'online', interno: true },
+    preenchedor: { nome: 'JCR Preenchedor — preencher o VRE/Facilita SP com os dados do portal (ícone da extensão no Chrome)', url: 'societario/extensao.html', modo: 'online', interno: true },
   };
 
   const MUNICIPIOS = {
@@ -54,12 +55,13 @@
     govbr: ['govbr_niveis'],
     risco: ['facilita', 'vre'],
     viabilidade: ['viabilidade_municipal', 'viabilidade_servico', 'vre', 'facilita', 'jucesponline'],
-    dbe: ['redesim'],
-    contrato: ['modelos', 'conferidor'], minuta: ['modelos', 'conferidor'], ato: ['modelos', 'conferidor'], distrato: ['modelos', 'conferidor'],
-    assinaturas: ['facilita_assinaturas', 'conferidor'],
-    dare: ['jucesp_precos'],
-    deferimento: ['jucesponline', 'jucesp_agendamento_online'],
-    vicio: ['jucesponline', 'jucesp_agendamento_online', 'jucesp_agendamento'],
+    dbe: ['redesim', 'vre', 'preenchedor'],
+    contrato: ['modelos', 'vre', 'preenchedor', 'conferidor'], minuta: ['modelos', 'vre', 'preenchedor', 'conferidor'],
+    ato: ['modelos', 'vre', 'preenchedor', 'conferidor'], distrato: ['modelos', 'vre', 'preenchedor', 'conferidor'],
+    assinaturas: ['facilita_assinaturas', 'vre', 'conferidor'],
+    dare: ['vre', 'jucesp_precos'],
+    deferimento: ['vre', 'jucesponline', 'jucesp_agendamento_online'],
+    vicio: ['vre', 'jucesponline', 'jucesp_agendamento_online', 'jucesp_agendamento'],
     tributacao: ['simples', 'cartao_cnpj'], simei: ['simples'], cnpj: ['cartao_cnpj'],
     ie: ['cadesp'], ccm: ['inscricao_municipal', 'iss', 'situacao_mobiliaria', 'vre'], orgaos: ['cadesp', 'inscricao_municipal'],
     licencas: ['alvara', 'vre'],

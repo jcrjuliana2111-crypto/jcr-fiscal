@@ -330,7 +330,9 @@ async function excluir(id) {
 // Links oficiais da etapa (com os da prefeitura do processo); links internos do portal levam o processo
 function linksEtapa(p, idEtapa) {
   const mun = p.municipio || (p.dados && p.dados.empresa && p.dados.empresa.municipio);
-  return LinksSoc.daEtapa(idEtapa, mun).map(l => l.interno ? { ...l, url: l.url.replace('societario/', '') + (l.url.includes('modelos') ? '?processo=' + p.id : '') } : l);
+  // links internos: os do Painel ficam na mesma pasta; os do resto do portal ficam uma pasta acima
+  const interno = u => (u.startsWith('societario/') ? u.replace('societario/', '') : '../' + u);
+  return LinksSoc.daEtapa(idEtapa, mun).map(l => l.interno ? { ...l, url: interno(l.url) + (l.url.includes('modelos') ? '?processo=' + p.id : '') } : l);
 }
 
 function abrir(id) {

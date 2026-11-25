@@ -226,12 +226,14 @@ function alertasHtml(hoje) {
     .sort((a, b) => (a.prazo < b.prazo ? -1 : 1));
   const parados = S.processos.filter(p => SO.situacao(p, hoje) === 'parado').sort((a, b) => (SO.ultimoMovimento(a) < SO.ultimoMovimento(b) ? -1 : 1));
   const venc = S.vencimentos || [];
-  if (!exig.length && !parados.length && !venc.length) return '';
+  const retir = S.processos.map(p => ({ p, r: SO.retiradaPendente(p, hoje) })).filter(x => x.r).sort((a, b) => a.r.restam - b.r.restam);
+  if (!exig.length && !parados.length && !venc.length && !retir.length) return '';
   const item = (txt, onclick) => `<div style="padding:4px 0;border-bottom:1px dashed var(--border);${onclick ? 'cursor:pointer' : ''}" ${onclick ? `onclick="${onclick}"` : ''}>${txt}</div>`;
   const dias = d => d < 0 ? `<b style="color:var(--danger)">vencido há ${-d} dia(s)</b>` : d === 0 ? '<b style="color:var(--danger)">hoje</b>' : `em ${d} dia(s)`;
   return `<div class="box" style="margin-bottom:14px"><h4>⚠️ Atenção hoje</h4><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
     ${exig.length ? `<div><b>Exigências (prazo de 30 dias)</b>${exig.slice(0, 6).map(x => item(`${esc(x.p.empresa)} — ${dias(SO.diasEntre(hoje, x.prazo))}`, `abrir('${x.p.id}')`)).join('')}</div>` : ''}
     ${parados.length ? `<div><b>Parados há mais de ${SO.DIAS_PARADO} dias</b>${parados.slice(0, 6).map(p => item(`${esc(p.empresa)} — ${SO.diasEntre(SO.ultimoMovimento(p), hoje)} dias${SO.progresso(p).proxima ? ' · próxima: ' + esc(SO.progresso(p).proxima) : ''}`, `abrir('${p.id}')`)).join('')}${parados.length > 6 ? `<div class="muted">… e mais ${parados.length - 6}</div>` : ''}</div>` : ''}
+    ${retir.length ? `<div><b>Retirar na JUCESP (processo em papel)</b>${retir.slice(0, 6).map(x => item(`${esc(x.p.empresa)} — descarte ${dias(x.r.restam)}`, `abrir('${x.p.id}')`)).join('')}</div>` : ''}
     ${venc.length ? `<div><b>Certificados e alvarás</b>${venc.slice(0, 6).map(v => item(`${esc(v.empresa)} — ${esc(v.descricao || v.tipo)} ${dias(SO.diasEntre(hoje, v.vencimento))}`, `location.href='vencimentos.html'`)).join('')}</div>` : ''}
   </div></div>`;
 }
@@ -246,7 +248,7 @@ function renderTabela(lista) {
       const prazo = s === 'exigencia' || s === 'exigencia_vencida' ? `<div class="muted">prazo ${dataBR(SO.prazoExigencia(p))}</div>` : '';
       return `<tr onclick="abrir('${p.id}')">
         <td><b>${esc(p.empresa)}</b>${p.protocolo ? `<div class="muted">${esc(p.protocolo)}</div>` : ''}</td>
-        <td class="nowrap">${tipoNome(p.tipo)}${p.natureza ? `<div class="muted">${esc(p.natureza)}${p.fluxo ? ' · fluxo ' + esc(p.fluxo) : ''}</div>` : ''}</td>
+        <td class="nowrap">${tipoNome(p.tipo)}${p.natureza ? `<div class="muted">${esc(p.natureza)}${p.fluxo ? ' · fluxo ' + esc(p.fluxo) : ''}</div>` : ''}${p.entrada === 'papel' ? '<div class="muted">🏢 papel</div>' : ''}</td>
         <td>${badge(s)}${prazo}</td>
         <td><div class="bar"><i style="width:${g.pct}%"></i></div><div class="muted">${g.feitas}/${g.total}</div></td>
         <td>${esc(g.proxima || '—')}</td>
@@ -275,6 +277,10 @@ function editar(id) {
       <div><label>Natureza jurídica</label><select id="e-nat">${opts(NATUREZAS, p.natureza, '—')}</select></div>
       <div><label>Fluxo no Facilita SP</label><select id="e-fluxo" ${id ? 'disabled' : ''}>${opts([['rapido', 'Rápido (contrato padrão)'], ['tradicional', 'Tradicional']], p.fluxo, 'Não se aplica')}</select>
         <div class="help">Rápido: só EI/LTDA, sócios pessoas físicas maiores e residentes no Brasil, contrato padrão do DREI e sem procurador.</div></div>
+      <div><label>Entrada na Junta</label><select id="e-ent">${opts([['digital', '🌐 Digital (assinatura eletrônica)'], ['papel', '🏢 Papel (protocolo presencial)']], p.entrada || 'digital')}</select>
+        <div class="help">Papel: impressão e assinatura física, protocolo no balcão e retirada dos documentos em até 90 dias.</div></div>
+    </div>
+    <div class="f2">
       <div><label>Responsável</label><input id="e-resp" list="l-resp" value="${esc(p.responsavel)}" placeholder="Você, freelance…"><datalist id="l-resp">${resps.map(r => `<option value="${esc(r)}">`).join('')}</datalist></div>
     </div>
     <div><label>Município da sede</label><input id="e-mun" value="${esc(p.municipio)}" placeholder="Campinas">
@@ -302,17 +308,20 @@ async function salvar(id) {
     responsavel: $('e-resp').value.trim() || null, descricao: $('e-desc').value.trim() || null, municipio: $('e-mun').value.trim() || null,
     protocolo: $('e-prot').value.trim() || null, protocolo_redesim: $('e-red').value.trim() || null,
     iniciado_em: $('e-ini').value || hojeISO(), taxas: num($('e-tax').value), honorario: num($('e-hon').value),
-    obs: $('e-obs').value.trim() || null, updated_at: new Date().toISOString(),
+    obs: $('e-obs').value.trim() || null, entrada: $('e-ent').value || 'digital', updated_at: new Date().toISOString(),
   };
   $('b-salvar').disabled = true;
   try {
     if (id) {
+      const atual = S.processos.find(x => x.id === id);
+      // mudou de digital para papel (ou o contrário): ajusta as etapas sem perder as marcadas
+      if ((atual.entrada || 'digital') !== dados.entrada) dados.etapas = SO.ajustarEtapas({ ...atual, natureza: dados.natureza }, dados.entrada);
       const r = await sb.from('soc_processos').update(dados).eq('id', id).select().single(); chk(r.error);
       Object.assign(S.processos.find(x => x.id === id), r.data);
       abrir(id);
     } else {
       const tipo = $('e-tipo').value, fluxo = $('e-fluxo').value || null;
-      const r = await sb.from('soc_processos').insert({ ...dados, tipo, fluxo, etapas: SO.etapasPadrao(tipo, fluxo, dados.natureza) }).select().single(); chk(r.error);
+      const r = await sb.from('soc_processos').insert({ ...dados, tipo, fluxo, etapas: SO.etapasPadrao(tipo, fluxo, dados.natureza, dados.entrada) }).select().single(); chk(r.error);
       S.processos.unshift(r.data);
       abrir(r.data.id);
     }
@@ -356,6 +365,7 @@ function abrir(id) {
         <div class="box"><h4>Dados</h4><div class="kv">
           <span>Cliente</span><div>${cliente ? esc(cliente.razao_social) : '<i class="muted">não vinculado</i>'}</div>
           <span>Natureza</span><div>${esc(p.natureza || '—')}${p.fluxo ? ' · fluxo ' + esc(p.fluxo) : ''}</div>
+          <span>Entrada na Junta</span><div>${p.entrada === 'papel' ? '🏢 Papel (protocolo presencial)' : '🌐 Digital'}</div>
           <span>Responsável</span><div>${esc(p.responsavel || '—')}</div>
           <span>Município</span><div>${esc(p.municipio || (p.dados && p.dados.empresa && p.dados.empresa.municipio) || '—')}</div>
           <span>Protocolo</span><div>${esc(p.protocolo || '—')}</div>

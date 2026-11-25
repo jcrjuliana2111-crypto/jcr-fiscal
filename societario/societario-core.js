@@ -141,6 +141,21 @@
     cancelado: 'Cancelado',
   };
 
+  // Processo em papel (protocolo presencial na JUCESP): troca a assinatura gov.br por impressão/assinatura física
+  // e acrescenta protocolo no balcão e retirada dos documentos (descartados após 90 dias)
+  const PRAZO_RETIRADA = 90;
+  Object.values(TIPOS).forEach(t => {
+    const ids = t.etapas.map(e => e[0]);
+    if (!ids.includes('dare') || !ids.includes('deferimento')) return;
+    const ass = t.etapas.find(e => e[0] === 'assinaturas');
+    if (ass) ass[2] = { ...(ass[2] || {}), entrada: 'digital' };
+    t.etapas.splice(ids.indexOf('dare'), 0, ['impressao', 'Documentos impressos e assinados por todos (firma reconhecida, se exigida)', { entrada: 'papel' }]);
+    const iDare = t.etapas.findIndex(e => e[0] === 'dare');
+    t.etapas.splice(iDare + 1, 0, ['protocolo', 'Protocolado na JUCESP (balcão ou agendamento)', { entrada: 'papel' }]);
+    const iDef = t.etapas.findIndex(e => e[0] === 'deferimento');
+    t.etapas.splice(iDef + 1, 0, ['retirada', `Documentos retirados na JUCESP (até ${PRAZO_RETIRADA} dias)`, { entrada: 'papel' }]);
+  });
+
   function addDias(iso, n) {
     const d = new Date(iso + 'T12:00:00');
     d.setDate(d.getDate() + n);
@@ -149,12 +164,31 @@
   const diasEntre = (de, ate) => Math.round((new Date(ate + 'T12:00:00') - new Date(de + 'T12:00:00')) / 86400000);
 
   // Etapas iniciais de um processo novo, já filtradas pelo fluxo e pela natureza
-  function etapasPadrao(tipo, fluxo, natureza) {
+  function etapasPadrao(tipo, fluxo, natureza, entrada = 'digital') {
     const t = TIPOS[tipo];
     if (!t) return [];
     return t.etapas
-      .filter(([, , o = {}]) => (!o.fluxo || o.fluxo === fluxo) && (!o.naturezas || o.naturezas.includes(natureza)))
+      .filter(([, , o = {}]) => (!o.fluxo || o.fluxo === fluxo) && (!o.naturezas || o.naturezas.includes(natureza)) && (!o.entrada || o.entrada === (entrada || 'digital')))
       .map(([id, nome]) => ({ id, nome, feito: false, data: null }));
+  }
+
+  // Ao trocar a forma de entrada de um processo existente: entram as etapas que faltam (desmarcadas),
+  // saem só as que não valem mais e ainda não foram marcadas. Nada marcado é perdido.
+  function ajustarEtapas(p, entrada) {
+    const modelo = etapasPadrao(p.tipo, p.fluxo, p.natureza, entrada);
+    const atuais = p.etapas || [];
+    const porId = Object.fromEntries(atuais.map(e => [e.id, e]));
+    const noModelo = new Set(modelo.map(e => e.id));
+    return [...modelo.map(e => porId[e.id] || e), ...atuais.filter(e => !noModelo.has(e.id) && (e.feito || !TIPOS[p.tipo] || !TIPOS[p.tipo].etapas.some(x => x[0] === e.id)))];
+  }
+
+  // Processos em papel deferidos e ainda não retirados: dias que restam até o descarte
+  function retiradaPendente(p, hoje) {
+    if (p.entrada !== 'papel' || p.status === 'cancelado') return null;
+    const et = p.etapas || [], def = et.find(e => e.id === 'deferimento'), ret = et.find(e => e.id === 'retirada');
+    if (!def || !def.feito || !ret || ret.feito) return null;
+    const desde = def.data || hoje;
+    return { desde, restam: PRAZO_RETIRADA - diasEntre(desde, hoje) };
   }
 
   function progresso(p) {
@@ -207,7 +241,7 @@
   }
 
   const api = { TIPOS, STATUS, PRAZO_EXIGENCIA, DIAS_PARADO, addDias, diasEntre, etapasPadrao, progresso,
-    prazoExigencia, ultimoMovimento, situacao, marcarEtapa, textoDocumentos, ehHolding, procedimentoDe };
+    prazoExigencia, ultimoMovimento, situacao, marcarEtapa, textoDocumentos, ehHolding, procedimentoDe, ajustarEtapas, retiradaPendente, PRAZO_RETIRADA };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Societario = api;
 })(typeof window !== 'undefined' ? window : globalThis);

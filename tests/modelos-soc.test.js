@@ -137,3 +137,12 @@ test('cláusula adicional com colchetes pendentes é erro', () => {
   const v = M2.validar({ tipo: 'constituicao', empresa: {}, socios: [], clausulas_adicionais: [{ titulo: 'Da integralização', texto: 'O sócio [NOME] integraliza' }] });
   assert.ok(v.some(x => x.nivel === 'erro' && x.msg.includes('colchetes')));
 });
+
+test('sócios casados entre si: alerta do art. 977 do Código Civil', () => {
+  const end = 'Rua A, nº 1, Centro, Campinas/SP, CEP 13010-000';
+  const d = r => ({ ...base, tipo: 'constituicao', socios: [{ ...socioA, estado_civil: 'casado', regime_bens: r, endereco: end, quotas: 500 }, { ...socioB, regime_bens: r, endereco: end, quotas: 500 }] });
+  const msgs = r => M.validar(d(r)).map(x => x.nivel + ': ' + x.msg).join('\n');
+  assert.match(msgs('comunhão universal de bens'), /erro: .*art\. 977/);
+  assert.match(msgs(''), /atencao: .*art\. 977/);
+  assert.doesNotMatch(msgs('comunhão parcial de bens'), /977/);
+});

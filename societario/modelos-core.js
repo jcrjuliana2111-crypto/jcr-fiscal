@@ -414,6 +414,16 @@
       if (/casad/i.test(s.estado_civil || '') && !limpa(s.regime_bens)) add('erro', `Informe o regime de bens de ${quem} (${limpa(s.estado_civil)}).`);
       if (limpa(s.nome) && limpa(s.nome).split(' ').length < 2) add('atencao', `Nome incompleto: ${quem}. Use o nome civil completo.`);
     });
+    const semAcento = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    // Sócios casados entre si (mesmo endereço): proibido em comunhão universal ou separação obrigatória (CC art. 977)
+    const casados = socios.filter(s => /casad/i.test(s.estado_civil || ''));
+    for (let i = 0; i < casados.length; i++) for (let j = i + 1; j < casados.length; j++) {
+      const a = casados[i], b = casados[j];
+      if (!limpa(a.endereco) || semAcento(limpa(a.endereco)) !== semAcento(limpa(b.endereco))) continue;
+      const reg = `${a.regime_bens || ''} ${b.regime_bens || ''}`;
+      if (/universal|obrigat/i.test(semAcento(reg))) add('erro', `${limpa(a.nome)} e ${limpa(b.nome)} parecem casados entre si: em comunhão universal ou separação obrigatória de bens não podem ser sócios (Código Civil, art. 977).`);
+      else if (!limpa(a.regime_bens) || !limpa(b.regime_bens)) add('atencao', `${limpa(a.nome)} e ${limpa(b.nome)} moram no mesmo endereço e são casados: se forem casados entre si, confira o regime de bens na certidão (Código Civil, art. 977 proíbe comunhão universal e separação obrigatória).`);
+    }
     if (limpa(e.cep) && !/^\d{2}\.?\d{3}-?\d{3}$/.test(limpa(e.cep))) add('erro', `CEP da sede em formato errado: ${e.cep}.`);
     if (t !== 'extincao') {
       const { capital, vq } = capitalInfo(t === 'alteracao' && d.alteracao && d.alteracao.muda && d.alteracao.muda.capital ? { ...e, capital: d.alteracao.capital_novo } : e);

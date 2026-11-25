@@ -123,3 +123,10 @@ test('VRE: siglas com pontos (N.I.R.E. da Cedente, U.F.) são reconhecidas', () 
   assert.strictEqual(M.identificar({ rotulo: 'N.I.R.E. da Cedente :', contexto: 'Empresa Cedente do Acervo' }).chave, 'empresa.nire');
   assert.strictEqual(M.identificar({ rotulo: 'U.F.:', contexto: 'Endereço da Empresa' }).chave, 'empresa.uf');
 });
+
+test('VRE: telefone dividido em DDD e número', () => {
+  const M = require('../extensao/mapa.js');
+  assert.deepStrictEqual(M.ajustarValor('empresa.telefone', '(19) 99999-0000', { tipo: 'text', nome: 'uscEndereco$txtTelefoneDDD$txt' }), { valor: '19' });
+  assert.deepStrictEqual(M.ajustarValor('empresa.telefone', '(19) 99999-0000', { tipo: 'text', nome: 'uscEndereco$txtTelefone$txt', semDDD: true }), { valor: '999990000' });
+  assert.deepStrictEqual(M.ajustarValor('empresa.telefone', '(19) 99999-0000', { tipo: 'text', nome: 'telefone' }), { valor: '(19) 99999-0000' });
+});

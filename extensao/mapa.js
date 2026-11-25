@@ -18,7 +18,7 @@
     ['empresa.nome', 'Nome empresarial', 'empresa', [/nome empresarial/, /razao social/, /nome da (empresa|sociedade|pessoa juridica)/, /^empresa$/]],
     ['empresa.nome_fantasia', 'Nome fantasia', 'empresa', [/nome fantasia/, /titulo (do|de) estabelecimento/]],
     ['empresa.cnpj', 'CNPJ', 'empresa', [/\bcnpj\b/]],
-    ['empresa.nire', 'NIRE', 'empresa', [/\bnire\b/]],
+    ['empresa.nire', 'NIRE', 'empresa', [/^nire( da (cedente|sede|empresa))?$/, /\bnire\b/]],
     ['empresa.cep', 'CEP da sede', 'empresa', [/\bcep\b/]],
     ['empresa.logradouro', 'Logradouro da sede', 'empresa', [/logradouro/, /^endereco$/, /^rua$/, /nome do logradouro/]],
     ['empresa.numero', 'Número da sede', 'empresa', [/^numero$/, /^n[o°º]\.?$/, /numero do (imovel|logradouro|endereco)/]],
@@ -36,7 +36,7 @@
     ['empresa.cnaes_secundarios', 'CNAEs secundários', 'empresa', [/(cnaes?|atividades?) secundari/]],
     ['empresa.email', 'E-mail da empresa', 'empresa', [/e-?mail/, /correio eletronico/]],
     ['empresa.telefone', 'Telefone da empresa', 'empresa', [/telefone/, /celular/, /\bddd\b/, /fone/]],
-    ['empresa.inicio', 'Data de início das atividades', 'empresa', [/inicio (das )?atividades/, /data de inicio/]],
+    ['empresa.inicio', 'Data de início das atividades', 'empresa', [/inicio (da |das )?atividades?/, /data de inicio/]],
     ['empresa.enquadramento', 'Porte (ME/EPP)', 'empresa', [/enquadramento/, /^porte$/, /porte da empresa/]],
     ['ato.nome_novo', 'Novo nome empresarial', 'ato', [/novo nome/, /nome empresarial (novo|pretendido)/]],
     ['ato.data_encerramento', 'Data do encerramento', 'ato', [/data (do |de )?(encerramento|extincao|distrato)/]],
@@ -90,9 +90,13 @@
   function identificar(d, forcar) {
     const rot = semAcento(limpa(d.rotulo)).replace(/[*:]+$/g, '').replace(/\s*\(.*?\)\s*/g, ' ').trim();
     if (rot && NUNCA.some(r => r.test(rot))) return null;
+    // siglas com pontos: "N.I.R.E. da Cedente" → "nire da cedente", "U.F." → "uf"
+    if (/\b(\w\.){2,}/.test(rot)) return identificar({ ...d, rotulo: rot.replace(/\b(?:\w\.){2,}/g, m => m.replace(/\./g, '')) }, forcar);
     // nome técnico em palavras: "txtCpfSocio" e "cep_estabelecimento" → "txt cpf socio", "cep estabelecimento"
     const tec = semAcento([d.nome, d.id].filter(Boolean).join(' ').replace(/([a-z])([A-Z])/g, '$1 $2')).replace(/[^a-z0-9]+/g, ' ').trim();
-    const palavras = tec ? tec.split(' ') : [];
+    // palavras genéricas de bloco (ex.: "ucEndereco_txtTel") não identificam o campo sozinhas
+    const GENERICAS = new Set(['endereco', 'dados', 'empresa', 'socio', 'integrante', 'uc', 'txt', 'cph', 'ctl00']);
+    const palavras = tec ? tec.split(' ').filter(w => !GENERICAS.has(w)) : [];
     const dica = semAcento(limpa(d.dica));
     const blk = forcar || bloco(d.contexto || '') || bloco(tec);
     let melhor = null;

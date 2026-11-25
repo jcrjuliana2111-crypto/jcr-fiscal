@@ -93,6 +93,26 @@
     return { pagina: location.href, preenchidos: feitos, sem };
   };
 
+  // Diagnóstico: lista cada campo visível, como a extensão o reconhece e o que poria nele (para ajustar o mapa)
+  self.__jcrDiagnostico = function (ficha, op = {}) {
+    const lista = titulos();
+    const campos = [...document.querySelectorAll('input,select,textarea')].filter(el =>
+      !el.disabled && visivel(el) && !/^(hidden|submit|button|image|reset|file|password)$/i.test(el.type || ''));
+    const ocorr = {};
+    const corta = (v, n) => { const t = limpa(v); return t.length > n ? t.slice(0, n) + '…' : t; };
+    const linhas = campos.map((el, i) => {
+      const d = descritor(el, lista);
+      const aprendida = (op.aprendidos || {})[M.assinatura(location.host, d)];
+      const achado = aprendida ? { chave: aprendida } : M.identificar(d, op.bloco === 'empresa' || op.bloco === 'socio' ? op.bloco : null);
+      let poria = '';
+      if (achado) { ocorr[achado.chave] = (ocorr[achado.chave] || 0) + 1; poria = M.valorDe(ficha, achado.chave, op.socio != null ? +op.socio : ocorr[achado.chave] - 1) || ''; }
+      return [i + 1, `"${corta(d.rotulo, 50)}"`, `nome=${corta(d.nome || d.id, 50)}`, `tipo=${d.tipo}${el.readOnly ? ' (só leitura)' : ''}`,
+        `contexto=${corta(d.contexto, 60)}`, `→ ${achado ? achado.chave : 'NÃO RECONHECIDO'}`, poria ? `poria "${corta(poria, 40)}"` : '', `atual "${corta(d.tipo === 'select' && el.selectedOptions[0] ? el.selectedOptions[0].text : el.value, 40)}"`]
+        .filter(Boolean).join(' | ');
+    });
+    return linhas.length ? `PÁGINA ${location.host}${location.pathname}\n${linhas.join('\n')}` : '';
+  };
+
   // Para "ensinar" um campo com o botão direito: guarda o último campo clicado
   document.addEventListener('contextmenu', e => {
     const el = e.target && e.target.closest && e.target.closest('input,select,textarea');

@@ -47,3 +47,11 @@ test('texto de documentos para o cliente', () => {
   assert.ok(t.startsWith('Olá! Para darmos andamento à abertura de Padaria Boa LTDA'));
   assert.ok(t.includes('• IPTU (ou INCRA) do endereço da empresa'));
 });
+
+test('holding: abertura de holding aponta para o procedimento de holding', () => {
+  const S = require('../societario/societario-core.js');
+  assert.strictEqual(S.procedimentoDe({ tipo: 'abertura', empresa: 'ROCHA HOLDING PATRIMONIAL LTDA' }), 'holding');
+  assert.strictEqual(S.procedimentoDe({ tipo: 'abertura', empresa: 'Família Silva Participações', dados: { empresa: { objeto: ['64.62-0-00 - Holdings de instituições não-financeiras'] } } }), 'holding');
+  assert.strictEqual(S.procedimentoDe({ tipo: 'abertura', empresa: 'Padaria Pão Bom' }), S.TIPOS.abertura.proc);
+  assert.strictEqual(S.procedimentoDe({ tipo: 'encerramento', empresa: 'X HOLDING' }), S.TIPOS.encerramento.proc);
+});

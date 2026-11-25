@@ -191,7 +191,10 @@
 
     const integ = modo === 'constituicao' && e.integralizacao === 'prazo'
       ? ['totalmente subscrito e a ser integralizado pelos sócios, em moeda corrente do País, até ', v(e.integralizacao_prazo, 'data limite da integralização')]
-      : [modo === 'constituicao' ? 'totalmente subscrito e integralizado, neste ato, em moeda corrente do País' : 'totalmente subscrito e integralizado em moeda corrente do País'];
+      : [modo === 'constituicao' ? 'totalmente subscrito e integralizado, neste ato, em moeda corrente do País'
+        // na transformação o capital é o acervo do empresário individual (não dinheiro novo)
+        : modo === 'transformacao' ? 'totalmente subscrito e integralizado com o acervo do empresário individual transformado'
+          : 'totalmente subscrito e integralizado em moeda corrente do País'];
     b.push(S('DO CAPITAL SOCIAL'), P(c(), 'O capital social é de ', capital ? reais(capital) : { falta: 'capital social' }, ', dividido em ',
       quotas ? `${inteiro(quotas)} (${extenso(quotas, true)}) quotas` : { falta: 'número de quotas' }, ' de valor nominal de ', reais(vq), ' cada uma, ',
       ...integ, um ? ', pelo sócio único, assim distribuído:' : ', assim distribuído entre os sócios:'));

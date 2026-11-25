@@ -108,6 +108,9 @@ test('transformação: empresa individual no preâmbulo e contrato consolidado',
   assert.ok(t.includes('solteiro, empresário, nascido em'));
   assert.ok(t.includes('não responde subsidiariamente pelas obrigações sociais'));
   assert.ok(t.includes('CONTRATO SOCIAL POR TRANSFORMAÇÃO DE EMPRESÁRIO INDIVIDUAL EM SOCIEDADE LIMITADA'));
+  // capital vem do acervo (cláusula de transformação e contrato consolidado dizem o mesmo)
+  assert.ok(t.includes('integralizado com o acervo do empresário individual transformado'));
+  assert.ok(!t.includes('moeda corrente'));
 });
 
 test('distrato: elementos da exigência 26.1', () => {

@@ -102,3 +102,11 @@ test('transformação: doc. 3/3 usa os dados do empresário individual', () => {
   assert.strictEqual(ei.socios[0]['socio.nome'], 'FULANO DE TAL');
   assert.strictEqual(M.fichaDoEmpresario(M.montarFicha({ ...proc, tipo: 'abertura' })), null);
 });
+
+test('VRE: Ramal e Término de atividade não recebem dados, mesmo dentro do bloco de endereço', () => {
+  const M = require('../extensao/mapa.js');
+  assert.strictEqual(M.identificar({ rotulo: 'Ramal:', nome: 'ctl00$ucEndereco$txtRamal', id: 'ucEndereco_txtRamal', contexto: 'Endereço da Empresa' }), null);
+  assert.strictEqual(M.identificar({ rotulo: 'Término Atividade:', nome: 'txtDataTermino', contexto: 'Dados da Empresa' }), null);
+  assert.strictEqual(M.identificar({ rotulo: 'Título de Estabelecimento:', contexto: 'Dados da Empresa' }).chave, 'empresa.nome_fantasia');
+  assert.strictEqual(M.identificar({ rotulo: 'Logradouro:', contexto: 'Endereço da Empresa' }).chave, 'empresa.logradouro');
+});

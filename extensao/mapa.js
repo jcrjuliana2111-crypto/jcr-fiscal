@@ -16,7 +16,7 @@
   // escopo: 'empresa' (sede/estabelecimento), 'socio' (integrante, titular, administrador) ou 'ato'
   const CAMPOS = [
     ['empresa.nome', 'Nome empresarial', 'empresa', [/nome empresarial/, /razao social/, /nome da (empresa|sociedade|pessoa juridica)/, /^empresa$/]],
-    ['empresa.nome_fantasia', 'Nome fantasia', 'empresa', [/nome fantasia/, /titulo do estabelecimento/]],
+    ['empresa.nome_fantasia', 'Nome fantasia', 'empresa', [/nome fantasia/, /titulo (do|de) estabelecimento/]],
     ['empresa.cnpj', 'CNPJ', 'empresa', [/\bcnpj\b/]],
     ['empresa.nire', 'NIRE', 'empresa', [/\bnire\b/]],
     ['empresa.cep', 'CEP da sede', 'empresa', [/\bcep\b/]],
@@ -83,8 +83,13 @@
    * Devolve { chave, pontos } ou null. Rótulo vale mais que nome técnico.
    * forcar = 'empresa' | 'socio' para preencher só um bloco.
    */
+  // Rótulos que a extensão nunca preenche, mesmo que o nome técnico do campo lembre outro dado
+  // (no VRE o "Ramal" fica dentro do bloco de endereço e herdava o logradouro)
+  const NUNCA = [/^ramal$/, /^fax$/, /^termino/, /^data de termino/, /^data (de )?(baixa|extincao|cancelamento)$/];
+
   function identificar(d, forcar) {
     const rot = semAcento(limpa(d.rotulo)).replace(/[*:]+$/g, '').replace(/\s*\(.*?\)\s*/g, ' ').trim();
+    if (rot && NUNCA.some(r => r.test(rot))) return null;
     // nome técnico em palavras: "txtCpfSocio" e "cep_estabelecimento" → "txt cpf socio", "cep estabelecimento"
     const tec = semAcento([d.nome, d.id].filter(Boolean).join(' ').replace(/([a-z])([A-Z])/g, '$1 $2')).replace(/[^a-z0-9]+/g, ' ').trim();
     const palavras = tec ? tec.split(' ') : [];

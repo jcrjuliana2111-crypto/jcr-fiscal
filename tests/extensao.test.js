@@ -86,3 +86,19 @@ test('correções de exigência viram chaves corrigidas na ficha', () => {
   assert.strictEqual(f.correcoes.itens.length, 2);
   assert.strictEqual(M.montarFicha({ dados: { empresa: {} } }).correcoes, null);
 });
+
+test('transformação: doc. 3/3 usa os dados do empresário individual', () => {
+  const M = require('../extensao/mapa.js');
+  const proc = { tipo: 'transformacao', empresa: 'Exemplo Ltda', dados: { empresa: { nome: 'EXEMPLO TECNOLOGIA LTDA', nome_ei: '12.345.678 FULANO DE TAL',
+    cnpj: '12.345.678/0001-95', nire: '35100000000', logradouro: 'Rua A', numero: '1', bairro: 'Centro', municipio: 'Sumaré', cep: '13170-000', capital: 1000,
+    objeto: ['62.01-5-01 - Desenvolvimento de programas'], enquadramento: 'ME' },
+    socios: [{ nome: 'FULANO DE TAL', cpf: '529.982.247-25', endereco: 'Rua A, nº 1, Centro, Sumaré/SP, CEP 13170-000' }] } };
+  const f = M.montarFicha(proc);
+  assert.strictEqual(f.empresa['empresa.nome'], 'EXEMPLO TECNOLOGIA LTDA');
+  const ei = M.fichaDoEmpresario(f);
+  assert.strictEqual(ei.empresa['empresa.nome'], '12.345.678 FULANO DE TAL');
+  assert.strictEqual(ei.empresa['empresa.nire'], '35100000000');
+  assert.ok(!('empresa.capital' in ei.empresa) && !('empresa.enquadramento' in ei.empresa), 'capital e porte da LTDA não vão para o doc. 3/3');
+  assert.strictEqual(ei.socios[0]['socio.nome'], 'FULANO DE TAL');
+  assert.strictEqual(M.fichaDoEmpresario(M.montarFicha({ ...proc, tipo: 'abertura' })), null);
+});

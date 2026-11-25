@@ -61,7 +61,9 @@ function tela() {
         <div class="linha"><input type="checkbox" id="so-corr" ${E.somenteCorrigidos ? 'checked' : ''}><span>Preencher só os campos corrigidos (contorno azul)</span></div></div>` : ''}
       <label>O que preencher nesta página</label>
       <select id="bloco"><option value="auto">Automático (reconhece sede e sócios)</option><option value="empresa">Só dados da empresa (sede)</option>
-        ${f.socios.map((s, i) => `<option value="socio:${i}">Sócio ${i + 1}: ${esc(s['socio.nome'] || '')}</option>`).join('')}</select>
+        ${f.socios.map((s, i) => `<option value="socio:${i}">Sócio ${i + 1}: ${esc(s['socio.nome'] || '')}</option>`).join('')}
+        ${f.empresarioIndividual ? `<option value="ei">Doc. 3/3 – empresário individual (${esc(f.empresarioIndividual['empresa.nome'])})</option>` : ''}</select>
+      ${E.bloco === 'ei' ? '<div class="aviso">Requerimento de Empresário (cancelamento com transferência do acervo): preenche o nome e os dados do <b>empresário individual</b>, não os da LTDA. Escolha o porte atual dele à mão.</div>' : ''}
       <div class="linha"><input type="checkbox" id="subst" ${E.substituir ? 'checked' : ''}><span>Substituir o que já estiver preenchido</span></div>
       <button id="b-preencher">Preencher esta página</button>
       <div id="res">${resultadoHtml()}</div>
@@ -72,7 +74,7 @@ function tela() {
   document.querySelectorAll('.lista div[data-id]').forEach(d => d.onclick = () => escolher(d.dataset.id));
   if (!f) return;
   $('bloco').value = E.bloco;
-  $('bloco').onchange = e => { E.bloco = e.target.value; chrome.storage.local.set({ escolhido: { id: E.escolhido.id, bloco: E.bloco } }); };
+  $('bloco').onchange = e => { E.bloco = e.target.value; chrome.storage.local.set({ escolhido: { id: E.escolhido.id, bloco: E.bloco } }); tela(); };
   $('subst').onchange = e => { E.substituir = e.target.checked; };
   if ($('so-corr')) $('so-corr').onchange = e => { E.somenteCorrigidos = e.target.checked; };
   $('b-preencher').onclick = preencher;
@@ -100,12 +102,14 @@ async function preencher() {
   const [aba] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!aba || !/^https?:/.test(aba.url || '')) { E.resultado = { erro: 'Abra a página do formulário (Facilita SP, VRE, REDESIM, prefeitura) nesta janela e tente de novo.' }; return tela(); }
   const { aprendidos = {} } = await chrome.storage.local.get('aprendidos');
-  const [bloco, iSocio] = E.bloco.startsWith('socio:') ? ['socio', +E.bloco.split(':')[1]] : [E.bloco, null];
-  const op = { bloco, socio: iSocio, substituir: E.substituir, somenteCorrigidos: E.somenteCorrigidos && !!E.ficha.correcoes, aprendidos };
-  await chrome.storage.session.set({ ultima: { ficha: E.ficha, socio: iSocio } });
+  const ei = E.bloco === 'ei' && M.fichaDoEmpresario(E.ficha);
+  const [bloco, iSocio] = E.bloco.startsWith('socio:') ? ['socio', +E.bloco.split(':')[1]] : ei ? ['auto', null] : [E.bloco, null];
+  const ficha = ei || E.ficha;
+  const op = { bloco, socio: iSocio, substituir: E.substituir || !!ei, somenteCorrigidos: !ei && E.somenteCorrigidos && !!E.ficha.correcoes, aprendidos };
+  await chrome.storage.session.set({ ultima: { ficha, socio: iSocio } });
   try {
     await chrome.scripting.executeScript({ target: { tabId: aba.id, allFrames: true }, files: ['mapa.js', 'preencher.js'] });
-    const r = await chrome.scripting.executeScript({ target: { tabId: aba.id, allFrames: true }, func: (f, o) => self.__jcrPreencher(f, o), args: [E.ficha, op] });
+    const r = await chrome.scripting.executeScript({ target: { tabId: aba.id, allFrames: true }, func: (f, o) => self.__jcrPreencher(f, o), args: [ficha, op] });
     E.resultado = { quadros: r.map(x => x.result).filter(Boolean) };
   } catch (e) { E.resultado = { erro: 'Não foi possível acessar esta página: ' + e.message }; }
   tela();

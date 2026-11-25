@@ -267,6 +267,12 @@
     }
     if (/(capital|valor_quota|valor_participacao|area)$/.test(chave) && c.tipo === 'number') return { valor: String(+v.replace(/\./g, '').replace(',', '.') || '') };
     if (chave === 'empresa.cnae_principal' && max && max <= 7) return { valor: digitos(v).slice(0, max) };
+    // Telefone em dois campos (DDD + número), como no VRE: "(19) 99999-0000" → "19" e "999990000"
+    if (/telefone$/.test(chave)) {
+      const dg = digitos(v), comDDD = dg.length >= 10;
+      if (/ddd/i.test(`${c.nome || ''} ${c.id || ''} ${c.rotulo || ''}`) || (max && max <= 3)) return comDDD ? { valor: dg.slice(0, 2) } : null;
+      if (c.semDDD && comDDD) return { valor: dg.slice(2) };
+    }
     return { valor: max && v.length > max ? v.slice(0, max) : v };
   }
 

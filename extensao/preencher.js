@@ -66,7 +66,7 @@
     const lista = titulos();
     const campos = [...document.querySelectorAll('input,select,textarea')].filter(el =>
       !el.disabled && !el.readOnly && visivel(el) && !/^(hidden|submit|button|image|reset|file|password|checkbox|radio|search)$/i.test(el.type || ''));
-    const ocorrencias = {}; const feitos = []; const sem = [];
+    const ocorrencias = {}; const feitos = []; const sem = []; const ddd = {};
     const host = location.host;
     for (const el of campos) {
       const d = descritor(el, lista);
@@ -83,7 +83,9 @@
       if (op.somenteCorrigidos && !corrigir) continue;
       if (el.value && !op.substituir && !corrigir && d.tipo !== 'select') continue;
       const antes = el.value;
-      const aj = M.ajustarValor(achado.chave, valor, d);
+      // depois de um campo de DDD, o próximo campo de telefone recebe só o número
+      const aj = M.ajustarValor(achado.chave, valor, ddd[achado.chave] ? { ...d, semDDD: true } : d);
+      if (/telefone$/.test(achado.chave)) ddd[achado.chave] = /ddd/i.test(`${d.nome} ${d.id} ${d.rotulo}`) || (d.maxlength > 0 && d.maxlength <= 3);
       if (!aj) { sem.push(`${d.rotulo || d.nome} (sem opção para "${valor}")`); marcar(el, 'sem', 'JCR: escolha manualmente'); continue; }
       escrever(el, aj.opcao != null ? aj.opcao : aj.valor);
       const nomeCampo = M.POR_CHAVE[achado.chave] ? M.POR_CHAVE[achado.chave].rotulo : achado.chave;
